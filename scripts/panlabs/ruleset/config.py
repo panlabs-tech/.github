@@ -1,11 +1,11 @@
-"""A configuracao desejada: dado versionado, carregado de arquivo.
+"""A configuração desejada: dado versionado, carregado de arquivo.
 
-Os valores sao decididos pela spec de Org #2 e vivem em `config/ruleset.json`.
-Este modulo entrega o esqueleto do dado e a sua leitura -- nunca os valores.
+Os valores são decididos pela spec de Org #2 e vivem em `config/ruleset.json`.
+Este módulo entrega o esqueleto do dado e a sua leitura — nunca os valores.
 
-Uma chave ausente ou nula significa **ainda nao decidido**, e o planner nao
-planeja nada para a dimensao correspondente. Isso e diferente de "decidido como
-vazio": `retire_classic_protection: false` e uma decisao, `null` nao e.
+Uma chave ausente ou nula significa **ainda não decidido**, e o planner não
+planeja nada para a dimensão correspondente. Isso é diferente de "decidido como
+vazio": `retire_classic_protection: false` é uma decisão, `null` não é.
 """
 
 from __future__ import annotations
@@ -26,14 +26,14 @@ REQUIRED_RULESET_KEYS = ("name", "target", "enforcement", "bypass_actors", "cond
 
 @dataclass(frozen=True)
 class Desired:
-    """O estado desejado da protecao de branch, para todo repo da org."""
+    """O estado desejado da proteção de branch, para todo repo da org."""
 
     ruleset: Mapping[str, Any] | None = None
     retire_classic_protection: bool | None = None
 
     @property
     def undecided(self) -> tuple[str, ...]:
-        """As dimensoes que ainda esperam decisao da spec de Org #2."""
+        """As dimensões que ainda esperam decisão da spec de Org #2."""
         pending = [key for key in KNOWN_KEYS if getattr(self, key) is None]
         return tuple(sorted(pending))
 
@@ -46,8 +46,8 @@ class Desired:
         unknown = sorted(k for k in raw if not k.startswith("_") and k not in KNOWN_KEYS)
         if unknown:
             raise ValueError(
-                f"chave desconhecida na configuracao desejada: {', '.join(unknown)}; "
-                f"chaves validas: {', '.join(KNOWN_KEYS)}"
+                f"chave desconhecida na configuração desejada: {', '.join(unknown)}; "
+                f"chaves válidas: {', '.join(KNOWN_KEYS)}"
             )
 
         ruleset = raw.get("ruleset")

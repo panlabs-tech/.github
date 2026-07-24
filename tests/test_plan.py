@@ -13,7 +13,7 @@ def test_item_without_reason_is_rejected_because_plan_without_reason_is_not_revi
 
 
 def test_item_without_action_or_target_is_rejected():
-    with pytest.raises(ValueError, match="acao"):
+    with pytest.raises(ValueError, match="ação"):
         PlanItem(action="", target="org/repo", reason="divergiu")
 
     with pytest.raises(ValueError, match="alvo"):
@@ -30,7 +30,7 @@ def test_empty_plan_is_falsy_and_a_populated_one_is_truthy():
     assert len(populated) == 1
 
 
-def test_plan_round_trips_through_json_preserving_every_field():
+def test_serialized_plan_carries_action_target_reason_and_the_payload_to_send():
     plan = Plan(
         (
             PlanItem(
@@ -42,16 +42,31 @@ def test_plan_round_trips_through_json_preserving_every_field():
         )
     )
 
-    restored = Plan.from_dict(json.loads(plan.to_json()))
+    payload = json.loads(plan.to_json())
 
-    assert restored == plan
+    assert payload == {
+        "items": [
+            {
+                "action": "create-ruleset",
+                "target": "panlabs-tech/skills",
+                "reason": "nenhum ruleset governa a branch main",
+                "payload": {"name": "main", "rules": [{"type": "deletion"}]},
+            }
+        ]
+    }
+
+
+def test_serialized_plan_keeps_accents_readable_instead_of_escaping_them():
+    plan = Plan((PlanItem(action="a", target="b", reason="proteção clássica ativa"),))
+
+    assert "proteção clássica ativa" in plan.to_json()
 
 
 def test_rendered_plan_groups_items_by_target_and_names_action_and_reason():
     plan = Plan(
         (
             PlanItem(
-                action="update-ruleset", target="panlabs-tech/tfbox", reason="metodo de merge"
+                action="update-ruleset", target="panlabs-tech/tfbox", reason="método de merge"
             ),
             PlanItem(action="delete-classic", target="panlabs-tech/tfbox", reason="fonte dupla"),
             PlanItem(action="create-ruleset", target="panlabs-tech/skills", reason="sem ruleset"),
@@ -63,7 +78,7 @@ def test_rendered_plan_groups_items_by_target_and_names_action_and_reason():
     assert rendered.index("panlabs-tech/tfbox") < rendered.index("panlabs-tech/skills")
     assert rendered.count("panlabs-tech/tfbox") == 1
     assert "update-ruleset" in rendered
-    assert "metodo de merge" in rendered
+    assert "método de merge" in rendered
     assert "fonte dupla" in rendered
 
 

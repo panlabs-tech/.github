@@ -1,6 +1,6 @@
-"""O planner do ruleset: dado o estado observado, quais divergencias viram plano.
+"""O planner do ruleset: dado o estado observado, quais divergências viram plano.
 
-O planner e puro. Nada aqui toca rede, token ou disco alem das fixtures -- e e
+O planner é puro. Nada aqui toca rede, token ou disco além das fixtures — e é
 justamente isso que permite exercitar o caminho destrutivo sem destruir nada.
 """
 
@@ -42,10 +42,10 @@ def actions_for(plan: Plan, target: str) -> list[str]:
 def echo_ruleset(body: Mapping[str, Any], ruleset_id: int = 1) -> dict[str, Any]:
     """O ruleset como o GitHub o devolve depois de aplicado.
 
-    A API preenche defaults que nao foram enviados e anexa metadados proprios.
-    Um planner que nao tolerasse esse ruido acusaria divergencia a cada leitura,
-    e o script nunca convergiria -- por isso a idempotencia se testa contra o eco,
-    nao contra o corpo enviado.
+    A API preenche defaults que não foram enviados e anexa metadados próprios.
+    Um planner que não tolerasse esse ruído acusaria divergência a cada leitura,
+    e o script nunca convergiria — por isso a idempotência se testa contra o eco,
+    não contra o corpo enviado.
     """
     defaults: dict[str, dict[str, Any]] = {
         "pull_request": {
@@ -110,7 +110,7 @@ CLASSIC = {
 }
 
 
-# --- idempotencia -------------------------------------------------------------
+# --- idempotência -------------------------------------------------------------
 
 
 def test_repo_already_matching_the_desired_ruleset_yields_an_empty_plan():
@@ -137,7 +137,7 @@ def test_replanning_after_a_create_yields_nothing_because_the_ruleset_now_matche
     assert not planner.plan(after, want)
 
 
-# --- criacao e divergencia ----------------------------------------------------
+# --- criação e divergência ----------------------------------------------------
 
 
 def test_repo_without_any_ruleset_yields_a_create_carrying_the_body_to_send():
@@ -213,7 +213,7 @@ def test_a_tag_ruleset_is_ignored_because_it_does_not_govern_the_default_branch(
     assert actions_for(plan, "panlabs-tech/tags") == [planner.CREATE_RULESET]
 
 
-# --- protecao classica --------------------------------------------------------
+# --- proteção clássica --------------------------------------------------------
 
 
 def test_repo_with_classic_protection_yields_an_item_that_retires_it():
@@ -237,6 +237,21 @@ def test_repo_with_classic_protection_yields_an_item_that_retires_it():
     assert "administrador" in item.reason
 
 
+def test_a_strict_classic_protection_names_strictness_in_the_reason_that_retires_it():
+    """O motivo apaga uma garantia, então precisa nomear cada uma que existia."""
+    want = desired()
+    strict_classic = {
+        **CLASSIC,
+        "required_status_checks": {"strict": True, "contexts": ["web"]},
+    }
+    state = observed(repo("panlabs-tech/estrito", classic_protection=strict_classic))
+
+    plan = planner.plan(state, want)
+
+    reason = items_for(plan, "panlabs-tech/estrito")[-1].reason
+    assert "estrito" in reason
+
+
 def test_classic_protection_is_left_alone_when_the_desired_state_does_not_ask_to_retire_it():
     want = Desired(ruleset=None, retire_classic_protection=False)
     state = observed(repo("panlabs-tech/legado", classic_protection=CLASSIC))
@@ -244,11 +259,11 @@ def test_classic_protection_is_left_alone_when_the_desired_state_does_not_ask_to
     assert not planner.plan(state, want)
 
 
-# --- coerencia: um plano por branch, nao dois --------------------------------
+# --- coerência: um plano por branch, não dois --------------------------------
 
 
 def test_repo_with_ruleset_and_classic_protection_yields_one_action_per_source_not_two_rulesets():
-    """O caso real do tfbox: ruleset e protecao classica sobre a mesma branch."""
+    """O caso real do tfbox: ruleset e proteção clássica sobre a mesma branch."""
     want = desired()
     state = build_observed(
         {
@@ -317,7 +332,7 @@ def test_the_whole_live_fleet_snapshot_is_covered_by_the_plan():
 
 
 def test_the_plan_is_ordered_by_repo_name_whatever_order_the_org_listed_them_in():
-    """Plano instavel nao e comparavel nem revisavel: duas leituras teriam de bater."""
+    """Plano instável não é comparável nem revisável: duas leituras teriam de bater."""
     want = desired()
     scrambled = observed(
         repo("panlabs-tech/zulu"),
@@ -344,7 +359,7 @@ def test_the_live_fleet_snapshot_plans_exactly_what_the_observed_state_calls_for
     ]
 
 
-# --- configuracao ainda nao decidida -----------------------------------------
+# --- configuração ainda não decidida -----------------------------------------
 
 
 def test_an_undecided_desired_state_plans_nothing_at_all():

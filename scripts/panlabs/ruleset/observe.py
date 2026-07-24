@@ -1,13 +1,13 @@
-"""A observacao: le a org viva e a converte no estado que o planner recebe.
+"""A observação: lê a org viva e a converte no estado que o planner recebe.
 
 Duas metades deliberadamente separadas:
 
-- `fetch_raw` toca a rede e nao interpreta nada;
-- `build_observed` e pura e nao toca a rede.
+- `fetch_raw` toca a rede e não interpreta nada;
+- `build_observed` é pura e não toca a rede.
 
-E a segunda que as fixtures alimentam. Assim a fixture e um retrato fiel do que
-a API devolve, e nao uma invencao paralela que pode divergir da plataforma sem
-que ninguem note.
+É a segunda que as fixtures alimentam. Assim a fixture é um retrato fiel do que
+a API devolve, e não uma invenção paralela que pode divergir da plataforma sem
+que ninguém note.
 """
 
 from __future__ import annotations
@@ -72,9 +72,9 @@ def _build_classic(raw: Mapping[str, Any] | None) -> ClassicProtection | None:
 def fetch_raw(org: str) -> dict[str, Any]:
     """O retrato cru da org viva, no formato que `build_observed` consome.
 
-    Somente leitura, pelo `gh` ja autenticado da maquina. Devolve o retrato cru em
-    vez do estado ja construido para que ele possa ser gravado como fixture --
-    a fixture precisa ser o que a API disse, nao o que nos entendemos dela.
+    Somente leitura, pelo `gh` já autenticado da máquina. Devolve o retrato cru em
+    vez do estado já construído para que ele possa ser gravado como fixture — a
+    fixture precisa ser o que a API disse, não o que nós entendemos dela.
     """
     repos: list[dict[str, Any]] = []
     for name in gh.repo_names(org):
@@ -100,7 +100,7 @@ def _fetch_classic(full_name: str, branch: str) -> dict[str, Any] | None:
 
 
 def observed_to_dict(observed: Observed) -> dict[str, Any]:
-    """Serializa o observado ja normalizado, para inspecao rapida."""
+    """Serializa o observado já normalizado, para inspeção rápida."""
     return {
         "org": observed.org,
         "repos": [

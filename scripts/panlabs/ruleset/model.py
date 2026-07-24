@@ -1,11 +1,11 @@
 """O estado observado da frota, no recorte que o ruleset enxerga.
 
-O seam declara `observed = { repos[], gh_state, dirs[], disk }` como a uniao de
+O seam declara `observed = { repos[], gh_state, dirs[], disk }` como a união de
 tudo que os scripts deste repo observam. O ruleset usa a fatia `repos` com o
-estado de configuracao do GitHub dobrado dentro dela; o checker de conformidade
-usara `dirs`/`disk` da mesma forma, sem que nenhum dos dois precise do outro.
+estado de configuração do GitHub dobrado dentro dela; o checker de conformidade
+usará `dirs`/`disk` da mesma forma, sem que nenhum dos dois precise do outro.
 
-Nada aqui decide: sao fatos lidos da plataforma, mais os predicados minimos que
+Nada aqui decide: são fatos lidos da plataforma, mais os predicados mínimos que
 o planner precisa para conversar sobre eles.
 """
 
@@ -23,7 +23,7 @@ ALL_REFS = "~ALL"
 
 @dataclass(frozen=True)
 class RulesetState:
-    """Um ruleset de repositorio, como a API o devolve."""
+    """Um ruleset de repositório, como a API o devolve."""
 
     id: int
     name: str
@@ -39,7 +39,7 @@ class RulesetState:
         return tuple(ref_name.get("include") or ())
 
     def governs(self, default_branch: str) -> bool:
-        """Diz se este ruleset alcanca a branch default do repo."""
+        """Diz se este ruleset alcança a branch default do repo."""
         if self.target != "branch":
             return False
         refs = self.included_refs
@@ -50,8 +50,8 @@ class RulesetState:
     def comparable(self) -> Mapping[str, Any]:
         """A parte do ruleset que se compara campo a campo com o desejado.
 
-        As regras ficam de fora porque sao uma lista com chave propria (`type`)
-        e exigem comparacao por conjunto, nao por posicao.
+        As regras ficam de fora porque são uma lista com chave própria (`type`)
+        e exigem comparação por conjunto, não por posição.
         """
         return {
             "name": self.name,
@@ -64,7 +64,7 @@ class RulesetState:
 
 @dataclass(frozen=True)
 class ClassicProtection:
-    """A protecao de branch classica, que o ruleset veio substituir."""
+    """A proteção de branch clássica, que o ruleset veio substituir."""
 
     required_status_checks: tuple[str, ...]
     strict: bool
@@ -74,26 +74,32 @@ class ClassicProtection:
     requires_pull_request: bool
 
     def describe(self) -> str:
-        """Descreve, em uma frase, o que esta protecao segura hoje."""
+        """Descreve, em uma frase, tudo que esta proteção segura hoje.
+
+        A descrição inteira vira o motivo do item que a aposenta, então ela não
+        pode omitir nada: um plano que apaga uma garantia sem nomeá-la não é
+        revisável.
+        """
         parts: list[str] = []
         if self.required_status_checks:
-            parts.append(f"checks {', '.join(self.required_status_checks)}")
+            checks = ", ".join(self.required_status_checks)
+            parts.append(f"checks {checks}{' (estrito)' if self.strict else ''}")
         else:
             parts.append("nenhum check exigido")
         if self.requires_pull_request:
             parts.append("PR exigido")
         if self.required_linear_history:
-            parts.append("historico linear")
+            parts.append("histórico linear")
         if self.required_signatures:
             parts.append("commits assinados")
         if not self.enforce_admins:
-            parts.append("nao se aplica a administradores")
+            parts.append("não se aplica a administradores")
         return "; ".join(parts)
 
 
 @dataclass(frozen=True)
 class RepoState:
-    """Um repositorio da org viva e o estado de protecao da sua branch default."""
+    """Um repositório da org viva e o estado de proteção da sua branch default."""
 
     name: str
     default_branch: str
@@ -107,7 +113,7 @@ class RepoState:
 
 @dataclass(frozen=True)
 class Observed:
-    """A frota como ela esta agora. A lista vem da org viva, nunca de constante."""
+    """A frota como ela está agora. A lista vem da org viva, nunca de constante."""
 
     org: str
     repos: tuple[RepoState, ...] = ()

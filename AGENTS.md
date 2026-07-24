@@ -23,7 +23,7 @@ Este repo é resultado do mapa de wayfinding [O padrão panlabs — org, máquin
 - **Idioma:** pt-BR em prosa, comentários e commits. Identificador de código em inglês.
 - **Markdown sem hard-wrap:** uma linha por parágrafo. Quebra só entre parágrafos, ou onde tem semântica (item de lista, linha de tabela, bloco de código).
 - **Conventional Commits**, subject minúsculo.
-- **Toda decisão vive num planner puro; o applier não decide nada.** Todo script deste repo separa `plan(observed) → Plan` de `apply(Plan)`, com **plano como default** e aplicação sob flag explícita. Cada item de plano carrega ação, alvo e **motivo**.
+- **Toda decisão vive num planner puro; o applier não decide nada.** Todo script deste repo separa `plan(observed, desired) → Plan` de `apply(Plan)`, com **plano como default** e aplicação sob flag explícita. Cada item de plano carrega ação, alvo e **motivo**. O `desired` entra como segundo argumento porque é dado versionado, não observação — ver [`docs/agents/workflow.md`](docs/agents/workflow.md).
 - **Nenhum script carrega contagem ou lista de repos.** O alvo é sempre derivado da org viva (`gh repo list panlabs-tech`).
 - **A configuração desejada é dado, não código.** Ela mora em `config/`, e um valor ainda não decidido é `null` — o que é diferente de decidido-como-vazio. O planner não planeja nada para uma dimensão não decidida.
 

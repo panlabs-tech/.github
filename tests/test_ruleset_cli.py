@@ -1,8 +1,8 @@
 """A interface: o contrato de que rodar sem argumento nunca muda nada.
 
-O applier em si nao e testado -- ele e fino por construcao. O que se testa aqui e
-a fronteira: que o caminho de plano nao chega nele, e que a tabela de efeitos
-cobre exatamente o vocabulario de acoes que o planner sabe emitir.
+O applier em si não é testado — ele é fino por construção. O que se testa aqui é
+a fronteira: que o caminho de plano não chega nele, e que a tabela de efeitos
+cobre exatamente o vocabulário de ações que o planner sabe emitir.
 """
 
 import json
@@ -23,7 +23,7 @@ SKELETON = Path(__file__).resolve().parents[1] / "config" / "ruleset.json"
 
 @pytest.fixture
 def forbid_api(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Qualquer toque na API durante um plano e falha de teste, nao detalhe."""
+    """Qualquer toque na API durante um plano é falha de teste, não detalhe."""
 
     def explode(*_args: object, **_kwargs: object) -> object:
         raise AssertionError("o caminho de plano chamou a API")
@@ -49,7 +49,7 @@ def test_the_plan_the_operator_reads_names_action_target_and_reason(
 
     assert "panlabs-tech/tfbox" in out
     assert "delete-classic-protection" in out
-    assert "protecao classica ativa em main" in out
+    assert "proteção clássica ativa em main" in out
 
 
 def test_apply_refuses_a_saved_snapshot_because_the_org_may_have_moved(
@@ -58,7 +58,7 @@ def test_apply_refuses_a_saved_snapshot_because_the_org_may_have_moved(
     code = main(["--apply", "--observed", str(FLEET), "--config", str(DESIRED)])
 
     assert code == 2
-    assert "--apply nao aceita --observed" in capsys.readouterr().err
+    assert "--apply não aceita --observed" in capsys.readouterr().err
 
 
 def test_an_empty_plan_from_the_undecided_skeleton_does_not_claim_conformance(
@@ -70,8 +70,8 @@ def test_an_empty_plan_from_the_undecided_skeleton_does_not_claim_conformance(
 
     assert code == 0
     assert "Nada a fazer" in captured.out
-    assert "NAO quer dizer que a frota esta conforme" in captured.out
-    assert "ainda sem decisao" in captured.err
+    assert "NÃO quer dizer que a frota está conforme" in captured.out
+    assert "ainda sem decisão" in captured.err
 
 
 def test_a_decided_config_with_nothing_to_do_does_say_the_fleet_converges(
@@ -82,7 +82,7 @@ def test_a_decided_config_with_nothing_to_do_does_say_the_fleet_converges(
 
     main(["--observed", str(empty_org), "--config", str(DESIRED)])
 
-    assert "ja converge com o desejado" in capsys.readouterr().out
+    assert "já converge com o desejado" in capsys.readouterr().out
 
 
 def test_json_output_is_the_serialized_plan_and_nothing_else(
@@ -97,7 +97,7 @@ def test_json_output_is_the_serialized_plan_and_nothing_else(
 
 
 def test_every_action_the_planner_can_emit_has_an_effect_registered():
-    """Uma acao sem efeito so falharia na hora de aplicar -- tarde demais."""
+    """Uma ação sem efeito só falharia na hora de aplicar — tarde demais."""
     emitted = {
         planner.CREATE_RULESET,
         planner.UPDATE_RULESET,

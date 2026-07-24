@@ -1,9 +1,9 @@
 {
-  "_nota": "Esqueleto do dado. A configuracao desejada e dado, nao codigo -- e os valores sao decididos pela spec de Org #2 (https://github.com/panlabs-tech/.github/issues/2), que e bloqueada pela Fundacao. Enquanto uma chave for null, ela esta *ainda nao decidida*, e o planner nao planeja nada para essa dimensao. Isso e diferente de decidida-como-vazia.",
+  "_nota": "Esqueleto do dado. A configuração desejada é dado, não código — e os valores são decididos pela spec de Org #2 (https://github.com/panlabs-tech/.github/issues/2), que é bloqueada pela Fundação. Enquanto uma chave for null, ela está *ainda não decidida*, e o planner não planeja nada para essa dimensão. Isso é diferente de decidida-como-vazia.",
 
-  "_ruleset": "O corpo exato de POST/PUT /repos/{owner}/{repo}/rulesets. O applier envia isto sem interpretar. Campos obrigatorios quando preenchido: name, target, enforcement, bypass_actors, conditions, rules.",
+  "_ruleset": "O corpo exato de POST/PUT /repos/{owner}/{repo}/rulesets. O applier envia isto sem interpretar. Campos obrigatórios quando preenchido: name, target, enforcement, bypass_actors, conditions, rules.",
   "ruleset": null,
 
-  "_retire_classic_protection": "Se true, toda protecao de branch classica encontrada na branch default vira item de plano que a aposenta -- para que nao existam duas fontes de verdade sobre a mesma branch.",
+  "_retire_classic_protection": "Se true, toda proteção de branch clássica encontrada na branch default vira item de plano que a aposenta — para que não existam duas fontes de verdade sobre a mesma branch.",
   "retire_classic_protection": null
 }

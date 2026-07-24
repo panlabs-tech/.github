@@ -1,11 +1,11 @@
-"""Os efeitos do ruleset: uma chamada de API por acao, e nada mais.
+"""Os efeitos do ruleset: uma chamada de API por ação, e nada mais.
 
-Nao ha ramificacao de decisao aqui, e nao pode haver. Cada efeito recebe um item
-cujo `payload` o planner ja montou por inteiro -- o corpo enviado a API e dado
-carregado pelo plano, nao algo calculado na hora de agir.
+Não há ramificação de decisão aqui, e não pode haver. Cada efeito recebe um item
+cujo `payload` o planner já montou por inteiro — o corpo enviado à API é dado
+carregado pelo plano, não algo calculado na hora de agir.
 
-Se algum dia um efeito precisar de um `if`, a decisao vazou para dentro dele, e o
-conserto e move-la para o planner -- nao testar o applier.
+Se algum dia um efeito precisar de um `if`, a decisão vazou para dentro dele, e o
+conserto é movê-la para o planner — não testar o applier.
 """
 
 from __future__ import annotations

@@ -1,13 +1,13 @@
-"""O planner do ruleset. Puro, e o unico lugar onde ha decisao.
+"""O planner do ruleset. Puro, e o único lugar onde há decisão.
 
     plan(observed, desired) -> Plan
 
-`desired` e dado, nao observacao -- por isso entra como segundo argumento em vez
-de dobrado dentro de `observed`. O seam continua sendo o mesmo: uma funcao pura
-de estado para plano, e nada acima dela alem da chamada real de API.
+`desired` é dado, não observação — por isso entra como segundo argumento em vez
+de dobrado dentro de `observed`. O seam continua sendo o mesmo: uma função pura
+de estado para plano, e nada acima dela além da chamada real de API.
 
-Uma dimensao ainda nao decidida (`None`) nao gera item nenhum. O script existe
-antes dos valores que ele vai aplicar, e nao pode inventa-los.
+Uma dimensão ainda não decidida (`None`) não gera item nenhum. O script existe
+antes dos valores que ele vai aplicar, e não pode inventá-los.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ DELETE_CLASSIC_PROTECTION = "delete-classic-protection"
 
 
 def plan(observed: Observed, desired: Desired) -> Plan:
-    """O plano de convergencia da frota inteira, em ordem estavel de repo."""
+    """O plano de convergência da frota inteira, em ordem estável de repo."""
     items: list[PlanItem] = []
     for repo in observed.sorted_repos():
         items.extend(_plan_repo(repo, desired))
@@ -44,10 +44,10 @@ def plan(observed: Observed, desired: Desired) -> Plan:
 
 
 def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    """Tudo que falta neste repo -- uma unica leitura por branch, nunca duas.
+    """Tudo que falta neste repo — uma única leitura por branch, nunca duas.
 
-    A ordem e deliberada: primeiro o ruleset converge, depois a protecao classica
-    e aposentada. Assim a branch nunca fica desprotegida entre um passo e outro.
+    A ordem é deliberada: primeiro o ruleset converge, depois a proteção clássica
+    é aposentada. Assim a branch nunca fica desprotegida entre um passo e outro.
     """
     items: list[PlanItem] = []
     if desired.ruleset is not None:
@@ -58,8 +58,8 @@ def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
                 action=DELETE_CLASSIC_PROTECTION,
                 target=repo.name,
                 reason=(
-                    f"protecao classica ativa em {repo.default_branch} "
-                    f"({repo.classic_protection.describe()}); o ruleset passa a ser a unica "
+                    f"proteção clássica ativa em {repo.default_branch} "
+                    f"({repo.classic_protection.describe()}); o ruleset passa a ser a única "
                     "fonte de verdade sobre a branch"
                 ),
                 payload={"branch": repo.default_branch},
@@ -69,6 +69,12 @@ def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
 
 
 def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[PlanItem]:
+    """O que falta para um único ruleset desejado governar a branch default.
+
+    O ruleset a convergir é achado **pela branch que ele governa**, não pelo nome:
+    procurar por nome faria um repo cujo ruleset se chama outra coisa ganhar um
+    segundo ruleset sobre a mesma branch, que é exatamente a incoerência a evitar.
+    """
     governing = repo.rulesets_governing_default_branch()
 
     if not governing:
@@ -88,6 +94,9 @@ def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[Plan
             )
         ]
 
+    # Qual dos concorrentes sobrevive é indiferente ao estado final: o sobrevivente
+    # é sobrescrito com o corpo desejado de qualquer jeito. O critério é o mais
+    # antigo só para que o plano seja estável entre duas leituras.
     primary, *extras = governing
     items: list[PlanItem] = []
 
@@ -111,7 +120,7 @@ def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[Plan
                 action=DELETE_RULESET,
                 target=repo.name,
                 reason=(
-                    f'o ruleset "{extra.name}" tambem governa {repo.default_branch}, alem de '
+                    f'o ruleset "{extra.name}" também governa {repo.default_branch}, além de '
                     f'"{primary.name}"; duas fontes de verdade sobre a mesma branch'
                 ),
                 payload={"ruleset_id": extra.id},
@@ -121,18 +130,18 @@ def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[Plan
     return items
 
 
-# --- comparacao ---------------------------------------------------------------
+# --- comparação ---------------------------------------------------------------
 #
-# O desejado e comparado como **subconjunto declarado**: so os campos escritos no
-# dado sao cobrados. A API preenche defaults que nao foram enviados, e cobrar o
-# que nao se declarou faria o plano nunca esvaziar.
+# O desejado é comparado como **subconjunto declarado**: só os campos escritos no
+# dado são cobrados. A API preenche defaults que não foram enviados, e cobrar o
+# que não se declarou faria o plano nunca esvaziar.
 #
-# As **regras**, ao contrario, sao comparadas como conjunto exato pelo seu `type`:
-# uma regra que ninguem pediu e deriva, e some do plano so quando sair do repo.
+# As **regras**, ao contrário, são comparadas como conjunto exato pelo seu `type`:
+# uma regra que ninguém pediu é deriva, e some do plano só quando sair do repo.
 
 
 def diff_ruleset(observed: RulesetState, desired_body: Mapping[str, Any]) -> tuple[str, ...]:
-    """As divergencias entre o ruleset observado e o desejado, em pt-BR."""
+    """As divergências entre o ruleset observado e o desejado, em pt-BR."""
     scalars = {k: v for k, v in desired_body.items() if k != "rules"}
     divergences = _compare("", scalars, observed.comparable())
     divergences += _compare_rules(desired_body.get("rules") or (), observed.rules)
@@ -174,14 +183,14 @@ def _compare_rules(
     for rule_type in sorted(set(desired_by_type) - set(observed_rules)):
         out.append(f"regra {rule_type}: ausente")
     for rule_type in sorted(set(observed_rules) - set(desired_by_type)):
-        out.append(f"regra {rule_type}: presente e nao desejada")
+        out.append(f"regra {rule_type}: presente e não desejada")
     for rule_type in sorted(set(desired_by_type) & set(observed_rules)):
         out += _compare(f"regra {rule_type}", desired_by_type[rule_type], observed_rules[rule_type])
     return out
 
 
 def _bag(values: Sequence[Any]) -> list[str]:
-    """Uma lista comparavel sem ordem -- ordem de contexto ou de ator nao e semantica."""
+    """Uma lista comparável sem ordem — ordem de contexto ou de ator não é semântica."""
     return sorted(json.dumps(v, sort_keys=True, ensure_ascii=False) for v in values)
 
 
