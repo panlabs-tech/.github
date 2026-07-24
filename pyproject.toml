@@ -1,0 +1,55 @@
+[project]
+name = "panlabs-meta"
+version = "0.1.0"
+description = "Mecanismos que aplicam e verificam o padrao panlabs na org panlabs-tech."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+panlabs-ruleset = "panlabs.ruleset.cli:main"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
+    "ruff>=0.16.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts/panlabs"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+
+[tool.ruff]
+line-length = 100
+src = ["scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ANN"]
+# Corpo de API do GitHub e JSON arbitrario: `Any` e o tipo honesto, nao uma folga.
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN001", "ANN201"]
+
+[tool.pyright]
+include = ["scripts", "tests"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+# A fronteira com a API do GitHub e JSON sem esquema: ali `Any` e o tipo honesto,
+# e exigir tipo conhecido so produziria anotacao decorativa. O tipo passa a valer
+# de verdade em `ruleset/model.py`, que e onde o JSON vira estado observado.
+reportUnknownArgumentType = false
+reportUnknownLambdaType = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownVariableType = false

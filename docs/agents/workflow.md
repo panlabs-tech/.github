@@ -43,6 +43,10 @@ apply(Plan)    -> efeitos    # fino, sem teste
 
 Se o `apply` precisa de um `if`, esse `if` está no lugar errado.
 
+**A configuração desejada entra como segundo argumento**, `plan(observed, desired)`, porque ela é *dado versionado* e não observação — ela mora em `config/`, não no código. O seam continua sendo o mesmo: uma função pura de estado para plano, e acima dela só a chamada real de API. Um valor `null` no dado significa **ainda não decidido**, e o planner não planeja nada para essa dimensão; isso é diferente de decidido-como-vazio, e quem lê um plano vazio precisa saber qual dos dois é.
+
+O vocabulário vive em `scripts/panlabs/plan.py`, e é **um só** — o mesmo formato serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
+
 ## Conformidade
 
 O checker de conformidade é **read-only**, roda **agendado** como passo do heartbeat da máquina, **alarma na deriva** e **nunca é gate de PR** — anatomia é propriedade do repo, não do diff, e metade dela nem mora no working tree.

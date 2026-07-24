@@ -9,6 +9,7 @@ Domínio: governança da org no GitHub, ambiente da máquina de desenvolvimento 
 - **`profile/README.md`** — o perfil da org, a página que um humano de fora vê em 30 segundos.
 - **`.github/workflows/`** — os reusable workflows que todos os repos da org referenciam em vez de copiar.
 - **`scripts/`** — o script de ruleset (aplica a configuração de proteção repo a repo) e o checker de conformidade (mede a frota contra a anatomia).
+- **`config/`** — a configuração desejada, como **dado**. Os scripts leem daqui; nenhum deles crava valor em código.
 - **`ANATOMY.md`** — a definição canônica do que é um repo panlabs.
 
 Parte do padrão é **imposta por plataforma** (ruleset e required checks); parte é **documentada e checada** (`ANATOMY.md` + checker). As duas metades moram juntas com dureza honestamente diferente.
@@ -22,8 +23,23 @@ Este repo é resultado do mapa de wayfinding [O padrão panlabs — org, máquin
 - **Idioma:** pt-BR em prosa, comentários e commits. Identificador de código em inglês.
 - **Markdown sem hard-wrap:** uma linha por parágrafo. Quebra só entre parágrafos, ou onde tem semântica (item de lista, linha de tabela, bloco de código).
 - **Conventional Commits**, subject minúsculo.
-- **Toda decisão vive num planner puro; o applier não decide nada.** Todo script deste repo separa `plan(observed) → Plan` de `apply(Plan)`, com **plano como default** e aplicação sob flag explícita. Cada item de plano carrega ação, alvo e **motivo**.
+- **Toda decisão vive num planner puro; o applier não decide nada.** Todo script deste repo separa `plan(observed, desired) → Plan` de `apply(Plan)`, com **plano como default** e aplicação sob flag explícita. Cada item de plano carrega ação, alvo e **motivo**. O `desired` entra como segundo argumento porque é dado versionado, não observação — ver [`docs/agents/workflow.md`](docs/agents/workflow.md).
 - **Nenhum script carrega contagem ou lista de repos.** O alvo é sempre derivado da org viva (`gh repo list panlabs-tech`).
+- **A configuração desejada é dado, não código.** Ela mora em `config/`, e um valor ainda não decidido é `null` — o que é diferente de decidido-como-vazio. O planner não planeja nada para uma dimensão não decidida.
+
+## Superfície Python
+
+Este repo **tem** superfície Python — os scripts que aplicam e verificam o padrão. O tipo `meta` deixou de ter stack vazia, e a [issue da anatomia](https://github.com/panlabs-tech/.github/issues/8) carrega a emenda. O caso zero-superfície continua real e continua sendo o fixture que importa, via repo `skills`.
+
+Runtime gerido por `uv`, versão declarada em `.python-version`. Toolchain espelhando as `apps/api` da frota:
+
+| | |
+| --- | --- |
+| `uv run pytest` | **O comando único de teste** — o mesmo que a CI vai chamar. |
+| `uv run ruff check` / `uv run ruff format` | Verificação e formatação. |
+| `uv run pyright` | Tipos, em modo estrito sobre `scripts/`. |
+
+O pacote vive em `scripts/panlabs/`. O seam compartilhado está em `scripts/panlabs/plan.py`, e cada script o instancia num subpacote — hoje `panlabs.ruleset`.
 
 ## Autonomia
 

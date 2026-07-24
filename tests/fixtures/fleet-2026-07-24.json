@@ -1,0 +1,398 @@
+{
+  "captured_at": "2026-07-24",
+  "org": "panlabs-tech",
+  "repos": [
+    {
+      "classic_protection": null,
+      "default_branch": "main",
+      "name": "panlabs-tech/.github",
+      "rulesets": []
+    },
+    {
+      "classic_protection": null,
+      "default_branch": "main",
+      "name": "panlabs-tech/ethitorial",
+      "rulesets": [
+        {
+          "_links": {
+            "html": {
+              "href": "https://github.com/panlabs-tech/ethitorial/rules/17319154"
+            },
+            "self": {
+              "href": "https://api.github.com/repos/panlabs-tech/ethitorial/rulesets/17319154"
+            }
+          },
+          "bypass_actors": [],
+          "conditions": {
+            "ref_name": {
+              "exclude": [],
+              "include": [
+                "~DEFAULT_BRANCH"
+              ]
+            }
+          },
+          "created_at": "2026-06-05T10:19:11.590-03:00",
+          "current_user_can_bypass": "never",
+          "enforcement": "active",
+          "id": 17319154,
+          "name": "main protection",
+          "node_id": "RRS_lACqUmVwb3NpdG9yec5KYOQYzgEIRPI",
+          "rules": [
+            {
+              "parameters": {
+                "allowed_merge_methods": [
+                  "squash"
+                ],
+                "dismiss_stale_reviews_on_push": false,
+                "dismissal_restriction": {
+                  "allowed_actors": [],
+                  "enabled": false
+                },
+                "require_code_owner_review": false,
+                "require_last_push_approval": false,
+                "required_approving_review_count": 0,
+                "required_review_thread_resolution": false,
+                "required_reviewers": []
+              },
+              "type": "pull_request"
+            },
+            {
+              "parameters": {
+                "do_not_enforce_on_create": false,
+                "required_status_checks": [
+                  {
+                    "context": "web"
+                  },
+                  {
+                    "context": "api"
+                  },
+                  {
+                    "context": "security"
+                  }
+                ],
+                "strict_required_status_checks_policy": true
+              },
+              "type": "required_status_checks"
+            },
+            {
+              "type": "non_fast_forward"
+            },
+            {
+              "type": "required_linear_history"
+            },
+            {
+              "type": "deletion"
+            }
+          ],
+          "source": "panlabs-tech/ethitorial",
+          "source_type": "Repository",
+          "target": "branch",
+          "updated_at": "2026-06-05T10:19:11.630-03:00"
+        }
+      ]
+    },
+    {
+      "classic_protection": {
+        "allow_deletions": {
+          "enabled": false
+        },
+        "allow_force_pushes": {
+          "enabled": false
+        },
+        "allow_fork_syncing": {
+          "enabled": false
+        },
+        "block_creations": {
+          "enabled": false
+        },
+        "enforce_admins": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/life-under-control/branches/main/protection/enforce_admins"
+        },
+        "lock_branch": {
+          "enabled": false
+        },
+        "required_conversation_resolution": {
+          "enabled": false
+        },
+        "required_linear_history": {
+          "enabled": false
+        },
+        "required_pull_request_reviews": {
+          "dismiss_stale_reviews": false,
+          "require_code_owner_reviews": false,
+          "require_last_push_approval": false,
+          "required_approving_review_count": 0,
+          "url": "https://api.github.com/repos/panlabs-tech/life-under-control/branches/main/protection/required_pull_request_reviews"
+        },
+        "required_signatures": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/life-under-control/branches/main/protection/required_signatures"
+        },
+        "required_status_checks": {
+          "checks": [
+            {
+              "app_id": 15368,
+              "context": "web"
+            },
+            {
+              "app_id": 15368,
+              "context": "security"
+            }
+          ],
+          "contexts": [
+            "web",
+            "security"
+          ],
+          "contexts_url": "https://api.github.com/repos/panlabs-tech/life-under-control/branches/main/protection/required_status_checks/contexts",
+          "strict": false,
+          "url": "https://api.github.com/repos/panlabs-tech/life-under-control/branches/main/protection/required_status_checks"
+        },
+        "url": "https://api.github.com/repos/panlabs-tech/life-under-control/branches/main/protection"
+      },
+      "default_branch": "main",
+      "name": "panlabs-tech/life-under-control",
+      "rulesets": []
+    },
+    {
+      "classic_protection": {
+        "allow_deletions": {
+          "enabled": false
+        },
+        "allow_force_pushes": {
+          "enabled": false
+        },
+        "allow_fork_syncing": {
+          "enabled": false
+        },
+        "block_creations": {
+          "enabled": false
+        },
+        "enforce_admins": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/panlabs/branches/main/protection/enforce_admins"
+        },
+        "lock_branch": {
+          "enabled": false
+        },
+        "required_conversation_resolution": {
+          "enabled": false
+        },
+        "required_linear_history": {
+          "enabled": false
+        },
+        "required_signatures": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/panlabs/branches/main/protection/required_signatures"
+        },
+        "required_status_checks": {
+          "checks": [
+            {
+              "app_id": null,
+              "context": "checks"
+            },
+            {
+              "app_id": 15368,
+              "context": "security"
+            }
+          ],
+          "contexts": [
+            "checks",
+            "security"
+          ],
+          "contexts_url": "https://api.github.com/repos/panlabs-tech/panlabs/branches/main/protection/required_status_checks/contexts",
+          "strict": false,
+          "url": "https://api.github.com/repos/panlabs-tech/panlabs/branches/main/protection/required_status_checks"
+        },
+        "url": "https://api.github.com/repos/panlabs-tech/panlabs/branches/main/protection"
+      },
+      "default_branch": "main",
+      "name": "panlabs-tech/panlabs",
+      "rulesets": []
+    },
+    {
+      "classic_protection": null,
+      "default_branch": "main",
+      "name": "panlabs-tech/skills",
+      "rulesets": []
+    },
+    {
+      "classic_protection": {
+        "allow_deletions": {
+          "enabled": false
+        },
+        "allow_force_pushes": {
+          "enabled": false
+        },
+        "allow_fork_syncing": {
+          "enabled": false
+        },
+        "block_creations": {
+          "enabled": false
+        },
+        "enforce_admins": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/tfbox/branches/main/protection/enforce_admins"
+        },
+        "lock_branch": {
+          "enabled": false
+        },
+        "required_conversation_resolution": {
+          "enabled": false
+        },
+        "required_linear_history": {
+          "enabled": false
+        },
+        "required_pull_request_reviews": {
+          "dismiss_stale_reviews": false,
+          "require_code_owner_reviews": false,
+          "require_last_push_approval": false,
+          "required_approving_review_count": 0,
+          "url": "https://api.github.com/repos/panlabs-tech/tfbox/branches/main/protection/required_pull_request_reviews"
+        },
+        "required_signatures": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/tfbox/branches/main/protection/required_signatures"
+        },
+        "required_status_checks": {
+          "checks": [],
+          "contexts": [],
+          "contexts_url": "https://api.github.com/repos/panlabs-tech/tfbox/branches/main/protection/required_status_checks/contexts",
+          "strict": false,
+          "url": "https://api.github.com/repos/panlabs-tech/tfbox/branches/main/protection/required_status_checks"
+        },
+        "url": "https://api.github.com/repos/panlabs-tech/tfbox/branches/main/protection"
+      },
+      "default_branch": "main",
+      "name": "panlabs-tech/tfbox",
+      "rulesets": [
+        {
+          "_links": {
+            "html": {
+              "href": "https://github.com/panlabs-tech/tfbox/rules/6659325"
+            },
+            "self": {
+              "href": "https://api.github.com/repos/panlabs-tech/tfbox/rulesets/6659325"
+            }
+          },
+          "bypass_actors": [],
+          "conditions": {
+            "ref_name": {
+              "exclude": [],
+              "include": [
+                "refs/heads/main",
+                "~DEFAULT_BRANCH"
+              ]
+            }
+          },
+          "created_at": "2025-07-12T20:28:58.394-03:00",
+          "current_user_can_bypass": "never",
+          "enforcement": "active",
+          "id": 6659325,
+          "name": "main",
+          "node_id": "RRS_lACqUmVwb3NpdG9yec43s4KAzgBlnP0",
+          "rules": [
+            {
+              "type": "deletion"
+            },
+            {
+              "type": "non_fast_forward"
+            },
+            {
+              "parameters": {
+                "allowed_merge_methods": [
+                  "merge",
+                  "squash",
+                  "rebase"
+                ],
+                "dismiss_stale_reviews_on_push": false,
+                "dismissal_restriction": {
+                  "allowed_actors": [],
+                  "enabled": false
+                },
+                "require_code_owner_review": false,
+                "require_last_push_approval": false,
+                "required_approving_review_count": 0,
+                "required_review_thread_resolution": false,
+                "required_reviewers": []
+              },
+              "type": "pull_request"
+            }
+          ],
+          "source": "panlabs-tech/tfbox",
+          "source_type": "Repository",
+          "target": "branch",
+          "updated_at": "2025-07-12T20:28:58.394-03:00"
+        }
+      ]
+    },
+    {
+      "classic_protection": {
+        "allow_deletions": {
+          "enabled": false
+        },
+        "allow_force_pushes": {
+          "enabled": false
+        },
+        "allow_fork_syncing": {
+          "enabled": false
+        },
+        "block_creations": {
+          "enabled": false
+        },
+        "enforce_admins": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/travelmanager/branches/main/protection/enforce_admins"
+        },
+        "lock_branch": {
+          "enabled": false
+        },
+        "required_conversation_resolution": {
+          "enabled": false
+        },
+        "required_linear_history": {
+          "enabled": false
+        },
+        "required_pull_request_reviews": {
+          "dismiss_stale_reviews": false,
+          "require_code_owner_reviews": false,
+          "require_last_push_approval": false,
+          "required_approving_review_count": 0,
+          "url": "https://api.github.com/repos/panlabs-tech/travelmanager/branches/main/protection/required_pull_request_reviews"
+        },
+        "required_signatures": {
+          "enabled": false,
+          "url": "https://api.github.com/repos/panlabs-tech/travelmanager/branches/main/protection/required_signatures"
+        },
+        "required_status_checks": {
+          "checks": [
+            {
+              "app_id": 15368,
+              "context": "web"
+            },
+            {
+              "app_id": 15368,
+              "context": "api"
+            },
+            {
+              "app_id": 15368,
+              "context": "security"
+            }
+          ],
+          "contexts": [
+            "web",
+            "api",
+            "security"
+          ],
+          "contexts_url": "https://api.github.com/repos/panlabs-tech/travelmanager/branches/main/protection/required_status_checks/contexts",
+          "strict": false,
+          "url": "https://api.github.com/repos/panlabs-tech/travelmanager/branches/main/protection/required_status_checks"
+        },
+        "url": "https://api.github.com/repos/panlabs-tech/travelmanager/branches/main/protection"
+      },
+      "default_branch": "main",
+      "name": "panlabs-tech/travelmanager",
+      "rulesets": []
+    }
+  ]
+}
