@@ -26,3 +26,7 @@ Bate com o levantamento já publicado na spec de Repo #4: "quatro dos seis não 
 ## Este é o inventário de retrofit
 
 As seis linhas acima são o ponto de partida da esteira de convergência: cada uma diverge, e a esteira normal de issues contra o checker (`docs/agents/workflow.md`) fatia o retrofit de cada repo até a matriz sair vazia. Adicionar LICENSE aos quatro repositórios listados é o item mais barato e mais repetido do lote.
+
+## `.github` sujeito ao próprio padrão
+
+Também em 2026-07-24: `panlabs-tech/.github` recebeu o ruleset mínimo de `config/ruleset-dotgithub-required-checks.json` (`uv run panlabs-ruleset --config config/ruleset-dotgithub-required-checks.json --only panlabs-tech/.github --apply`), exigindo os dois required checks do contrato de rollup (`checks`, `security`) na branch default. Foi possível porque as duas condições de bloqueio da issue #8 já estavam resolvidas: a #7 (nomes fixos de check) já tinha mergeado, e o token da máquina já carregava `admin:org`, elevado pelo operador antes desta sessão. O PR desta própria issue (#8) é a primeira prova viva: ele só mergeia depois de passar pelos dois checks exigidos.
