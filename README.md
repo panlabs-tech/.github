@@ -11,6 +11,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | **`profile/README.md`** | O perfil da org — a página que um visitante vê antes de abrir qualquer repo. |
 | **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. |
 | **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo, e o checker de conformidade, que mede a frota contra a anatomia. |
+| **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, quatro tipos, invariantes e slots. |
 
 Parte do padrão é **imposta pela plataforma** — rulesets e required checks, que um repo não consegue contornar. Parte é **documentada e checada** — o `ANATOMY.md` e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente.
@@ -22,6 +23,34 @@ Parte do padrão é **imposta pela plataforma** — rulesets e required checks, 
 **Nenhum alvo é hardcoded.** A lista de repos vem sempre da org viva, nunca de uma constante — assim a regra não pode divergir da realidade, e repo novo entra sozinho.
 
 **Conformidade é binária.** Não existe nível "recomendado": numa org de um mantenedor, recomendação é licença para deriva, e o consumidor do padrão é um agente.
+
+**A configuração desejada é dado, não código.** Ela mora em `config/`, separada do mecanismo que a aplica. Um valor `null` ali significa *ainda não decidido*, e o planner não planeja nada para uma dimensão não decidida — o que é diferente de decidida-como-vazia.
+
+## Rodando os scripts
+
+Os scripts são Python gerido por [`uv`](https://docs.astral.sh/uv/), e usam o `gh` já autenticado da máquina. Nenhuma credencial é guardada em lugar nenhum.
+
+```bash
+uv sync                                  # prepara o ambiente
+
+uv run panlabs-ruleset                   # o plano de proteção da org viva
+uv run panlabs-ruleset --json            # o mesmo plano, serializado
+uv run panlabs-ruleset --apply           # aplica  (exige `admin:org` no token)
+```
+
+**Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva — aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado.
+
+Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`.
+
+Testes, verificação e tipos:
+
+```bash
+uv run pytest                            # o comando único de teste
+uv run ruff check && uv run ruff format  # verificação e formatação
+uv run pyright                           # tipos
+```
+
+O que é testado é o **planner** — uma função pura de estado observado para plano, exercitada com fixtures capturadas da própria frota. O applier não é testado: ele é uma tabela de despacho, uma chamada de API por ação. Se algum dia ele precisar de um `if`, a decisão vazou para dentro dele, e o conserto é movê-la para o planner.
 
 ## Origem
 
