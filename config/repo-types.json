@@ -1,0 +1,11 @@
+{
+  "_nota": "O tipo de cada repositório é dado declarado, não inferido: tipos são nomeados e finitos (ver ANATOMY.md), e classificar um repositório é escolha de quem o cria, não cálculo do checker. Um repositório ausente daqui, ou com valor null, ainda não foi classificado -- os itens de escopo tipo não o alcançam, e isso não é deriva. Só os tipos já confirmados em texto publicado (issue #4) estão preenchidos; os demais aguardam decisão explícita do operador.",
+
+  "panlabs-tech/.github": "meta",
+  "panlabs-tech/tfbox": "modulo-infraestrutura",
+  "panlabs-tech/skills": "skills",
+  "panlabs-tech/panlabs": null,
+  "panlabs-tech/life-under-control": null,
+  "panlabs-tech/travelmanager": null,
+  "panlabs-tech/ethitorial": null
+}

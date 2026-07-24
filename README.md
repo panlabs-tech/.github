@@ -12,7 +12,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. Ver [`.github/workflows/README.md`](.github/workflows/README.md). |
 | **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo, e o checker de conformidade, que mede a frota contra a anatomia. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
-| **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, quatro tipos, invariantes e slots. |
+| **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, cinco tipos, invariantes e slots. |
 
 Parte do padrão é **imposta pela plataforma**: rulesets e required checks, que um repo não consegue contornar. Parte é **documentada e checada**: o `ANATOMY.md` e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente.
 
@@ -36,9 +36,15 @@ uv sync                                  # prepara o ambiente
 uv run panlabs-ruleset                   # o plano de proteção da org viva
 uv run panlabs-ruleset --json            # o mesmo plano, serializado
 uv run panlabs-ruleset --apply           # aplica  (exige `admin:org` no token)
+uv run panlabs-ruleset --only ORG/REPO   # restringe o plano a um repo (repetível)
+
+uv run panlabs-checker                   # a matriz de deriva da org viva (read-only)
+uv run panlabs-checker --json            # a mesma matriz, serializada
 ```
 
-**Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva: aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado.
+**Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva: aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado. O checker não tem `--apply`: ele não tem efeito que mute nada, então a flag não existe.
+
+`--only` restringe o plano do ruleset a um subconjunto explícito da frota. Existe porque um ruleset com nomes fixos de check só é seguro num repo depois do retrofit dele: aplicar contra a org inteira penduraria o PR de todo repo que a CI compartilhada ainda não alcançou. Ver `config/ruleset-dotgithub-required-checks.json`.
 
 Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`.
 

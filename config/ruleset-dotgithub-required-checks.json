@@ -1,0 +1,30 @@
+{
+  "_nota": "NÃO é config/ruleset.json. Este é o ruleset mínimo que a spec de Fundação (#8) decide por si: só os dois required checks do contrato de rollup publicado pela spec de CI compartilhada (#7) -- os jobs `checks` e `security` de scripts/panlabs/ci/rollup.py. Os demais atributos de proteção (PR obrigatório, contagem de aprovações, squash-only, histórico linear, assinatura de commit) são decisão da spec de Org (#2) e vivem em config/ruleset.json, hoje null -- esta issue não os inventa. Aplicável SOMENTE via `--only panlabs-tech/.github`: é o único repo já retrofitado para nomes fixos de check. Rodar isto sem `--only` contra a org tentaria criar o mesmo ruleset em todo repo, e um repo ainda não retrofitado (nomes divergentes: web, api, checks) teria todo PR pendurado esperando um check que nunca publica esse nome exato. Aplicar exige `--apply` e token com escopo `admin:org`, elevado pelo operador -- ver docs/agents/workflow.md.",
+
+  "ruleset": {
+    "name": "required-checks",
+    "target": "branch",
+    "enforcement": "active",
+    "bypass_actors": [],
+    "conditions": {
+      "ref_name": {
+        "include": ["~DEFAULT_BRANCH"],
+        "exclude": []
+      }
+    },
+    "rules": [
+      {
+        "type": "required_status_checks",
+        "parameters": {
+          "strict_required_status_checks_policy": false,
+          "required_status_checks": [
+            { "context": "checks" },
+            { "context": "security" }
+          ]
+        }
+      }
+    ]
+  },
+
+  "retire_classic_protection": null
+}

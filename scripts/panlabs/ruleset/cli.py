@@ -21,7 +21,7 @@ from panlabs import gh
 from panlabs.plan import Plan, apply
 from panlabs.ruleset.applier import EFFECTS
 from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, Desired, load_desired
-from panlabs.ruleset.model import Observed
+from panlabs.ruleset.model import Observed, RepoState
 from panlabs.ruleset.observe import build_observed, fetch_raw, observed_to_dict
 from panlabs.ruleset.planner import plan
 
@@ -61,6 +61,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="imprime o estado observado antes do plano",
     )
+    parser.add_argument(
+        "--only",
+        action="append",
+        metavar="ORG/REPO",
+        help=(
+            "restringe o plano a este repo (repetível). Usar quando o `ruleset` "
+            "desejado só é seguro para parte da frota -- por exemplo, um ruleset com "
+            "nomes fixos de check só pode alcançar um repo depois do retrofit dele."
+        ),
+    )
     parser.add_argument("--json", action="store_true", help="imprime o plano serializado")
     parser.add_argument(
         "--apply",
@@ -68,6 +78,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="APLICA o plano. Sem esta flag nada é alterado.",
     )
     return parser
+
+
+def _restrict(observed: Observed, only: list[str]) -> tuple[Observed, tuple[RepoState, ...]]:
+    """Recorta o observado para os repos nomeados, e devolve quem ficou de fora.
+
+    O recorte acontece aqui, não no planner: o planner continua enxergando a
+    org inteira que lhe é dada, e `--only` é decisão de invocação, não de
+    anatomia. Quem ficou de fora não desaparece silenciosamente -- vira o
+    registro que `_report_only` imprime.
+    """
+    keep = set(only)
+    kept = tuple(repo for repo in observed.repos if repo.name in keep)
+    excluded = tuple(repo for repo in observed.sorted_repos() if repo.name not in keep)
+    return Observed(org=observed.org, repos=kept), excluded
+
+
+def _report_only(excluded: tuple[RepoState, ...]) -> None:
+    if not excluded:
+        return
+    names = ", ".join(repo.name for repo in excluded)
+    print(
+        f"--only restringe o plano; {len(excluded)} repo(s) da org ficam de fora desta "
+        f"rodada, aguardando retrofit antes de poder receber este ruleset: {names}.",
+        file=sys.stderr,
+    )
 
 
 def _report_undecided(desired: Desired, config: Path) -> None:
@@ -135,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(raw, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+
+    if args.only:
+        observed, excluded = _restrict(observed, args.only)
+        _report_only(excluded)
 
     _report_undecided(desired, args.config)
     the_plan = plan(observed, desired)

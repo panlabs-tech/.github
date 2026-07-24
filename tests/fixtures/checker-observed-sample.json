@@ -1,0 +1,26 @@
+{
+  "org": "panlabs-tech",
+  "repos": [
+    {
+      "name": "panlabs-tech/.github",
+      "tipo": "meta",
+      "files": ["README.md", "LICENSE", "ANATOMY.md", "pyproject.toml", ".python-version"],
+      "has_readme": true,
+      "has_license": true
+    },
+    {
+      "name": "panlabs-tech/skills",
+      "tipo": "skills",
+      "files": ["README.md", "LICENSE"],
+      "has_readme": true,
+      "has_license": true
+    },
+    {
+      "name": "panlabs-tech/tfbox",
+      "tipo": "modulo-infraestrutura",
+      "files": ["main.tf", "LICENSE"],
+      "has_readme": false,
+      "has_license": true
+    }
+  ]
+}
