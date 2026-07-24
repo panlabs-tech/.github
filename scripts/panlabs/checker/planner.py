@@ -24,7 +24,7 @@ __all__ = ["DRIFT_VERDICT", "ERROR_VERDICT", "plan"]
 DRIFT_VERDICT = "deriva"
 ERROR_VERDICT = "erro"
 
-_ORG_SCOPE_LABEL = "invariante de org"
+_NO_SCOPE_LABEL = "sem escopo (falha de observação)"
 
 
 def plan(observed: Observed, catalog: tuple[AnatomyItem, ...] = DEFAULT_CATALOG) -> Plan:
@@ -42,7 +42,7 @@ def _plan_repo(repo: RepoObserved, catalog: tuple[AnatomyItem, ...]) -> list[Pla
                 action="erro-observacao",
                 target=repo.name,
                 reason=repo.error,
-                payload={"scope": _ORG_SCOPE_LABEL, "verdict": ERROR_VERDICT},
+                payload={"scope": _NO_SCOPE_LABEL, "verdict": ERROR_VERDICT},
             )
         ]
 

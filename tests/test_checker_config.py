@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from panlabs.checker.config import DEFAULT_REPO_TYPES_PATH, load_repo_types
 
 
@@ -26,3 +28,13 @@ def test_keys_prefixed_with_underscore_are_notes_for_humans_and_are_ignored(tmp_
     path.write_text(json.dumps({"_nota": "qualquer coisa"}), encoding="utf-8")
 
     assert load_repo_types(path) == {}
+
+
+def test_a_type_outside_the_five_named_in_anatomy_fails_loudly_instead_of_silently(
+    tmp_path: Path,
+):
+    path = tmp_path / "repo-types.json"
+    path.write_text(json.dumps({"panlabs-tech/panlabs": "aplicaçao"}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="aplicaçao"):
+        load_repo_types(path)

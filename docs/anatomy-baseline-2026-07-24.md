@@ -21,7 +21,7 @@ Read-only: gerar esta matriz não mudou nada em nenhum repo. O retrato observado
 
 Bate com o levantamento já publicado na spec de Repo #4: "quatro dos seis não têm LICENSE". Aqui aparecem quatro (`life-under-control`, `panlabs`, `tfbox`, `travelmanager`), a quinta ausência (`.github` antes desta issue) já não conta porque este repo tem LICENSE desde a sua criação.
 
-**Limitação conhecida do catalogo-semente**, registrada para quem for estender via #4: a detecção de superfície olha só a listagem raiz do repositório, não recursa em subpastas. `panlabs-tech/tfbox` tem `package-lock.json` na raiz mas não `package.json` (que mora numa subpasta do monorepo), então a superfície Node dele não é detectada e o item `node-lockfile-committed` não é avaliado ali. Isso não produz falso positivo (o item simplesmente não se aplica), mas também não avalia o que deveria. Corrigir isso é parte do catálogo cheio da #4, que já nomeia layout de monorepo como uma variação por tipo aplicação.
+**Limitação conhecida do catálogo-semente**, registrada para quem for estender via #4: a detecção de superfície olha só a listagem raiz do repositório, não recursa em subpastas. `panlabs-tech/tfbox` tem `package-lock.json` na raiz mas não `package.json` (que mora numa subpasta do monorepo), então a superfície Node dele não é detectada e o item `node-lockfile-committed` não é avaliado ali. Isso não produz falso positivo (o item simplesmente não se aplica), mas também não avalia o que deveria. Corrigir isso é parte do catálogo cheio da #4, que já nomeia layout de monorepo como uma variação por tipo aplicação.
 
 ## Este é o inventário de retrofit
 

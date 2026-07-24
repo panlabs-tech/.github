@@ -21,9 +21,10 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
-__all__ = ["Effect", "Plan", "PlanItem", "apply"]
+__all__ = ["Effect", "Plan", "PlanItem", "apply", "dump_raw", "load_raw"]
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,27 @@ class Plan:
         plural = "itens" if len(self.items) > 1 else "item"
         lines.append(f"{len(self.items)} {plural} em {len(by_target)} alvo(s).")
         return "\n".join(lines)
+
+
+def load_raw(observed_path: Path | None, fetch: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+    """Lê o retrato cru de um arquivo salvo, ou busca da fonte viva.
+
+    Comum a todo CLI deste repo: ler um retrato salvo nunca deve tocar a fonte
+    viva, e as duas metades (arquivo ou busca) devolvem o mesmo formato cru,
+    antes de qualquer `build_observed` interpretá-lo.
+    """
+    if observed_path is not None:
+        return json.loads(observed_path.read_text(encoding="utf-8"))
+    return fetch()
+
+
+def dump_raw(path: Path | None, raw: Mapping[str, Any]) -> None:
+    """Grava o retrato cru observado, para virar fixture. Sem `path`, não faz nada."""
+    if path is None:
+        return
+    path.write_text(
+        json.dumps(raw, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 Effect = Callable[[PlanItem], None]

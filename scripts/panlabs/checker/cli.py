@@ -18,14 +18,13 @@ padrão": por isso erro pesa mais que deriva, nunca o contrário.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 from panlabs import gh
 from panlabs.checker.observe import build_observed, fetch_raw
 from panlabs.checker.planner import ERROR_VERDICT, plan
-from panlabs.plan import Plan
+from panlabs.plan import Plan, dump_raw, load_raw
 
 DEFAULT_ORG = "panlabs-tech"
 
@@ -60,22 +59,13 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
-        raw = (
-            json.loads(args.observed.read_text(encoding="utf-8"))
-            if args.observed
-            else fetch_raw(args.org)
-        )
+        raw = load_raw(args.observed, lambda: fetch_raw(args.org))
     except (OSError, ValueError, gh.GhError) as exc:
         print(f"erro: {exc}", file=sys.stderr)
         return 1
 
     observed = build_observed(raw)
-
-    if args.dump_observed:
-        args.dump_observed.write_text(
-            json.dumps(raw, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+    dump_raw(args.dump_observed, raw)
 
     the_matrix = plan(observed)
 

@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
-from panlabs.plan import Plan, apply
+from panlabs.plan import Plan, apply, dump_raw, load_raw
 from panlabs.ruleset.applier import EFFECTS
 from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, Desired, load_desired
 from panlabs.ruleset.model import Observed, RepoState
@@ -154,22 +154,13 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         desired = load_desired(args.config)
-        raw = (
-            json.loads(args.observed.read_text(encoding="utf-8"))
-            if args.observed
-            else fetch_raw(args.org)
-        )
+        raw = load_raw(args.observed, lambda: fetch_raw(args.org))
     except (OSError, ValueError, gh.GhError) as exc:
         print(f"erro: {exc}", file=sys.stderr)
         return 1
 
     observed = build_observed(raw)
-
-    if args.dump_observed:
-        args.dump_observed.write_text(
-            json.dumps(raw, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+    dump_raw(args.dump_observed, raw)
 
     if args.only:
         observed, excluded = _restrict(observed, args.only)
