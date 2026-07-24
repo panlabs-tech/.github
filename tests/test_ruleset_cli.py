@@ -96,6 +96,58 @@ def test_json_output_is_the_serialized_plan_and_nothing_else(
     assert {"action", "target", "reason", "payload"} == set(payload["items"][0])
 
 
+# --- --only: restringe o plano a um subconjunto explícito da frota -----------
+
+
+def test_only_restricts_the_plan_to_the_named_repo_and_reports_who_is_left_out(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    code = main(
+        ["--observed", str(FLEET), "--config", str(DESIRED), "--only", "panlabs-tech/.github"]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "panlabs-tech/.github" in captured.out
+    assert "panlabs-tech/skills" not in captured.out
+    assert "aguardando retrofit" in captured.err
+    assert "panlabs-tech/skills" in captured.err
+
+
+def test_only_accepts_more_than_one_repo(forbid_api: None, capsys: pytest.CaptureFixture[str]):
+    main(
+        [
+            "--observed",
+            str(FLEET),
+            "--config",
+            str(DESIRED),
+            "--only",
+            "panlabs-tech/.github",
+            "--only",
+            "panlabs-tech/tfbox",
+        ]
+    )
+
+    out = capsys.readouterr().out
+    assert "panlabs-tech/.github" in out
+    assert "panlabs-tech/tfbox" in out
+    assert "panlabs-tech/skills" not in out
+
+
+def test_only_naming_the_whole_fleet_reports_nothing_left_out(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    fleet_raw = json.loads(FLEET.read_text(encoding="utf-8"))
+    all_repos = {r["name"] for r in fleet_raw["repos"]}
+    argv = ["--observed", str(FLEET), "--config", str(DESIRED)]
+    for name in all_repos:
+        argv += ["--only", name]
+
+    main(argv)
+
+    assert "aguardando retrofit" not in capsys.readouterr().err
+
+
 def test_every_action_the_planner_can_emit_has_an_effect_registered():
     """Uma ação sem efeito só falharia na hora de aplicar, tarde demais."""
     emitted = {

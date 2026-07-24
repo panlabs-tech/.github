@@ -48,3 +48,17 @@ def test_keys_prefixed_with_underscore_are_notes_for_humans_and_are_ignored(tmp_
     path.write_text(json.dumps({"_nota": "qualquer coisa"}), encoding="utf-8")
 
     assert load_desired(path) == Desired(ruleset=None, retire_classic_protection=None)
+
+
+def test_the_dotgithub_required_checks_config_decides_only_the_rollup_contract():
+    """A #8 decide só os dois checks do rollup; o resto continua com a Org #2."""
+    path = Path(__file__).resolve().parents[1] / "config" / "ruleset-dotgithub-required-checks.json"
+
+    want = load_desired(path)
+
+    assert want.ruleset is not None
+    assert want.retire_classic_protection is None
+    rule_types = {rule["type"] for rule in want.ruleset["rules"]}
+    assert rule_types == {"required_status_checks"}
+    checks = want.ruleset["rules"][0]["parameters"]["required_status_checks"]
+    assert {c["context"] for c in checks} == {"checks", "security"}

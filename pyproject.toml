@@ -8,6 +8,7 @@ dependencies = []
 
 [project.scripts]
 panlabs-ruleset = "panlabs.ruleset.cli:main"
+panlabs-checker = "panlabs.checker.cli:main"
 
 [dependency-groups]
 dev = [
