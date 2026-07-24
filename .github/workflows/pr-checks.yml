@@ -27,6 +27,11 @@ on:
       - "test/**"
       - "ci/**"
       - "worktree/**"
+      # A ferramenta EnterWorktree do Claude Code gera branch com hífen
+      # (worktree-<nome>), não com barra: descoberto ao ver o próprio PR
+      # deste workflow não disparar checagem nenhuma no push, porque só
+      # "worktree/**" estava listado (panlabs-tech/.github#7).
+      - "worktree-**"
 
 permissions:
   contents: read
