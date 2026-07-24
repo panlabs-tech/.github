@@ -92,4 +92,3 @@ def rollup_conclusion(leg_results: Mapping[str, str]) -> str:
     if any(result not in _SAFE_LEG_RESULTS for result in leg_results.values()):
         return "failure"
     return "success"
-x=1
