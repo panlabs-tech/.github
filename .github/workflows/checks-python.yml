@@ -1,0 +1,61 @@
+name: checks-python (reusable)
+
+# Sequência fixa: uv sync --frozen → ruff format --check → ruff check →
+# pyright → pytest. A frota é uniforme na toolchain (uv, ruff, pyright,
+# pytest); o que diverge são os argumentos, daí `pytest-args` e
+# `pyright-args` (ex.: `-m "not integration" -q`, `--warnings`).
+#
+# O que este workflow deliberadamente não cobre: o `life-under-control`
+# precisa de Postgres e MinIO como `services` e roda `import-linter`. O bloco
+# `services` de um job não é parametrizável por input num reusable workflow:
+# não existe forma de passar serviços como argumento. Esse repo mantém uma
+# perna local sob o próprio rollup em vez de tentar encaixar aqui. Registrado
+# para que ninguém tente e descubra em CI (panlabs-tech/.github#7).
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Diretório onde vive o pyproject.toml da superfície Python."
+        type: string
+        default: "."
+      pytest-args:
+        description: 'Argumentos extras para "uv run pytest" (ex.: -m "not integration" -q).'
+        type: string
+        default: ""
+      pyright-args:
+        description: 'Argumentos extras para "uv run pyright" (ex.: --warnings).'
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  checks-python:
+    name: checks-python
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: uv sync --frozen
+        run: uv sync --frozen
+
+      - name: format (ruff)
+        run: uv run ruff format --check
+
+      - name: lint (ruff)
+        run: uv run ruff check
+
+      - name: types (pyright)
+        run: uv run pyright ${{ inputs.pyright-args }}
+
+      - name: test (pytest)
+        run: uv run pytest ${{ inputs.pytest-args }}

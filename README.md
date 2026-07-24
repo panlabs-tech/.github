@@ -9,7 +9,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | | |
 | --- | --- |
 | **`profile/README.md`** | O perfil da org: a página que um visitante vê antes de abrir qualquer repo. |
-| **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. |
+| **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. Ver [`.github/workflows/README.md`](.github/workflows/README.md). |
 | **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo, e o checker de conformidade, que mede a frota contra a anatomia. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, quatro tipos, invariantes e slots. |

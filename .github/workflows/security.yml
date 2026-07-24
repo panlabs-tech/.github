@@ -1,0 +1,63 @@
+name: security (reusable)
+
+# Scan de segredos com o binário direto do gitleaks, não a action wrapper: a
+# gitleaks/gitleaks-action passou a exigir licença paga quando o repo pertence
+# a uma organização ("[org] is an organization. License key is required."),
+# reprovando todo PR. O binário é MIT e não tem essa restrição. Corrige uma
+# divergência medida na frota, não hipotética: panlabs e life-under-control já
+# migraram para o binário, travelmanager e ethitorial ainda seguem na action
+# (panlabs-tech/panlabs#59).
+#
+# Versão e checksum pinados ao lado, não descobertos em tempo de execução: é o
+# job de segurança, não baixa binário no escuro.
+#
+# Sem inputs: é o mesmo scan para qualquer consumidor.
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: instalar gitleaks
+        run: |
+          set -euo pipefail
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "/tmp/${tarball}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  /tmp/${tarball}" | sha256sum --check --strict
+          tar -xzf "/tmp/${tarball}" -C /tmp gitleaks
+          /tmp/gitleaks version
+
+      - name: gitleaks (histórico completo)
+        run: |
+          set -euo pipefail
+
+          # Guarda anti-verde-vazio: fora de um repo git o gitleaks loga ERR,
+          # varre 0 commits e ainda assim sai 0. Gate que pode passar em
+          # silêncio não é gate.
+          git rev-parse --is-inside-work-tree >/dev/null
+
+          # Status capturado explicitamente: com `| tee` o código de saída do
+          # gitleaks se perde e um vazamento encontrado sairia verde.
+          status=0
+          /tmp/gitleaks git . --redact --no-banner --no-color >/tmp/gitleaks.log 2>&1 || status=$?
+          cat /tmp/gitleaks.log
+
+          if grep -qE '(^|[^0-9])0 commits scanned' /tmp/gitleaks.log; then
+            echo "::error::gitleaks não varreu commit algum, varredura vazia não conta como verde."
+            exit 1
+          fi
+          exit "$status"
