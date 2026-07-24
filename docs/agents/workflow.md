@@ -14,17 +14,17 @@ Disparado por "implementa as issues" ou equivalente:
 
 1. Colete as issues `ready-for-agent` abertas, sem bloqueio pendente.
 2. Um **git worktree por issue**, aninhado no próprio repo.
-3. `/tdd` — RED → GREEN → refactor.
+3. `/tdd`: RED → GREEN → refactor.
 4. Commit (Conventional Commits) e push.
 5. A esteira abre o PR.
 6. **Mergeie no verde** e encadeie até as issues acabarem.
 
 ## Portões
 
-- **Portão 1, local:** `lefthook` antes do commit — formatação, verificação e scan de segredos.
+- **Portão 1, local:** `lefthook` antes do commit, com formatação, verificação e scan de segredos.
 - **Portão 2, CI:** o workflow de checks no PR.
 
-Todo repo da org expõe os **mesmos nomes de status check**, independentemente de quantas superfícies tem. Isso é feito por um **job de rollup** de id fixo, que declara dependência das pernas por superfície e reporta um status único. O rollup existe **sempre** — inclusive em repo sem superfície nenhuma, onde passa trivialmente.
+Todo repo da org expõe os **mesmos nomes de status check**, independentemente de quantas superfícies tem. Isso é feito por um **job de rollup** de id fixo, que declara dependência das pernas por superfície e reporta um status único. O rollup existe **sempre**: inclusive em repo sem superfície nenhuma, onde passa trivialmente.
 
 Sem o rollup, um required check de nome fixo nunca casaria com os status de uma matriz (que saem com os valores anexados ao nome), e um repo sem superfície penduraria o merge para sempre esperando um check que não roda.
 
@@ -43,18 +43,18 @@ apply(Plan)    -> efeitos    # fino, sem teste
 
 Se o `apply` precisa de um `if`, esse `if` está no lugar errado.
 
-**A configuração desejada entra como segundo argumento**, `plan(observed, desired)`, porque ela é *dado versionado* e não observação — ela mora em `config/`, não no código. O seam continua sendo o mesmo: uma função pura de estado para plano, e acima dela só a chamada real de API. Um valor `null` no dado significa **ainda não decidido**, e o planner não planeja nada para essa dimensão; isso é diferente de decidido-como-vazio, e quem lê um plano vazio precisa saber qual dos dois é.
+**A configuração desejada entra como segundo argumento**, `plan(observed, desired)`, porque ela é *dado versionado* e não observação: ela mora em `config/`, não no código. O seam continua sendo o mesmo: uma função pura de estado para plano, e acima dela só a chamada real de API. Um valor `null` no dado significa **ainda não decidido**, e o planner não planeja nada para essa dimensão; isso é diferente de decidido-como-vazio, e quem lê um plano vazio precisa saber qual dos dois é.
 
-O vocabulário vive em `scripts/panlabs/plan.py`, e é **um só** — o mesmo formato serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
+O vocabulário vive em `scripts/panlabs/plan.py`, e é **um só**: o mesmo formato serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
 
 ## Conformidade
 
-O checker de conformidade é **read-only**, roda **agendado** como passo do heartbeat da máquina, **alarma na deriva** e **nunca é gate de PR** — anatomia é propriedade do repo, não do diff, e metade dela nem mora no working tree.
+O checker de conformidade é **read-only**, roda **agendado** como passo do heartbeat da máquina, **alarma na deriva** e **nunca é gate de PR**: anatomia é propriedade do repo, não do diff, e metade dela nem mora no working tree.
 
 Falha de rede ou de credencial do checker é reportada como **erro**, distinguível de não-conformidade. Um token expirado não pode virar "toda a frota está fora do padrão".
 
 ## Credencial
 
-Operações que mutam configuração de **organização** (ruleset, políticas, features de org) exigem token com escopo `admin:org`. O agente não eleva escopo de token — quem faz isso é o operador, com `gh auth refresh`.
+Operações que mutam configuração de **organização** (ruleset, políticas, features de org) exigem token com escopo `admin:org`. O agente não eleva escopo de token, quem faz isso é o operador, com `gh auth refresh`.
 
-Operações de **leitura** de frota — incluindo o checker — funcionam com o escopo de leitura padrão.
+Operações de **leitura** de frota, incluindo o checker, funcionam com o escopo de leitura padrão.

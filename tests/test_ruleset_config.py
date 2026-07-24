@@ -1,4 +1,4 @@
-"""A configuração desejada é dado, não código — e sabe dizer o que ainda não foi decidido."""
+"""A configuração desejada é dado, não código, e sabe dizer o que ainda não foi decidido."""
 
 import json
 from pathlib import Path

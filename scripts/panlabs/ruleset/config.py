@@ -1,7 +1,7 @@
 """A configuração desejada: dado versionado, carregado de arquivo.
 
 Os valores são decididos pela spec de Org #2 e vivem em `config/ruleset.json`.
-Este módulo entrega o esqueleto do dado e a sua leitura — nunca os valores.
+Este módulo entrega o esqueleto do dado e a sua leitura, nunca os valores.
 
 Uma chave ausente ou nula significa **ainda não decidido**, e o planner não
 planeja nada para a dimensão correspondente. Isso é diferente de "decidido como

@@ -1,7 +1,7 @@
 """A interface do script de ruleset.
 
 Plano por default: rodar sem argumento nunca muda nada. Aplicar exige `--apply`,
-explícito, e só contra a org viva — aplicar a partir de um retrato salvo seria
+explícito, e só contra a org viva: aplicar a partir de um retrato salvo seria
 agir sobre um estado que já pode não existir mais.
 
     uv run panlabs-ruleset                     # o plano da org viva
@@ -85,7 +85,7 @@ def _why_empty(the_plan: Plan, desired: Desired, config: Path) -> str:
     """Um plano vazio tem duas causas opostas, e confundi-las seria caro.
 
     Se a configuração desejada ainda não foi decidida, vazio significa "nada foi
-    pedido" — não "está tudo conforme". Só quem carregou o dado sabe a diferença.
+    pedido": não "está tudo conforme". Só quem carregou o dado sabe a diferença.
     """
     if the_plan:
         return ""
