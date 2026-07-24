@@ -1,7 +1,7 @@
 """O seam: o vocabulário de plano compartilhado por todo script deste repo.
 
 Este é o ponto mais alto disponível: acima dele só existe a chamada real de API;
-abaixo dele começa detalhe de implementação. E é **um só** — o mesmo formato
+abaixo dele começa detalhe de implementação. E é **um só**: o mesmo formato
 serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
 
     plan(observed, desired) -> Plan   # puro, testado com fixtures
@@ -11,7 +11,7 @@ serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
 O motivo é obrigatório por construção: um plano que diz "vai aplicar proteção em X"
 sem dizer o que está divergente não é revisável, e portanto não é um plano válido.
 
-O `payload` de um item é o dado que o efeito precisa para agir — tipicamente o
+O `payload` de um item é o dado que o efeito precisa para agir, tipicamente o
 corpo exato de uma chamada de API. Ele existe para que o applier não precise
 decidir nada: o planner já calculou o que enviar.
 """
@@ -58,7 +58,7 @@ class Plan:
 
     Serializável e legível: é o que o teste compara e o que o operador lê antes
     de aprovar. A ordem dos itens é a ordem em que o planner os produziu, e é
-    determinística — plano instável não é comparável nem revisável.
+    determinística: plano instável não é comparável nem revisável.
     """
 
     items: tuple[PlanItem, ...] = ()
@@ -106,7 +106,7 @@ class Plan:
 
 
 Effect = Callable[[PlanItem], None]
-"""O efeito que realiza um item de plano. Não decide nada — só age."""
+"""O efeito que realiza um item de plano. Não decide nada, só age."""
 
 
 def apply(plan: Plan, effects: Mapping[str, Effect]) -> None:
@@ -115,7 +115,7 @@ def apply(plan: Plan, effects: Mapping[str, Effect]) -> None:
     Não há ramificação de decisão aqui, e não pode haver: `effects` é uma tabela
     de despacho, e a escolha de qual ação cabe a cada alvo já foi feita pelo
     planner. Uma ação sem efeito registrado é erro de programação, não um caso a
-    tratar — por isso a busca falha em vez de ser ignorada.
+    tratar: por isso a busca falha em vez de ser ignorada.
     """
     for item in plan:
         effects[item.action](item)

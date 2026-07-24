@@ -2,7 +2,7 @@
 
 As skills de engenharia falam em cinco papéis de triagem. Este arquivo mapeia esses papéis para as strings de label efetivamente usadas neste tracker.
 
-Este repo usa o **vocabulário canônico verbatim** — sem aliases e sem namespace.
+Este repo usa o **vocabulário canônico verbatim**: sem aliases e sem namespace.
 
 | Papel na skill    | Label neste tracker | Significado                                   |
 | ----------------- | ------------------- | --------------------------------------------- |

@@ -1,4 +1,4 @@
-# `.github` — o repo meta da panlabs
+# `.github`: o repo meta da panlabs
 
 Este é o repositório que carrega a **definição do padrão panlabs**, ao lado dos mecanismos que o aplicam e o verificam.
 
@@ -8,23 +8,23 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 
 | | |
 | --- | --- |
-| **`profile/README.md`** | O perfil da org — a página que um visitante vê antes de abrir qualquer repo. |
+| **`profile/README.md`** | O perfil da org: a página que um visitante vê antes de abrir qualquer repo. |
 | **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. |
 | **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo, e o checker de conformidade, que mede a frota contra a anatomia. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, quatro tipos, invariantes e slots. |
 
-Parte do padrão é **imposta pela plataforma** — rulesets e required checks, que um repo não consegue contornar. Parte é **documentada e checada** — o `ANATOMY.md` e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente.
+Parte do padrão é **imposta pela plataforma**: rulesets e required checks, que um repo não consegue contornar. Parte é **documentada e checada**: o `ANATOMY.md` e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente.
 
 ## Princípios de construção
 
-**Toda decisão vive num planner puro.** Os scripts daqui separam `plan(observed) → Plan` de `apply(Plan)`. O plano é o default: rodar sem argumento nunca muda nada. Cada item de plano carrega ação, alvo e **motivo** — plano sem motivo não é revisável.
+**Toda decisão vive num planner puro.** Os scripts daqui separam `plan(observed) → Plan` de `apply(Plan)`. O plano é o default: rodar sem argumento nunca muda nada. Cada item de plano carrega ação, alvo e **motivo**: plano sem motivo não é revisável.
 
-**Nenhum alvo é hardcoded.** A lista de repos vem sempre da org viva, nunca de uma constante — assim a regra não pode divergir da realidade, e repo novo entra sozinho.
+**Nenhum alvo é hardcoded.** A lista de repos vem sempre da org viva, nunca de uma constante. Assim a regra não pode divergir da realidade, e repo novo entra sozinho.
 
 **Conformidade é binária.** Não existe nível "recomendado": numa org de um mantenedor, recomendação é licença para deriva, e o consumidor do padrão é um agente.
 
-**A configuração desejada é dado, não código.** Ela mora em `config/`, separada do mecanismo que a aplica. Um valor `null` ali significa *ainda não decidido*, e o planner não planeja nada para uma dimensão não decidida — o que é diferente de decidida-como-vazia.
+**A configuração desejada é dado, não código.** Ela mora em `config/`, separada do mecanismo que a aplica. Um valor `null` ali significa *ainda não decidido*, e o planner não planeja nada para uma dimensão não decidida, o que é diferente de decidida-como-vazia.
 
 ## Rodando os scripts
 
@@ -38,7 +38,7 @@ uv run panlabs-ruleset --json            # o mesmo plano, serializado
 uv run panlabs-ruleset --apply           # aplica  (exige `admin:org` no token)
 ```
 
-**Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva — aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado.
+**Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva: aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado.
 
 Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`.
 
@@ -50,11 +50,11 @@ uv run ruff check && uv run ruff format  # verificação e formatação
 uv run pyright                           # tipos
 ```
 
-O que é testado é o **planner** — uma função pura de estado observado para plano, exercitada com fixtures capturadas da própria frota. O applier não é testado: ele é uma tabela de despacho, uma chamada de API por ação. Se algum dia ele precisar de um `if`, a decisão vazou para dentro dele, e o conserto é movê-la para o planner.
+O que é testado é o **planner**: uma função pura de estado observado para plano, exercitada com fixtures capturadas da própria frota. O applier não é testado: ele é uma tabela de despacho, uma chamada de API por ação. Se algum dia ele precisar de um `if`, a decisão vazou para dentro dele, e o conserto é movê-la para o planner.
 
 ## Origem
 
-Este repo é o produto de um mapa de wayfinding — [O padrão panlabs: org, máquina e repo](https://github.com/panlabs-tech/panlabs/issues/46) — que travou 21 decisões em três frentes ao longo de julho de 2026. O mapa e seus tickets de decisão permanecem em `panlabs-tech/panlabs` como registro histórico. Quando algo aqui parecer arbitrário, o porquê provavelmente está lá.
+Este repo é o produto de um mapa de wayfinding, [O padrão panlabs: org, máquina e repo](https://github.com/panlabs-tech/panlabs/issues/46), que travou 21 decisões em três frentes ao longo de julho de 2026. O mapa e seus tickets de decisão permanecem em `panlabs-tech/panlabs` como registro histórico. Quando algo aqui parecer arbitrário, o porquê provavelmente está lá.
 
 ## Licença
 

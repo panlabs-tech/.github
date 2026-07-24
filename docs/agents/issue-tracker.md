@@ -8,7 +8,7 @@ As issues deste repo vivem como **issues do GitHub** em `panlabs-tech/.github`. 
 
 Trabalho sobre o **padrão panlabs**: configuração da org, ambiente da máquina de desenvolvimento, anatomia de repo, CI compartilhada, conformidade.
 
-Trabalho sobre **produto** não entra — cada solução tem seu próprio tracker.
+Trabalho sobre **produto** não entra: cada solução tem seu próprio tracker.
 
 ## O que não é superfície de triagem
 
@@ -16,4 +16,4 @@ Trabalho sobre **produto** não entra — cada solução tem seu próprio tracke
 
 ## Registro histórico
 
-O mapa de wayfinding que originou este repo ([panlabs-tech/panlabs#46](https://github.com/panlabs-tech/panlabs/issues/46)) e seus 21 tickets de decisão permanecem em `panlabs-tech/panlabs`. Eles são **arquivo**, não trabalho vivo — não abra issue lá.
+O mapa de wayfinding que originou este repo ([panlabs-tech/panlabs#46](https://github.com/panlabs-tech/panlabs/issues/46)) e seus 21 tickets de decisão permanecem em `panlabs-tech/panlabs`. Eles são **arquivo**, não trabalho vivo. Não abra issue lá.

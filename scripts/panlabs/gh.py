@@ -1,7 +1,7 @@
 """Adaptador fino para o `gh` já autenticado da máquina.
 
 Custo de credencial zero: nada é guardado em lugar nenhum, e nenhuma chamada
-daqui decide coisa alguma — ela só pergunta e responde.
+daqui decide coisa alguma: ela só pergunta e responde.
 
 Falha de rede ou de credencial vira `GhError`, e "não existe" vira `GhNotFoundError`.
 A distinção importa: um token expirado não pode virar "a frota inteira está fora
@@ -23,7 +23,7 @@ class GhError(RuntimeError):
 
 
 class GhNotFoundError(GhError):
-    """O recurso pedido não existe — resposta 404, não falha de infraestrutura."""
+    """O recurso pedido não existe: resposta 404, não falha de infraestrutura."""
 
 
 def _run(args: Sequence[str], *, stdin: str | None = None) -> str:

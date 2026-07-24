@@ -1,6 +1,6 @@
 """A interface: o contrato de que rodar sem argumento nunca muda nada.
 
-O applier em si não é testado — ele é fino por construção. O que se testa aqui é
+O applier em si não é testado: ele é fino por construção. O que se testa aqui é
 a fronteira: que o caminho de plano não chega nele, e que a tabela de efeitos
 cobre exatamente o vocabulário de ações que o planner sabe emitir.
 """
@@ -97,7 +97,7 @@ def test_json_output_is_the_serialized_plan_and_nothing_else(
 
 
 def test_every_action_the_planner_can_emit_has_an_effect_registered():
-    """Uma ação sem efeito só falharia na hora de aplicar — tarde demais."""
+    """Uma ação sem efeito só falharia na hora de aplicar, tarde demais."""
     emitted = {
         planner.CREATE_RULESET,
         planner.UPDATE_RULESET,

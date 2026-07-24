@@ -73,7 +73,7 @@ def fetch_raw(org: str) -> dict[str, Any]:
     """O retrato cru da org viva, no formato que `build_observed` consome.
 
     Somente leitura, pelo `gh` já autenticado da máquina. Devolve o retrato cru em
-    vez do estado já construído para que ele possa ser gravado como fixture — a
+    vez do estado já construído para que ele possa ser gravado como fixture: a
     fixture precisa ser o que a API disse, não o que nós entendemos dela.
     """
     repos: list[dict[str, Any]] = []

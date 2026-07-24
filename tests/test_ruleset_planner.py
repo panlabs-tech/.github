@@ -1,6 +1,6 @@
 """O planner do ruleset: dado o estado observado, quais divergências viram plano.
 
-O planner é puro. Nada aqui toca rede, token ou disco além das fixtures — e é
+O planner é puro. Nada aqui toca rede, token ou disco além das fixtures, e é
 justamente isso que permite exercitar o caminho destrutivo sem destruir nada.
 """
 
@@ -44,7 +44,7 @@ def echo_ruleset(body: Mapping[str, Any], ruleset_id: int = 1) -> dict[str, Any]
 
     A API preenche defaults que não foram enviados e anexa metadados próprios.
     Um planner que não tolerasse esse ruído acusaria divergência a cada leitura,
-    e o script nunca convergiria — por isso a idempotência se testa contra o eco,
+    e o script nunca convergiria: por isso a idempotência se testa contra o eco,
     não contra o corpo enviado.
     """
     defaults: dict[str, dict[str, Any]] = {

@@ -1,5 +1,5 @@
 {
-  "_nota": "Fixture de teste. NÃO é a configuração da org — essa é decidida pela spec de Org #2 e mora em config/ruleset.json. Este arquivo existe só para exercitar o planner com um desejado preenchido.",
+  "_nota": "Fixture de teste. NÃO é a configuração da org: essa é decidida pela spec de Org #2 e mora em config/ruleset.json. Este arquivo existe só para exercitar o planner com um desejado preenchido.",
   "ruleset": {
     "name": "panlabs",
     "target": "branch",

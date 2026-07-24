@@ -2,7 +2,7 @@
 
     plan(observed, desired) -> Plan
 
-`desired` é dado, não observação — por isso entra como segundo argumento em vez
+`desired` é dado, não observação: por isso entra como segundo argumento em vez
 de dobrado dentro de `observed`. O seam continua sendo o mesmo: uma função pura
 de estado para plano, e nada acima dela além da chamada real de API.
 
@@ -44,7 +44,7 @@ def plan(observed: Observed, desired: Desired) -> Plan:
 
 
 def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    """Tudo que falta neste repo — uma única leitura por branch, nunca duas.
+    """Tudo que falta neste repo: uma única leitura por branch, nunca duas.
 
     A ordem é deliberada: primeiro o ruleset converge, depois a proteção clássica
     é aposentada. Assim a branch nunca fica desprotegida entre um passo e outro.
@@ -190,7 +190,7 @@ def _compare_rules(
 
 
 def _bag(values: Sequence[Any]) -> list[str]:
-    """Uma lista comparável sem ordem — ordem de contexto ou de ator não é semântica."""
+    """Uma lista comparável sem ordem: ordem de contexto ou de ator não é semântica."""
     return sorted(json.dumps(v, sort_keys=True, ensure_ascii=False) for v in values)
 
 
