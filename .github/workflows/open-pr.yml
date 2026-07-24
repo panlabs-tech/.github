@@ -1,0 +1,64 @@
+name: open-pr (reusable)
+
+# Abre o PR da branch de trabalho contra a branch base quando os checks do
+# push ficam verdes: fecha a esteira worktree → commit → push → PR →
+# merge no verde sem ação humana (docs/agents/workflow.md).
+#
+# Padronizado, mas deliberadamente **não** required como status check:
+# exigi-lo como condição de merge seria circular, é o job que cria o PR
+# (panlabs-tech/.github#7).
+#
+# Idempotente: um push subsequente na mesma branch reusa o PR já aberto.
+
+on:
+  workflow_call:
+    inputs:
+      base-branch:
+        description: "Branch de destino do PR automático."
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+  open-pr:
+    name: open-pr
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: abrir PR para a branch base se ainda não existir
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          BASE: ${{ inputs.base-branch }}
+        run: |
+          set -euo pipefail
+
+          if [ "$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json number --jq 'length')" -ne 0 ]; then
+            echo "::notice::Já existe PR aberto de $BRANCH para $BASE."
+            exit 0
+          fi
+
+          git fetch --quiet origin "$BASE"
+          if [ "$(git rev-list --count FETCH_HEAD..HEAD)" -eq 0 ]; then
+            echo "::notice::$BRANCH não tem commits novos sobre $BASE."
+            exit 0
+          fi
+
+          title="$(git log "FETCH_HEAD..HEAD" --pretty=%s | head -n1 || true)"
+          [ -z "$title" ] && title="$(git log -1 --pretty=%s)"
+
+          gh pr create \
+            --base "$BASE" \
+            --head "$BRANCH" \
+            --title "$title" \
+            --body "PR aberto automaticamente após os checks do push ficarem verdes."
+
+          echo "::notice::PR aberto: $BRANCH -> $BASE"

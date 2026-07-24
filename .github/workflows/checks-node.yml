@@ -1,0 +1,89 @@
+name: checks-node (reusable)
+
+# `package-manager` e `working-directory` existem porque a frota genuinamente
+# diverge: panlabs e tfbox usam npm, os demais usam pnpm, e os monorepos
+# precisam apontar a subpasta da aplicação (panlabs-tech/.github#7).
+#
+# Sem sequência fixa de comandos como a de checks-python.yml: a superfície
+# Node varia de ferramenta (biome, tsc, vitest, next) atrás de um contrato
+# uniforme de scripts do package.json: lint, typecheck, test e,
+# opcionalmente, build. Cada repo mapeia o script para a ferramenta que usa;
+# este workflow só invoca o nome do script.
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        description: 'Gerenciador de pacotes: "npm" ou "pnpm".'
+        type: string
+        required: true
+      working-directory:
+        description: "Diretório onde vive o package.json da superfície Node."
+        type: string
+        default: "."
+
+permissions:
+  contents: read
+
+jobs:
+  checks-node:
+    name: checks-node
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: validar package-manager
+        run: |
+          case "${{ inputs.package-manager }}" in
+            npm|pnpm) ;;
+            *)
+              echo '::error::package-manager deve ser "npm" ou "pnpm", recebeu "${{ inputs.package-manager }}".'
+              exit 1
+              ;;
+          esac
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        if: inputs.package-manager == 'pnpm'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.node-version
+          cache: ${{ inputs.package-manager }}
+          cache-dependency-path: >-
+            ${{ inputs.package-manager == 'npm'
+                && format('{0}/package-lock.json', inputs.working-directory)
+                || format('{0}/pnpm-lock.yaml', inputs.working-directory) }}
+
+      - name: instalar dependências (npm)
+        if: inputs.package-manager == 'npm'
+        run: npm ci
+
+      - name: instalar dependências (pnpm)
+        if: inputs.package-manager == 'pnpm'
+        run: pnpm install --frozen-lockfile
+
+      - name: lint
+        run: ${{ inputs.package-manager }} run lint
+
+      - name: typecheck
+        run: ${{ inputs.package-manager }} run typecheck
+
+      - name: test
+        run: ${{ inputs.package-manager }} test
+
+      - name: verificar script de build
+        id: build-script
+        run: |
+          if [ "$(node -p "require('./package.json').scripts?.build ? 'true' : 'false'")" = "true" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::sem script \"build\" em package.json, etapa pulada."
+          fi
+
+      - name: build
+        if: steps.build-script.outputs.exists == 'true'
+        run: ${{ inputs.package-manager }} run build

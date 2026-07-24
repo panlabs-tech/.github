@@ -1,0 +1,100 @@
+name: pr-checks
+
+# O `.github` é o primeiro consumidor dos próprios quatro reusable workflows
+# (panlabs-tech/.github#7): o repo que publica a CI compartilhada é o
+# primeiro a passar por ela. Dispara no push das branches de trabalho,
+# inclui worktree/** geradas por agente.
+#
+# Referência local (./.github/workflows/...), não a forma versionada externa
+# (panlabs-tech/.github/.github/workflows/...@tag) que os outros repos da
+# frota vão usar: um caller no mesmo repo sempre resolve contra o próprio SHA,
+# o que evita o problema do ovo-e-a-galinha de uma tag ainda não existir no
+# commit que introduz o workflow. Ver .github/workflows/README.md.
+#
+# `checks` (rollup) e `security` são os dois status checks obrigatórios:
+# o contrato está em scripts/panlabs/ci/rollup.py, testado em
+# tests/test_ci_rollup.py. `open-pr` aparece como check informativo no mesmo
+# commit, mas não é required (seria circular: é o job que cria o PR).
+
+on:
+  push:
+    branches:
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
+      - "refactor/**"
+      - "test/**"
+      - "ci/**"
+      - "worktree/**"
+      # A ferramenta EnterWorktree do Claude Code gera branch com hífen
+      # (worktree-<nome>), não com barra: descoberto ao ver o próprio PR
+      # deste workflow não disparar checagem nenhuma no push, porque só
+      # "worktree/**" estava listado (panlabs-tech/.github#7).
+      - "worktree-**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks-python:
+    name: checks-python
+    uses: ./.github/workflows/checks-python.yml
+
+  # O rollup: id fixo, needs sobre as pernas por superfície deste repo (hoje
+  # só checks-python, o .github não tem superfície Node). if: always() +
+  # checagem explícita do resultado, para que uma perna reprovada reprove o
+  # rollup em vez de pulá-lo (o mesmo cálculo que
+  # panlabs.ci.rollup.rollup_conclusion faz em Python, testado).
+  checks:
+    name: checks
+    needs: [checks-python]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: agregar o resultado das pernas por superfície
+        run: |
+          set -euo pipefail
+          result="${{ needs.checks-python.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "::error::checks-python reprovou (${result})."
+            exit 1
+          fi
+
+  security-scan:
+    name: security-scan
+    uses: ./.github/workflows/security.yml
+
+  # Job de fachada em volta de security-scan, não um rollup de superfícies
+  # (só existe um scan de segredos possível por repo). Existe porque um job
+  # que chama um reusable workflow via "uses:" publica o check com o nome
+  # "<job do caller> / <job do workflow chamado>" (aqui, "security-scan /
+  # security"), nunca só o nome do job do caller: comportamento do GitHub
+  # Actions, sem opção para suprimir. Sem esta fachada, o required check
+  # "security" pedido pela spec nunca existiria com esse nome exato.
+  security:
+    name: security
+    needs: [security-scan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: agregar o resultado do scan
+        run: |
+          set -euo pipefail
+          result="${{ needs.security-scan.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "::error::security-scan reprovou (${result})."
+            exit 1
+          fi
+
+  open-pr:
+    name: open-pr
+    needs: [checks, security]
+    uses: ./.github/workflows/open-pr.yml
+    permissions:
+      contents: read
+      pull-requests: write
