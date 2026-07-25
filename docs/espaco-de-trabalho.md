@@ -2,7 +2,7 @@
 
 O espaço de trabalho da máquina tem um **estado estacionário declarado**, e a máquina viva converge para ele. Este documento é a parte documentada; a parte executável é `uv run panlabs-workspace`, cujo plano é a verificação do invariante.
 
-Origem: [spec de Máquina #3](https://github.com/panlabs-tech/.github/issues/3), issue [#21](https://github.com/panlabs-tech/.github/issues/21). O equipamento global da máquina é a [#20](https://github.com/panlabs-tech/.github/issues/20) e mora em [`docs/maquina.md`](maquina.md); o heartbeat é a [#22](https://github.com/panlabs-tech/.github/issues/22).
+Origem: [spec de Máquina #3](https://github.com/panlabs-tech/.github/issues/3), issue [#21](https://github.com/panlabs-tech/.github/issues/21). A aplicação nesta máquina está registrada em [`espaco-aplicacao-2026-07-25.md`](espaco-aplicacao-2026-07-25.md). O equipamento global da máquina é a [#20](https://github.com/panlabs-tech/.github/issues/20) e mora em [`docs/maquina.md`](maquina.md); o heartbeat é a [#22](https://github.com/panlabs-tech/.github/issues/22).
 
 ## Plano por default, e por que aqui isso não é conveniência
 
