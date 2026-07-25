@@ -72,6 +72,24 @@ def test_a_renamed_file_is_reported_once_and_by_its_new_name(tmp_path: Path):
     assert entry["dirty"] == ["LEIAME.md"]
 
 
+def test_a_nested_worktree_the_gitignore_misses_is_not_read_as_work_to_preserve(tmp_path: Path):
+    """Commitá-lo enfiaria um repositório dentro do outro: é dano, não preservação.
+
+    O repo meta da org ignora `.claude/worktrees/`, e por isso nunca viu este caso.
+    Um repo da frota que não ignora vê, e o preflight leria a árvore aninhada
+    inteira como diretório não rastreado a commitar.
+    """
+    root = tmp_path / "workspaces"
+    root.mkdir()
+    repo = make_repo(root / "panlabs")
+    git(repo, "worktree", "add", "-q", "-b", "task/x", str(repo / ".claude/worktrees/task-x"))
+    (repo / "de-verdade.md").write_text("isto sim\n", encoding="utf-8")
+
+    found = observe.scan(root, "panlabs-tech")
+
+    assert found[str(repo)]["dirty"] == ["de-verdade.md"]
+
+
 def test_a_clean_repo_reports_nothing_dirty(tmp_path: Path):
     entry = look(make_repo(tmp_path / "campfire"))
 
@@ -234,9 +252,9 @@ def test_a_worktree_outside_the_root_is_left_alone(tmp_path: Path):
     git(repo, "worktree", "add", "-q", "-b", "fora", str(tmp_path / "outro-lugar"))
     git(repo, "worktree", "add", "-q", "-b", "dentro", str(root / "wt-1"))
 
-    found = observe._worktrees_of(repo, root)  # pyright: ignore[reportPrivateUsage]
+    found = observe.scan(root, "panlabs-tech")
 
-    assert [entry["path"] for entry in found] == [str(root / "wt-1")]
+    assert sorted(found) == [str(repo), str(root / "wt-1")]
 
 
 def test_the_raw_snapshot_round_trips_through_the_observed_type(tmp_path: Path):

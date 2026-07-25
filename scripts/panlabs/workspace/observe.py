@@ -40,6 +40,7 @@ __all__ = [
     "build_observed",
     "fetch_raw",
     "observed_to_dict",
+    "scan",
 ]
 
 DEFAULT_ROOT = Path.home() / "workspaces"
@@ -71,6 +72,22 @@ def _git(cwd: Path, *args: str) -> str:
 
 def fetch_raw(org: str, *, root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     """O retrato cru do espaço de trabalho, no formato que `build_observed` lê."""
+    dirs = scan(root, org)
+    return {
+        "org": org,
+        "root": str(root),
+        "org_repos": list(gh.repo_names(org)),
+        "dirs": [dirs[key] for key in sorted(dirs)],
+    }
+
+
+def scan(root: Path, org: str) -> dict[str, dict[str, Any]]:
+    """A metade de disco da observação, sem tocar a rede.
+
+    Separada da metade de org porque as duas falham de jeitos diferentes e uma
+    delas nem sempre está disponível: o disco responde sempre, a listagem da org
+    depende de credencial. Ler o espaço de trabalho não deveria exigir rede.
+    """
     dirs: dict[str, dict[str, Any]] = {}
     for path in _candidates(root, org):
         entry = _look_at(path)
@@ -79,15 +96,13 @@ def fetch_raw(org: str, *, root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     for entry in list(dirs.values()):
         if entry["kind"] != REPO:
             continue
-        for found in _worktrees_of(Path(entry["path"]), root):
-            dirs.setdefault(found["path"], found)
-
-    return {
-        "org": org,
-        "root": str(root),
-        "org_repos": list(gh.repo_names(org)),
-        "dirs": [dirs[key] for key in sorted(dirs)],
-    }
+        repo = Path(entry["path"])
+        hanging = _worktree_paths(repo)
+        entry["dirty"] = _without_worktrees(entry.get("dirty") or [], repo, hanging)
+        for found in hanging:
+            if root in found.parents:
+                dirs.setdefault(str(found), _look_at(found))
+    return dirs
 
 
 def _candidates(root: Path, org: str) -> Iterator[Path]:
@@ -270,16 +285,19 @@ def _stash_branch(subject: str) -> str:
     return ""
 
 
-def _worktrees_of(repo: Path, root: Path) -> list[dict[str, Any]]:
-    """As árvores de trabalho penduradas neste repositório, dentro do espaço.
+def _worktree_paths(repo: Path) -> list[Path]:
+    """As árvores de trabalho penduradas neste repositório, onde quer que morem.
 
     As podáveis ficam de fora: o diretório delas já não existe, e planejar mover ou
-    apagar o que não está lá seria plano sobre fantasma. As que moram fora da raiz
-    também: uma árvore em diretório temporário é transitória por natureza, e o
-    invariante de layout é sobre o espaço de trabalho.
+    apagar o que não está lá seria plano sobre fantasma.
+
+    A lista sai inteira, inclusive as de fora da raiz, porque ela serve a duas
+    perguntas. Só uma delas é sobre layout, e essa filtra pela raiz; a outra é
+    sobre o que o repositório carrega de sujo, e para essa uma árvore em diretório
+    temporário conta tanto quanto uma vizinha.
     """
     listing = _git(repo, "worktree", "list", "--porcelain")
-    found: list[dict[str, Any]] = []
+    found: list[Path] = []
     for block in listing.split("\n\n"):
         lines = [line for line in block.splitlines() if line]
         if not lines or not lines[0].startswith("worktree "):
@@ -288,10 +306,30 @@ def _worktrees_of(repo: Path, root: Path) -> list[dict[str, Any]]:
         prunable = any(line.startswith("prunable") for line in lines)
         if prunable or path == repo or not path.is_dir():
             continue
-        if root not in path.parents:
-            continue
-        found.append(_look_at(path))
+        found.append(path)
     return found
+
+
+def _without_worktrees(dirty: list[str], repo: Path, hanging: list[Path]) -> list[str]:
+    """Tira da lista de sujo o que na verdade é árvore de trabalho deste repositório.
+
+    Um worktree aninhado que o `.gitignore` do repositório não cobre aparece como
+    diretório não rastreado, e o preflight o leria como trabalho a preservar. Ele
+    não é: é uma árvore que o próprio plano já conhece, com branch e remote
+    próprios. Commitá-lo enfiaria um repositório dentro do outro, que é dano, e
+    não preservação.
+    """
+    if not hanging:
+        return dirty
+    return [
+        name
+        for name in dirty
+        if not any(_at_or_under(repo / name.rstrip("/"), tree) for tree in hanging)
+    ]
+
+
+def _at_or_under(path: Path, tree: Path) -> bool:
+    return path == tree or tree in path.parents or path in tree.parents
 
 
 def build_observed(raw: Mapping[str, Any]) -> Observed:
