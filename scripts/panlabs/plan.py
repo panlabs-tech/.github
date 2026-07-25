@@ -24,12 +24,22 @@ coisas diferentes, e esconder a segunda faria o plano mentir sobre a deriva.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterator, Mapping
+import sys
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-__all__ = ["Effect", "Plan", "PlanItem", "apply", "dump_raw", "load_raw"]
+__all__ = [
+    "Effect",
+    "Plan",
+    "PlanItem",
+    "apply",
+    "dump_raw",
+    "load_raw",
+    "report_undecided",
+    "why_empty",
+]
 
 
 @dataclass(frozen=True)
@@ -153,6 +163,40 @@ def dump_raw(path: Path | None, raw: Mapping[str, Any]) -> None:
         return
     path.write_text(
         json.dumps(raw, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def report_undecided(undecided: Sequence[str], config: Path) -> None:
+    """Avisa quais dimensões do dado ainda não foram decididas. Sem nenhuma, cala.
+
+    Mora aqui, e não em cada CLI, porque "não decidido" é vocabulário do seam:
+    todo script deste repo carrega dado versionado onde `null` significa a mesma
+    coisa, e dois textos diferentes para o mesmo fato divergiriam com o tempo.
+    """
+    if not undecided:
+        return
+    print(
+        f"Configuração desejada incompleta em {config}: "
+        f"{', '.join(undecided)} ainda sem decisão.\n"
+        "Nada é planejado para uma dimensão não decidida. Os valores são da spec de Org #2.\n",
+        file=sys.stderr,
+    )
+
+
+def why_empty(plan: Plan, undecided: Sequence[str], config: Path, *, subject: str) -> str:
+    """Um plano vazio tem duas causas opostas, e confundi-las seria caro.
+
+    Se a configuração desejada ainda não foi decidida, vazio significa "nada foi
+    pedido": não "está tudo conforme". Só quem carregou o dado sabe a diferença,
+    e por isso o `undecided` entra como argumento em vez de ser adivinhado aqui.
+    """
+    if plan:
+        return ""
+    if not undecided:
+        return "O estado observado já converge com o desejado."
+    return (
+        f"Isso NÃO quer dizer que {subject} está conforme: {', '.join(undecided)} "
+        f"ainda não foi decidido em {config}, então nada foi pedido."
     )
 
 

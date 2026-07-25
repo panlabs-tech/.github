@@ -8,7 +8,7 @@ Domínio: governança da org no GitHub, ambiente da máquina de desenvolvimento 
 
 - **`profile/README.md`**: o perfil da org, a página que um humano de fora vê em 30 segundos.
 - **`.github/workflows/`**: os reusable workflows que todos os repos da org referenciam em vez de copiar.
-- **`scripts/`**: o script de ruleset (aplica a configuração de proteção repo a repo) e o checker de conformidade (mede a frota contra a anatomia).
+- **`scripts/`**: o script de ruleset (aplica a configuração de proteção repo a repo), o script de org (converge o que não é ruleset: a política de Actions que sustenta a esteira, segurança, vitrine e features desligadas) e o checker de conformidade (mede a frota contra a anatomia).
 - **`config/`**: a configuração desejada, como **dado**. Os scripts leem daqui; nenhum deles crava valor em código.
 - **`ANATOMY.md`**: a definição canônica do que é um repo panlabs.
 
@@ -39,7 +39,7 @@ Runtime gerido por `uv`, versão declarada em `.python-version`. Toolchain espel
 | `uv run ruff check` / `uv run ruff format` | Verificação e formatação. |
 | `uv run pyright` | Tipos, em modo estrito sobre `scripts/`. |
 
-O pacote vive em `scripts/panlabs/`. O seam compartilhado está em `scripts/panlabs/plan.py`, e cada script o instancia num subpacote, hoje `panlabs.ruleset`.
+O pacote vive em `scripts/panlabs/`. O seam compartilhado está em `scripts/panlabs/plan.py`, e cada script o instancia num subpacote: `panlabs.ruleset` (proteção de branch), `panlabs.org` (o resto da configuração de org e repo) e `panlabs.checker` (conformidade, read-only).
 
 ## Autonomia
 

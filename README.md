@@ -10,7 +10,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | --- | --- |
 | **`profile/README.md`** | O perfil da org: a página que um visitante vê antes de abrir qualquer repo. |
 | **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. Ver [`.github/workflows/README.md`](.github/workflows/README.md). |
-| **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo, e o checker de conformidade, que mede a frota contra a anatomia. |
+| **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo; o de org, que converge o que não é ruleset (a esteira, segurança e vitrine); e o checker de conformidade, que mede a frota contra a anatomia. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, cinco tipos, invariantes e slots. |
 
@@ -40,6 +40,10 @@ uv run panlabs-ruleset --json            # o mesmo plano, serializado
 uv run panlabs-ruleset --apply           # aplica  (exige `admin:org` no token)
 uv run panlabs-ruleset --only ORG/REPO   # restringe o plano a um repo (repetível)
 
+uv run panlabs-org                       # o plano de org e repo que não é ruleset
+uv run panlabs-org --json                # o mesmo plano, serializado
+uv run panlabs-org --apply               # aplica  (exige `admin:org` no token)
+
 uv run panlabs-checker                   # a matriz de deriva da org viva (read-only)
 uv run panlabs-checker --json            # a mesma matriz, serializada
 ```
@@ -52,7 +56,11 @@ uv run panlabs-checker --json            # a mesma matriz, serializada
 
 A configuração desejada cobre duas superfícies, porque são dois recursos na API e uma decisão só: o **ruleset** da branch default e a **configuração do repositório** (método de merge, deleção de branch no merge, auto-merge). Exigir commit assinado sem restringir o merge a squash quebraria o merge autônomo na hora, já que o commit local do agente não é assinado e quem assina o commit final é o GitHub, no squash via API. As duas metades aterrissam juntas, nesta ordem, e nunca uma sem a outra.
 
-Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`.
+`panlabs-org` cobre as dimensões que não são proteção de branch: a política de Actions que cria e aprova PR (a que sustenta a esteira), secret scanning, push protection, Dependabot, os defaults de segurança para repo novo, 2FA, descrição da org e dos repos, topics, pins e wiki. Rodá-lo **sem aplicar é a verificação** desses invariantes: a política que quebrou a esteira em julho de 2026 passou oito dias caída porque não existia nada olhando.
+
+Duas dessas dimensões o GitHub não expõe para escrita: a exigência de 2FA (`PATCH /orgs` não a aceita) e os repos fixados no perfil (não há mutação em REST nem em GraphQL). Elas aparecem no plano como itens **manuais**, com o motivo dizendo onde resolver, e o `--apply` não finge aplicá-las.
+
+Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`. Metade das dimensões de `panlabs-org` também **se lê** com esse escopo: sem ele o GitHub omite os campos em vez de negar a resposta, e por isso um campo omitido vira erro alto, nunca "está desligado".
 
 Testes, verificação e tipos:
 

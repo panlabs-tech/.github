@@ -15,7 +15,7 @@ import subprocess
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-__all__ = ["GhError", "GhNotFoundError", "api", "repo_names"]
+__all__ = ["GhError", "GhNotFoundError", "api", "graphql", "repo_names"]
 
 
 class GhError(RuntimeError):
@@ -67,6 +67,18 @@ def api(
 
     output = _run(args, stdin=stdin)
     return json.loads(output) if output.strip() else None
+
+
+def graphql(query: str, **variables: str) -> Any:
+    """Consulta a API GraphQL e devolve a resposta já desserializada.
+
+    Existe porque parte do estado da org não tem endpoint REST: os repos fixados
+    no perfil, por exemplo, só são legíveis por aqui.
+    """
+    args = ["api", "graphql", "-f", f"query={query}"]
+    for name, value in variables.items():
+        args += ["-f", f"{name}={value}"]
+    return json.loads(_run(args))
 
 
 def repo_names(org: str) -> tuple[str, ...]:
