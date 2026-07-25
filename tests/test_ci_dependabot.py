@@ -17,12 +17,20 @@ from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, load_desired
 from shipped import dependabot_config, workflow
 
 BOT = dependabot.DEPENDABOT_ACTOR
+AUTO_MERGE_CALLER = "pr-dependabot-auto-merge.yml"
+MERGE_JOB = "auto-merge"
 
 Updates = Iterable[Mapping[str, Any]]
 
 
 def shipped_updates() -> list[dict[str, Any]]:
     return dependabot_config()["updates"]
+
+
+def merge_step() -> dict[str, Any]:
+    """O passo que de fato mergeia: o único do job que roda script."""
+    steps = workflow(dependabot.AUTO_MERGE_WORKFLOW)["jobs"][MERGE_JOB]["steps"]
+    return next(step for step in steps if "run" in step)
 
 
 def ecosystems_of(updates: Updates) -> set[str]:
@@ -166,6 +174,35 @@ def test_every_update_type_the_shipped_groups_carry_is_one_that_auto_merges():
             assert dependabot.automerges(BOT, f"version-update:semver-{update_type}"), name
 
 
+# --- o filtro de branch é o do GitHub, e não o do fnmatch ---------------------
+
+
+def test_a_double_star_filter_crosses_the_slash_like_it_does_on_the_platform():
+    assert dependabot.branch_filter_matches("dependabot/uv/ruff-0.16.1", "dependabot/**")
+
+
+def test_a_single_star_filter_does_not_cross_the_slash_which_is_where_fnmatch_lies():
+    """Sob `fnmatch` isto passaria, e o guarda erraria no caso que existe para pegar."""
+    assert not dependabot.branch_filter_matches("dependabot/uv/ruff-0.16.1", "dependabot/*")
+
+
+def test_a_single_star_filter_still_matches_inside_one_segment():
+    assert dependabot.branch_filter_matches("dependabot/uv", "dependabot/*")
+
+
+def test_a_double_star_after_a_hyphen_matches_the_worktree_branches_of_the_pipeline():
+    assert dependabot.branch_filter_matches("worktree-issue-15-automacoes", "worktree-**")
+
+
+def test_a_filter_without_wildcards_matches_only_itself():
+    assert dependabot.branch_filter_matches("main", "main")
+    assert not dependabot.branch_filter_matches("mainline", "main")
+
+
+def test_a_dot_in_a_filter_is_literal_and_not_a_wildcard():
+    assert not dependabot.branch_filter_matches("mainX", "main.")
+
+
 # --- os checks precisam existir para o auto-merge ter o que esperar ------------
 
 
@@ -180,15 +217,23 @@ def test_a_branch_filter_list_without_dependabot_is_reported_as_not_covering_it(
     assert not dependabot.covers_dependabot_branches(["feat/**", "worktree-**"])
 
 
-def test_the_pr_that_the_esteira_opens_is_not_opened_again_for_a_dependabot_branch():
+def test_a_filter_that_only_reaches_one_level_is_reported_as_not_covering_either():
+    """`dependabot/*` parece cobrir e não cobre: o falso positivo que o fnmatch daria."""
+    assert not dependabot.covers_dependabot_branches(["dependabot/*"])
+
+
+def test_the_pr_the_pipeline_opens_is_not_opened_again_for_a_dependabot_branch():
     """O Dependabot já abre o próprio PR; `open-pr` rodar ali seria ruído ou corrida."""
     open_pr = workflow("pr-checks.yml")["jobs"]["open-pr"]
 
     assert BOT in open_pr["if"]
 
 
+# --- as duas cópias da decisão, a de Python e a de YAML -----------------------
+
+
 def test_the_auto_merge_is_consumed_by_local_reference_like_every_other_workflow():
-    job = workflow("pr-dependabot-auto-merge.yml")["jobs"][dependabot.AUTO_MERGE_JOB]
+    job = workflow(AUTO_MERGE_CALLER)["jobs"][dependabot.AUTO_MERGE_JOB]
 
     assert job["uses"] == f"./.github/workflows/{dependabot.AUTO_MERGE_WORKFLOW}"
 
@@ -197,3 +242,35 @@ def test_the_auto_merge_asks_for_the_permission_it_needs_to_merge_and_nothing_mo
     permissions = workflow(dependabot.AUTO_MERGE_WORKFLOW)["permissions"]
 
     assert permissions == {"contents": "write", "pull-requests": "write"}
+
+
+def test_the_caller_raises_the_token_because_a_run_of_the_bot_starts_read_only():
+    """O GitHub documenta que o `permissions` do workflow eleva o token do bot.
+
+    Sem esta elevação o merge seria negado em todo PR do Dependabot, e o teste
+    acima, sobre o workflow chamado, não pegaria: quem eleva é quem chama.
+    """
+    permissions = workflow(AUTO_MERGE_CALLER)["permissions"]
+
+    assert permissions == {"contents": "write", "pull-requests": "write"}
+
+
+def test_the_job_only_runs_for_a_pr_that_the_bot_itself_opened():
+    job = workflow(dependabot.AUTO_MERGE_WORKFLOW)["jobs"][MERGE_JOB]
+
+    assert job["if"] == f"github.event.pull_request.user.login == '{BOT}'"
+
+
+def test_the_merge_step_asks_for_the_method_that_the_module_declares():
+    script = merge_step()["run"]
+
+    assert f"--{dependabot.MERGE_METHOD}" in script
+    assert f"merge_method={dependabot.MERGE_METHOD}" in script
+
+
+def test_the_condition_of_the_merge_step_names_exactly_the_types_that_auto_merge():
+    """Se as duas cópias da regra divergirem, é aqui que aparece, e não em produção."""
+    condition = merge_step()["if"]
+
+    for update_type in (dependabot.SEMVER_MAJOR, dependabot.SEMVER_MINOR, dependabot.SEMVER_PATCH):
+        assert (update_type in condition) == dependabot.automerges(BOT, update_type), update_type

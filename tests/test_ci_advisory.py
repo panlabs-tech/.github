@@ -9,13 +9,21 @@ O que se testa não é o CodeQL: é a fiação. Que nenhuma regra do ruleset ent
 exige a análise, e que nenhum job que publica um required check depende dela.
 """
 
+import json
 from typing import Any
 
 from panlabs.ci import advisory, rollup
 from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, load_desired
 from shipped import workflow
 
+CODE_SCANNING_CALLER = "pr-code-scanning.yml"
 DOTGITHUB_LANGUAGES = ("python", "actions")
+
+
+def declared_languages() -> tuple[str, ...]:
+    """As linguagens que o caller entregue de fato passa para a análise."""
+    job = workflow(CODE_SCANNING_CALLER)["jobs"][advisory.CODE_SCANNING_JOB]
+    return tuple(json.loads(job["with"]["languages"]))
 
 
 def ruleset_with(*rules: dict[str, Any]) -> dict[str, Any]:
@@ -130,26 +138,31 @@ def test_the_file_that_publishes_the_required_checks_never_calls_the_analysis():
 
 def test_the_analysis_lives_in_its_own_caller_so_the_separation_is_structural():
     """`.github` consome a análise por referência local, como os outros quatro."""
-    job = workflow("pr-code-scanning.yml")["jobs"][advisory.CODE_SCANNING_JOB]
+    job = workflow(CODE_SCANNING_CALLER)["jobs"][advisory.CODE_SCANNING_JOB]
 
     assert job["uses"] == f"./.github/workflows/{advisory.CODE_SCANNING_WORKFLOW}"
 
 
 def test_the_analysis_runs_on_pull_request_which_is_where_it_reports():
-    triggers = workflow("pr-code-scanning.yml")["on"]
+    triggers = workflow(CODE_SCANNING_CALLER)["on"]
 
     assert "pull_request" in triggers
 
 
 def test_no_job_of_the_analysis_caller_can_publish_a_required_check_name():
     """Coincidir com `checks` ou `security` faria o advisory virar gate pelo nome."""
-    jobs = set(workflow("pr-code-scanning.yml")["jobs"])
+    jobs = set(workflow(CODE_SCANNING_CALLER)["jobs"])
 
     assert jobs & rollup.required_status_names([]) == set()
 
 
 def test_the_analysis_asks_for_the_permission_it_needs_to_report_and_nothing_more():
     """Achado que não sobe não é reporte; escopo além disso não é advisory."""
-    permissions = workflow("code-scanning.yml")["permissions"]
+    permissions = workflow(advisory.CODE_SCANNING_WORKFLOW)["permissions"]
 
     assert permissions == {"contents": "read", "security-events": "write"}
+
+
+def test_the_caller_declares_the_languages_the_published_names_are_derived_from():
+    """Sem isto, a lista usada nos testes seria uma cópia livre para envelhecer."""
+    assert declared_languages() == DOTGITHUB_LANGUAGES

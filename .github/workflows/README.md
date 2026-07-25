@@ -59,7 +59,9 @@ Isto corrige um defeito do [panlabs-tech/panlabs#59](https://github.com/panlabs-
 
 O footgun que mata o desenho ingênuo: sem `if: always()` mais checagem explícita de `needs.*.result`, uma perna vermelha faz o rollup ser **pulado**, e pulado não é reprovado. O passo `agregar o resultado das pernas por superfície` em `pr-checks.yml` é essa checagem.
 
-O contrato em si (o conjunto de nomes publicados não varia com a superfície; uma perna reprovada reprova o rollup) é modelado em Python puro e testado sem rodar workflow nenhum: [`scripts/panlabs/ci/rollup.py`](../../scripts/panlabs/ci/rollup.py), exercitado em [`tests/test_ci_rollup.py`](../../tests/test_ci_rollup.py). Os workflows em si não são testados: são exercitados por uso, e o `.github` é o primeiro consumidor.
+O contrato em si (o conjunto de nomes publicados não varia com a superfície; uma perna reprovada reprova o rollup) é modelado em Python puro e testado sem rodar workflow nenhum: [`scripts/panlabs/ci/rollup.py`](../../scripts/panlabs/ci/rollup.py), exercitado em [`tests/test_ci_rollup.py`](../../tests/test_ci_rollup.py).
+
+O **comportamento** dos workflows não é testado: se o gitleaks acha segredo ou se o CodeQL acha alerta são perguntas para o uso, e o `.github` é o primeiro consumidor. A **fiação** é testada, e a distinção é de dono: comportamento é da ferramenta, fiação é decisão nossa. Quem depende de quem, qual gatilho alcança qual branch, qual permissão o job pede, quais alvos a configuração declara: tudo isso é lido dos arquivos entregues, em [`tests/shipped.py`](../../tests/shipped.py). Foi a #15 que separou as duas coisas, ao precisar afirmar que a análise estática **não** alcança a conclusão de nenhum required check, o que nenhuma leitura do comportamento provaria.
 
 Consequência decidida junto com o rollup: `open-pr` é padronizado, mas **não** é required. Exigi-lo como condição de merge seria circular, porque é o job que cria o PR. A lista de required checks fica só com `checks` e `security`.
 

@@ -18,8 +18,8 @@ inofensivo. São fatos da plataforma, verificados no mapeamento, não código no
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
-from fnmatch import fnmatchcase
 from typing import Any
 
 __all__ = [
@@ -33,6 +33,7 @@ __all__ = [
     "SEMVER_MINOR",
     "SEMVER_PATCH",
     "automerges",
+    "branch_filter_matches",
     "covers_dependabot_branches",
     "duplicate_targets",
     "update_targets",
@@ -130,6 +131,34 @@ def duplicate_targets(updates: Iterable[Mapping[str, Any]]) -> tuple[tuple[str, 
     return tuple(duplicated)
 
 
+def branch_filter_matches(branch: str, pattern: str) -> bool:
+    """Diz se um filtro de branch do GitHub Actions alcança este nome de branch.
+
+    O `fnmatch` da biblioteca padrão **não** serve aqui, e a diferença é a que
+    importa: nele `*` atravessa a barra, e no GitHub não. Sob `fnmatch`, o filtro
+    `dependabot/*` pareceria alcançar `dependabot/uv/ruff-0.16.1`, quando na
+    plataforma ele não alcança nada com dois níveis. Um guarda que erra
+    justamente no caso que ele existe para pegar é pior do que nenhum.
+
+    Só `*` e `**` são traduzidos, porque são os únicos que os filtros deste repo
+    usam. Os outros curingas do GitHub (`?`, `+`, faixa de caracteres) cairiam
+    aqui como literal, e é melhor recusar do que fingir que casou.
+    """
+    regex: list[str] = []
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**", index):
+            regex.append(".*")
+            index += 2
+        elif pattern[index] == "*":
+            regex.append("[^/]*")
+            index += 1
+        else:
+            regex.append(re.escape(pattern[index]))
+            index += 1
+    return re.fullmatch("".join(regex), branch) is not None
+
+
 def covers_dependabot_branches(patterns: Iterable[str]) -> bool:
     """Diz se estes filtros de branch alcançam as branches que o Dependabot empurra.
 
@@ -140,5 +169,6 @@ def covers_dependabot_branches(patterns: Iterable[str]) -> bool:
     """
     filters = tuple(patterns)
     return all(
-        any(fnmatchcase(branch, pattern) for pattern in filters) for branch in EXAMPLE_BRANCHES
+        any(branch_filter_matches(branch, pattern) for pattern in filters)
+        for branch in EXAMPLE_BRANCHES
     )

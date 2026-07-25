@@ -12,11 +12,17 @@ name: dependabot-auto-merge (reusable)
 # lista em que o olho humano ainda paga o tempo dele.
 #
 # Pré-requisito que não é deste arquivo: o repositório precisa ter auto-merge
-# habilitado (`allow_auto_merge`), ligado pelo gate da issue #14. Sem isso o
-# GitHub recusa a chamada, e este workflow falha em vez de mergear em silêncio.
+# habilitado (`allow_auto_merge`), ligado pelo gate da issue #14.
 #
-# A mesma decisão vive em Python puro, em scripts/panlabs/ci/dependabot.py, que
-# é onde ela é testada. As duas cópias mudam juntas.
+# **Quem** aterrissa sozinho é decisão, e vive em Python puro, em
+# scripts/panlabs/ci/dependabot.py, que é onde ela é testada. As duas cópias
+# dessa regra, a de lá e os dois `if` daqui, mudam juntas.
+#
+# **Como** a aterrissagem acontece é efeito, e não decide nada: ligar auto-merge
+# e esperar, ou mergear agora, dão no mesmo PR mergeado. Por isso o passo abaixo
+# tem os dois caminhos sem que isso seja um `if` de decisão vazado para cá. Em
+# nenhum deles o merge fura o gate: um PR vermelho é recusado pelo ruleset, com
+# ou sem auto-merge ligado.
 
 on:
   workflow_call: {}

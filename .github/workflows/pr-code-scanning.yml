@@ -23,8 +23,12 @@ on:
     branches:
       - main
 
+# `security-events` já no nível do workflow: num PR do Dependabot o token nasce
+# somente de leitura, e é a chave `permissions` que o eleva. Sem isto, a análise
+# rodaria no PR do bot e não conseguiria subir achado nenhum.
 permissions:
   contents: read
+  security-events: write
 
 concurrency:
   group: pr-code-scanning-${{ github.ref }}
