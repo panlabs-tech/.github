@@ -1,0 +1,70 @@
+name: code-scanning (reusable)
+
+# Análise estática de código em modo **advisory**: reporta achado no PR e não
+# trava merge nenhum (panlabs-tech/.github#15).
+#
+# Advisory por três decisões que só valem juntas:
+#
+#   1. Nenhum nome que este workflow publica está na lista de required checks
+#      do ruleset. Essa lista é `checks` e `security`, e mora em
+#      config/ruleset.json.
+#   2. A regra de ruleset `code_scanning` fica de fora, de propósito. Ela
+#      pendura o merge por "análise em andamento" e por "ferramenta não
+#      configurada", sem timeout, e nenhum dos dois motivos é alerta.
+#   3. Nenhum job de pr-checks.yml, que é o arquivo onde os required checks são
+#      publicados, depende deste. Por isso o consumidor o chama de um arquivo
+#      separado: a garantia fica estrutural, e não uma linha que alguém apaga.
+#
+# As três estão travadas em tests/test_ci_advisory.py, contra o dado entregue.
+#
+# Um job por linguagem, em paralelo, via matrix. É exatamente a forma que o
+# rollup existe para evitar num required check (a perna de matrix entra no nome
+# publicado, e um nome fixo nunca casaria com ele). Aqui ela é inofensiva,
+# justamente porque nenhum destes nomes é exigido, e é o que faz a análise
+# custar o tempo da linguagem mais lenta em vez da soma de todas.
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: >-
+          As linguagens CodeQL a analisar, como array JSON, por exemplo
+          ["python", "actions"]. Sem default: a lista é do consumidor, e adivinhar
+          por ele analisaria a linguagem errada em silêncio.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: analyze
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # O achado precisa subir para virar alerta. Sem isto a análise roda, gasta
+      # o tempo dela e não reporta nada, que é a pior das duas falhas possíveis.
+      security-events: write
+    strategy:
+      # Uma linguagem que reprova não cancela a análise das outras: o valor
+      # advisory está no que as demais acharem.
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: inicializar o CodeQL para ${{ matrix.language }}
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: analisar
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          # Separa os resultados por linguagem. Sem categoria, a análise de uma
+          # linguagem sobrescreve a da outra no mesmo commit, e os alertas da
+          # que rodar primeiro somem sem aviso.
+          category: "/language:${{ matrix.language }}"

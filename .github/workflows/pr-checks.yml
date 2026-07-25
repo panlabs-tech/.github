@@ -32,6 +32,12 @@ on:
       # deste workflow não disparar checagem nenhuma no push, porque só
       # "worktree/**" estava listado (panlabs-tech/.github#7).
       - "worktree-**"
+      # A raiz de branch do Dependabot, que não é configurável. Sem esta linha
+      # o PR do bot não dispara checagem nenhuma, os required checks nunca
+      # saem, e o auto-merge da #15 esperaria para sempre um status que ninguém
+      # vai publicar: a falha mais silenciosa possível daquele desenho, porque
+      # todo o resto pareceria configurado.
+      - "dependabot/**"
 
 permissions:
   contents: read
@@ -91,9 +97,13 @@ jobs:
             exit 1
           fi
 
+  # O Dependabot já abre o próprio PR: rodar `open-pr` na branch dele seria, no
+  # melhor caso, ruído, e no pior, corrida com quem abriu primeiro. A condição
+  # não afrouxa o gate porque `open-pr` nunca foi required.
   open-pr:
     name: open-pr
     needs: [checks, security]
+    if: github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/open-pr.yml
     permissions:
       contents: read

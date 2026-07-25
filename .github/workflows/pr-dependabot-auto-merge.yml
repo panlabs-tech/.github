@@ -1,0 +1,28 @@
+name: pr-dependabot-auto-merge
+
+# O `.github` é o primeiro consumidor do auto-merge de Dependabot, por referência
+# local, como consome os outros reusable workflows (panlabs-tech/.github#15).
+#
+# O caller é fino de propósito: quem decide o que aterrissa sozinho é o workflow
+# chamado, num lugar só, para que nenhum repo da frota possa divergir e passar a
+# mergear major por conta própria. Aqui só moram o gatilho e a permissão.
+#
+# `pull_request` alcança `opened`, `synchronize` e `reopened`, que é exatamente
+# quando o PR do Dependabot nasce e quando ele rebasa. Num PR que não é do bot,
+# o job é pulado pela condição do workflow chamado.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependabot-auto-merge:
+    name: dependabot-auto-merge
+    uses: ./.github/workflows/dependabot-auto-merge.yml
+    # Elevadas aqui, e não herdadas: num evento disparado pelo Dependabot o
+    # GITHUB_TOKEN nasce só de leitura, e sem estas duas o merge seria negado.
+    permissions:
+      contents: write
+      pull-requests: write

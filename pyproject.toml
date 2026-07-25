@@ -12,10 +12,16 @@ panlabs-org = "panlabs.org.cli:main"
 panlabs-checker = "panlabs.checker.cli:main"
 
 [dependency-groups]
+# `pyyaml` e os seus stubs sao dependencia de teste, nao de runtime: parte da
+# configuracao versionada deste repo (o `dependabot.yml` e os workflows) so
+# existe em YAML porque o GitHub exige esse formato, e o teste que a verifica
+# precisa le-la de verdade. Nenhum script importa `yaml`.
 dev = [
     "pyright>=1.1.411",
     "pytest>=9.1.1",
+    "pyyaml>=6.0.3",
     "ruff>=0.16.0",
+    "types-pyyaml>=6.0.12",
 ]
 
 [build-system]
@@ -43,6 +49,10 @@ ignore = ["ANN401"]
 
 [tool.pyright]
 include = ["scripts", "tests"]
+# `tests/` e raiz de import para o pytest (nao tem __init__.py), e por isso um
+# helper como `shipped.py` e importavel de qualquer teste. Sem esta linha o
+# pyright nao resolveria esse import, que em execucao funciona.
+extraPaths = ["tests"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 venvPath = "."
