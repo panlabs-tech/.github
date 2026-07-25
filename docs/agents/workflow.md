@@ -56,9 +56,9 @@ O vocabulário vive em `scripts/panlabs/plan.py`, e é **um só**: o mesmo forma
 
 ## Conformidade
 
-O checker de conformidade é **read-only**, roda **agendado** como passo do heartbeat da máquina, **alarma na deriva** e **nunca é gate de PR**: anatomia é propriedade do repo, não do diff, e metade dela nem mora no working tree.
+O checker de conformidade é **read-only**, roda **agendado** como passo do heartbeat da máquina, **alarma na deriva** e **nunca é gate de PR**: anatomia é propriedade do repo, não do diff, e metade dela nem mora no working tree. Um teste guarda a última metade dessa frase: nenhum workflow entregue aqui invoca o checker, e é esta a CI que os outros repos referenciam.
 
-Falha de rede ou de credencial do checker é reportada como **erro**, distinguível de não-conformidade. Um token expirado não pode virar "toda a frota está fora do padrão".
+Falha de rede ou de credencial do checker é reportada como **erro**, distinguível de não-conformidade. Um token expirado não pode virar "toda a frota está fora do padrão". A distinção é o **código de saída**, e ele é contrato: `1` é deriva e só deriva, `2` é qualquer coisa que impeça a matriz de existir. O passo do heartbeat mapeia os dois para canais de alarme diferentes.
 
 ## Credencial
 

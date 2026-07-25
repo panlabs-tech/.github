@@ -54,9 +54,12 @@ Cada passo carrega a **cadência dele**:
 | revisões velhas de browser (dois caches) | de pé | 7 dias | 2,4 GB medidos |
 | arquivo de instalação órfão | de pé | 7 dias | 0,2 GB |
 | `pip cache purge` | de pé | **30 dias** | 1,2 GB |
+| checker de conformidade da frota | de pé | 7 dias | alarme, não espaço |
 | compactação do disco virtual | parado | 30 dias | ver abaixo |
 
 A taxa de acréscimo medida é de **3 a 4 GB por mês**, com 0,22 GB nos últimos 7 dias. Uma execução semanal de tudo colheria esses 0,22 GB e jogaria fora uma semana de cache quente. Quase toda poda aqui é **gentil** (remove só o inalcançável), e por isso cabe em sete dias; a única que é wipe de verdade espera trinta.
+
+O checker de conformidade é o único passo que não recupera disco nenhum, e a cadência dele tem outro motivo: deriva de anatomia anda na velocidade do que mergeia, e o que ela produz é **fila de retrofit**, não incidente. Um alarme diário sobre uma fila que só se move quando alguém trabalha nela treinaria o operador a ignorar o canal, que é exatamente o custo pelo qual `docker builder prune` ficou de fora da lista.
 
 ## O que poda, e o que explicitamente não poda
 
@@ -112,6 +115,7 @@ A poda não quebra nada, então não há o que pedir: ela **age**. O que sobra �
 | Disco do host abaixo do piso | notificação, no canal do disco |
 | Marca de execução mais velha que 3 dias | notificação, no canal da marca |
 | Uma dimensão não pôde ser observada | notificação, no canal de falha |
+| A frota derivou da anatomia | notificação, no canal da anatomia |
 
 **O piso é de 25 GB**, e dá cerca de dois meses de folga na taxa medida. Ele é generoso de propósito: a razão registrada pelo operador é agir cedo e longe do teto, em vez de reagir colado nele.
 
@@ -119,7 +123,7 @@ A poda não quebra nada, então não há o que pedir: ela **age**. O que sobra �
 
 Cada passo declara o canal dele. **Falha de rede num passo não pode se disfarçar de alarme de disco**, porque o alarme de disco é o único vigia de uma métrica que não se enxerga de dentro do WSL, e gastá-lo com ruído o transformaria em algo que se ignora.
 
-É essa separação que permite o checker de conformidade da spec de Repo #4 entrar como passo: ele traz um quarto canal, de natureza diferente, e um token expirado dele nunca vai parecer disco cheio.
+É essa separação que permitiu o checker de conformidade da spec de Repo #4 entrar como passo, na [issue #27](https://github.com/panlabs-tech/.github/issues/27): ele traz o **quarto canal**, `anatomia`, de natureza diferente dos outros três. Aqui nada quebrou na máquina, e um token expirado dele nunca vai parecer disco cheio nem deriva de anatomia.
 
 Uma dimensão que **não pôde ser medida** sai no canal de falha, e não no canal do disco, mesmo quando o que faltou medir foi o disco: um alarme de piso que na verdade significa "ninguém mediu" gastaria o canal errado.
 
@@ -147,22 +151,31 @@ O heartbeat é construído como **hospedeiro de passos plugáveis**, e não como
 
 Isso existe porque a spec de Repo #4 determina que o checker de conformidade da frota rode como passo desta tarefa diária, e as premissas não batem: o checker precisa do WSL de pé, de rede e de token autenticado, e a poda não precisa de nada disso.
 
-**Consequência de ordem: esta issue entrega o hospedeiro antes de a spec de Repo poder plugar o checker.** É uma dependência `repo -> máquina` que o handoff do mapa não declarava.
+**Consequência de ordem: a issue #22 entrega o hospedeiro antes de a spec de Repo poder plugar o checker.** É uma dependência `repo -> máquina` que o handoff do mapa não declarava.
 
-Plugar o checker é acrescentar um canal e um passo ao dado, e **nenhuma linha de código muda**. Um teste prova exatamente isso.
+### O que "plugar sem reescrita" comprou de fato
+
+A issue #22 prometia que plugar o checker seria acrescentar um canal e um passo ao dado, e que **nenhuma linha de código mudaria**. **Não fechou**, e a [issue #27](https://github.com/panlabs-tech/.github/issues/27) corrigiu a promessa junto com o mecanismo.
+
+O canal e o passo são mesmo só dado. O que faltava era o **corpo**: `run` trata todo código de saída diferente de zero como falha, no canal único do passo, e o checker distingue deriva (código 1) de erro de observação (código 2). Com um canal só, token expirado chegaria como deriva de anatomia da frota inteira, que é exatamente o disfarce que os canais separados existem para impedir. O passo ganhou um corpo novo, `report`, que traduz **código de saída em canal**.
+
+A promessa que sobrevive é a mais estreita e é a certa: **passo cujo corpo já existe entra sem tocar em código.** Corpo novo é capacidade nova, e capacidade nova custa código.
 
 Expectativa honesta: no ramo "WSL de pé", o checker roda nas ocasiões em que a tarefa encontrar o WSL rodando. Para um alarme de deriva de anatomia isso basta; não é garantia diária.
 
-### Os quatro corpos de um passo
+### Os cinco corpos de um passo
 
 | Corpo | O que faz | Por quê |
 | --- | --- | --- |
 | `run` | roda um comando nativo de limpeza | é o que o próprio tooling declara descartável |
 | `keep_newest` | mantém as revisões novas de cada família de um cache versionado | o desperdício é versão velha, não o produto |
 | `drop_matching` | remove arquivo pela **forma do nome** | órfão de instalação, reconhecido por forma e nunca por idade |
+| `report` | roda um comando cujo **código de saída é o relatório**, e manda cada código para o canal declarado | um comando que distingue "achei deriva" de "não consegui olhar" precisa que a distinção sobreviva até o alarme |
 | `on_host` | o ato é do host | no ramo parado não existe WSL onde rodar nada |
 
 Um passo tem exatamente um corpo. Nenhum é um passo que nunca age; dois é um passo cuja ordem ninguém escreveu. A leitura recusa os dois casos.
+
+No corpo `report`, um código **declarado** significa que o comando rodou e relatou: o passo cumpriu o que tinha para fazer, ganha a marca dele, e o que varia é o canal. Um código **fora do mapa** é falha do próprio passo e sai no canal dele, sem marca. O caso mais importante dessa segunda linha é o comando que não chegou nem a rodar: enquanto o executor devolvia `1` para "executável ausente", isso teria chegado como deriva de anatomia, e o operador leria "a frota derivou" quando o que quebrou foi a máquina. Zero não pode ser mapeado para canal nenhum: ele é o silêncio de um passo saudável.
 
 **O ramo parado obriga `on_host`**, e a leitura recusa o contrário: um passo do ramo parado que declarasse um comando de dentro só poderia ser realizado ligando o WSL. Recusar o dado é mais barato do que descobrir isso no host, elevado.
 
@@ -171,6 +184,8 @@ Um passo tem exatamente um corpo. Nenhum é um passo que nunca age; dois é um p
 O executável de um passo é declarado por **caminho absoluto**. O passo roda em subprocesso não interativo, disparado do agendador do host: ali não há arquivo de rc, e o PATH é o mínimo do sistema. `npm`, `pnpm` e `uv` moram em `~/.local/bin`, que não está nesse PATH.
 
 Um nome nu funcionaria no terminal e falharia na tarefa. É a mesma classe de erro que a [issue #20](https://github.com/panlabs-tech/.github/issues/20) consertou ao exigir que todo nome seja alcançável pelo nome real, e ela reaparece aqui pelo mesmo motivo.
+
+O checker segue a mesma regra e mais uma: o comando declarado é o **console script do ambiente virtual do repo**, direto, e nunca `uv run panlabs-checker`. O motivo é o que tirou o heartbeat inteiro de baixo do `uv run` (ver abaixo): o passo `uv-cache` poda o cache do próprio `uv`, e um processo `uv` vivo segura o lock desse cache.
 
 ## Onde os artefatos moram
 

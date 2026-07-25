@@ -1,11 +1,21 @@
-"""O tipo de repositório é dado declarado, não inferido pelo checker."""
+"""O dado que a observação lê: o tipo de cada repo, e o conjunto de arquivos lidos.
+
+Nenhum dos dois é inferido pelo checker. O tipo é escolha do operador quando o
+repositório nasce; o conjunto de arquivos cujo **conteúdo** é lido é declarado,
+porque a alternativa seria varredura cega e uma chamada por arquivo.
+"""
 
 import json
 from pathlib import Path
 
 import pytest
 
-from panlabs.checker.config import DEFAULT_REPO_TYPES_PATH, load_repo_types
+from panlabs.checker.config import (
+    DEFAULT_CHECKER_CONFIG_PATH,
+    DEFAULT_REPO_TYPES_PATH,
+    load_read_files,
+    load_repo_types,
+)
 
 
 def test_the_config_shipped_in_this_repo_declares_dot_github_as_meta():
@@ -38,3 +48,39 @@ def test_a_type_outside_the_five_named_in_anatomy_fails_loudly_instead_of_silent
 
     with pytest.raises(ValueError, match="aplicaçao"):
         load_repo_types(path)
+
+
+# --- o conjunto de arquivos cujo conteúdo é lido ------------------------------
+
+
+def test_the_shipped_config_declares_which_files_have_their_content_read():
+    assert load_read_files(DEFAULT_CHECKER_CONFIG_PATH)
+
+
+def test_every_declared_path_is_relative_to_the_repo_root(tmp_path: Path):
+    """Um caminho absoluto seria da máquina, e o que se lê é o conteúdo do repo."""
+    for path in load_read_files(DEFAULT_CHECKER_CONFIG_PATH):
+        assert not path.startswith("/"), path
+
+
+def test_an_undeclared_set_reads_nothing_instead_of_sweeping_the_repo(tmp_path: Path):
+    path = tmp_path / "checker.json"
+    path.write_text(json.dumps({"read_files": None}), encoding="utf-8")
+
+    assert load_read_files(path) == ()
+
+
+def test_an_unknown_key_is_refused_instead_of_ignored(tmp_path: Path):
+    path = tmp_path / "checker.json"
+    path.write_text(json.dumps({"arquivos": ["AGENTS.md"]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="chave desconhecida"):
+        load_read_files(path)
+
+
+def test_a_repeated_path_is_refused_because_it_would_pay_twice_for_one_answer(tmp_path: Path):
+    path = tmp_path / "checker.json"
+    path.write_text(json.dumps({"read_files": ["AGENTS.md", "AGENTS.md"]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="repetido"):
+        load_read_files(path)

@@ -1,7 +1,8 @@
 {
   "_": "O heartbeat desta máquina, decidido pela spec de Máquina #3 (issue #22). Caminhos com `~` são expandidos na leitura, inclusive o executável de um passo. `null` numa dimensão significa ainda não decidido, e o planner não planeja nada para ela.",
 
-  "_channels": "Os canais de alarme. Eles existem separados para que uma falha não se disfarce de outra: o alarme de disco é o único vigia de uma métrica que não se mede de dentro do WSL, e gastá-lo com falha de rede de um passo o transformaria em ruído. Plugar o checker de conformidade da spec de Repo #4 acrescenta um quarto canal aqui e um passo na lista de baixo, e nenhuma linha de código muda.",
+  "_channels": "Os canais de alarme. Eles existem separados para que uma falha não se disfarce de outra: o alarme de disco é o único vigia de uma métrica que não se mede de dentro do WSL, e gastá-lo com falha de rede de um passo o transformaria em ruído.",
+  "_channels_correcao": "Este campo afirmava que plugar o checker de conformidade da spec de Repo #4 acrescentaria um canal aqui e um passo na lista de baixo, e que nenhuma linha de código mudaria. Não fechou, e a issue #27 corrigiu as duas metades. O canal e o passo de fato são só dado, mas o corpo `run` trata todo código de saída diferente de zero como falha, no canal único do passo: o checker distingue deriva (código 1) de erro de observação (código 2), e com um canal só um token expirado chegaria como deriva de anatomia. O passo precisou de um corpo novo, `report`, que traduz código de saída em canal, e corpo novo é capacidade nova, não configuração. A promessa que sobrevive é a certa: passo cujo corpo já existe entra sem tocar em código.",
   "channels": [
     {
       "name": "falha",
@@ -14,6 +15,10 @@
     {
       "name": "marca",
       "why": "a tarefa parou de rodar. O disparo é diário, então marca velha significa que o gatilho morreu, e não que a máquina está saudável"
+    },
+    {
+      "name": "anatomia",
+      "why": "a frota derivou da anatomia canônica. É o único mecanismo automático de detecção de deriva que a org tem, e ele alarma sem travar nada: anatomia é propriedade do repositório, não do diff. Canal separado porque a natureza é outra: aqui nada quebrou na máquina, e falha de rede ou de credencial do próprio checker sai no canal de falha, nunca neste"
     }
   ],
 
@@ -96,6 +101,20 @@
       "why": "1,2 GB, e é o único wipe de verdade da lista: `purge` destrói cache útil, então a cadência dele é de trinta dias e não de sete"
     },
     {
+      "name": "anatomy-checker",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "report": {
+        "command": ["~/workspaces/panlabs-tech/.github/.venv/bin/panlabs-checker"],
+        "codes": {
+          "1": "anatomia",
+          "2": "falha"
+        }
+      },
+      "why": "a deriva de anatomia da frota é alarme, e nunca gate de PR: ela é propriedade do repositório, não do diff, e metade dos itens (descrição, topics, wiki) nem mora no working tree. Ele é do ramo de cima porque precisa de rede e do token já autenticado da máquina, que é o oposto do que a poda precisa"
+    },
+    {
       "name": "compact-vhdx",
       "branch": "wsl-down",
       "every_days": 30,
@@ -104,6 +123,12 @@
       "why": "a compactação por `diskpart` é o único caminho nesta edição Home do Windows, exige elevação, e só roda no estado de risco zero: com o WSL já parado por conta própria, nunca forçado. Ela rende pouco (0,28 GiB medidos contra ~12 GB previstos) e fica porque é oportunista e de custo praticamente zero; o resultado real vem da poda"
     }
   ],
+
+  "_anatomy_checker_cadencia": "Sete dias, e não um, apesar de o checker ser read-only e barato. Deriva de anatomia anda na velocidade do que mergeia, e o que ela produz é fila de retrofit, não incidente: um alarme diário sobre uma fila que só se move quando alguém trabalha nela treinaria o operador a ignorar o canal, que é exatamente o custo pelo qual `docker builder prune` ficou de fora desta lista. A expectativa honesta é a herdada do hospedeiro: ele roda nas ocasiões em que a tarefa diária encontrar o WSL de pé, e para alarme de deriva isso basta.",
+
+  "_anatomy_checker_comando": "O console script do ambiente virtual, direto, e nunca `uv run panlabs-checker`. O mesmo motivo que tirou o heartbeat inteiro de baixo do `uv run` vale aqui: o passo `uv-cache` poda o cache do próprio `uv`, e um processo `uv` vivo segura o lock desse cache. Além disso o passo roda em subprocesso não interativo, sem arquivo de rc, onde o PATH é o mínimo do sistema: nome nu funcionaria no terminal e falharia na tarefa.",
+
+  "_anatomy_checker_codigos": "O mapa é contrato com `panlabs.checker.cli`, e um teste amarra os dois lados. `1` é deriva e só deriva; `2` é qualquer coisa que impeça a matriz de existir (rede, credencial, retrato ilegível, dado inválido, árvore truncada). Um código fora do mapa, inclusive o comando que não chegou a rodar, é falha do próprio passo e sai no canal declarado por ele, que é `falha`.",
 
   "_docker": "`docker builder prune` NÃO está aqui, e a ausência é decidida. Ele é o passo de maior retorno conhecido (18,4 GB de build cache medidos em 2026-07-24) e precisa do daemon de pé, que é uma dimensão que este heartbeat não observa. Um passo que só falha quando o Docker Desktop está parado alarmaria todo dia até alguém subi-lo, e treinar o operador a ignorar o canal de falha custaria mais do que os 18 GB valem. Ele entra quando chegar com a observação que o guarda: é exatamente o tipo de extensão para a qual o hospedeiro foi construído."
 }

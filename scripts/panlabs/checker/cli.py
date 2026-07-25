@@ -9,10 +9,12 @@ propriedade do repositório, não do diff.
     uv run panlabs-checker --json              # a mesma matriz, serializada
     uv run panlabs-checker --observed f.json   # a matriz de um retrato salvo
 
-O código de saída distingue os dois canais de alarme: 2 se algum repositório
-falhou a observação (erro), 1 se a matriz tem deriva sem nenhum erro, 0 se
-está limpa. Um token expirado não pode virar "toda a frota está fora do
-padrão": por isso erro pesa mais que deriva, nunca o contrário.
+O código de saída **é** a interface de alarme: o passo do heartbeat que roda
+este comando escolhe o canal pelo código, e por isso `1` significa deriva, e só
+deriva. Qualquer coisa que impeça a matriz de existir -- rede, credencial,
+retrato ilegível, dado inválido -- sai como erro, junto com a observação que
+falhou em um repositório só. Um token expirado não pode virar "toda a frota está
+fora do padrão": por isso erro pesa mais que deriva, nunca o contrário.
 """
 
 from __future__ import annotations
@@ -28,7 +30,18 @@ from panlabs.plan import Plan, dump_raw, load_raw
 
 DEFAULT_ORG = "panlabs-tech"
 
-__all__ = ["main"]
+EXIT_CLEAN = 0
+EXIT_DRIFT = 1
+EXIT_ERROR = 2
+"""Os três códigos, e eles são contrato com o passo do heartbeat.
+
+`config/heartbeat.json` mapeia código de saída para canal de alarme, e um teste
+amarra o mapa entregue a estas constantes. Trocar um número aqui sem trocar lá
+mandaria deriva de anatomia para o canal de falha de mecanismo, que é exatamente
+o disfarce que os canais separados existem para impedir.
+"""
+
+__all__ = ["EXIT_CLEAN", "EXIT_DRIFT", "EXIT_ERROR", "main"]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -62,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         raw = load_raw(args.observed, lambda: fetch_raw(args.org))
     except (OSError, ValueError, gh.GhError) as exc:
         print(f"erro: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_ERROR
 
     observed = build_observed(raw)
     dump_raw(args.dump_observed, raw)
@@ -83,10 +96,10 @@ def main(argv: list[str] | None = None) -> int:
 def _exit_code(the_matrix: Plan) -> int:
     verdicts = {item.payload.get("verdict") for item in the_matrix}
     if ERROR_VERDICT in verdicts:
-        return 2
+        return EXIT_ERROR
     if verdicts:
-        return 1
-    return 0
+        return EXIT_DRIFT
+    return EXIT_CLEAN
 
 
 if __name__ == "__main__":

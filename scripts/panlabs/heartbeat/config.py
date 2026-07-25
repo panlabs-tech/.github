@@ -5,11 +5,16 @@ Este módulo entrega o esqueleto do dado e a sua leitura, nunca os valores.
 
 **Um passo é dado, e é isso que o torna plugável.** Ele declara o ramo em que
 roda, a cadência que é dele, o canal de alarme que é dele, e o corpo do que faz.
-Plugar o checker de conformidade da spec de Repo #4 é acrescentar uma entrada
-nesta lista e um canal na outra: nenhuma linha de código muda, que é exatamente o
-que "sem reescrita" quer dizer. Isso vale para passo cujo **corpo já existe**, que
-é o caso dele: ele roda um comando. Um corpo novo é mudança de código, e é assim
-mesmo, porque corpo novo é capacidade nova e não configuração.
+Plugar um passo cujo **corpo já existe** é acrescentar uma entrada nesta lista e,
+se for o caso, um canal na outra: nenhuma linha de código muda, que é exatamente o
+que "sem reescrita" quer dizer.
+
+**O checker de conformidade da spec de Repo #4 não foi esse caso, e o dado
+prometia que seria.** Ele precisa de um corpo que traduza **código de saída em
+canal**, porque o corpo `run` trata todo código diferente de zero como falha, no
+canal único do passo: com um canal só, token expirado chegaria como deriva de
+anatomia, que é o disfarce que este desenho existe para impedir. Corpo novo é
+capacidade nova, e não configuração, então ele custou código -- e é assim mesmo.
 
 **Todo canal de alarme é declarado.** Um passo que nomeasse um canal inexistente
 falharia calado no lugar mais caro: o alarme sairia no canal errado, e o desenho
@@ -37,6 +42,7 @@ __all__ = [
     "DesiredUnobserved",
     "DropMatching",
     "KeepNewest",
+    "Report",
     "expand",
     "load_desired",
 ]
@@ -117,13 +123,32 @@ class DropMatching:
 
 
 @dataclass(frozen=True)
+class Report:
+    """Um comando cujo **código de saída é o relatório dele**, e o mapa dos códigos.
+
+    Existe porque `run` só sabe dizer "deu certo" ou "falhou", num canal só. Um
+    comando que distingue "achei deriva" de "não consegui observar" precisa que a
+    distinção sobreviva até o alarme: com um canal único, um token expirado
+    chegaria ao operador como deriva de anatomia da frota inteira.
+
+    Um código declarado significa que o comando **rodou e relatou**: o passo
+    cumpriu o que tinha para fazer, e o que varia é em qual canal o relatório sai.
+    Um código não declarado é falha do próprio passo, e sai no canal dele.
+    """
+
+    command: tuple[str, ...]
+    codes: Mapping[int, str]
+
+
+@dataclass(frozen=True)
 class DesiredStep:
     """Um passo do heartbeat: onde roda, quando roda, como alarma, e o que faz.
 
-    Os quatro corpos são exclusivos entre si, e um passo tem exatamente um: rodar
+    Os cinco corpos são exclusivos entre si, e um passo tem exatamente um: rodar
     um comando nativo de limpeza, manter só as revisões novas de um cache
-    versionado, remover arquivo órfão por forma de nome, ou ser realizado **pelo
-    host**, que é o caso do ramo parado, onde não existe WSL onde rodar nada.
+    versionado, remover arquivo órfão por forma de nome, rodar um comando cujo
+    código de saída é o relatório dele, ou ser realizado **pelo host**, que é o
+    caso do ramo parado, onde não existe WSL onde rodar nada.
     """
 
     name: str
@@ -134,6 +159,7 @@ class DesiredStep:
     run: tuple[str, ...] = ()
     keep_newest: KeepNewest | None = None
     drop_matching: DropMatching | None = None
+    report: Report | None = None
     on_host: bool = False
 
 
@@ -191,6 +217,12 @@ def _check_alarms(desired: Desired) -> None:
     if desired.unobserved is not None:
         named.append((desired.unobserved.alarm, "unobserved"))
     named.extend((step.alarm, f"passo `{step.name}`") for step in desired.steps or ())
+    named.extend(
+        (alarm, f"código {code} do passo `{step.name}`")
+        for step in desired.steps or ()
+        if step.report is not None
+        for code, alarm in step.report.codes.items()
+    )
 
     missing = sorted({f"`{alarm}` em {where}" for alarm, where in named if alarm not in known})
     if missing:
@@ -309,7 +341,7 @@ def _branch(entry: Mapping[str, Any]) -> str:
     return branch
 
 
-BODIES = ("run", "keep_newest", "drop_matching", "on_host")
+BODIES = ("run", "keep_newest", "drop_matching", "report", "on_host")
 
 
 def _body(entry: Mapping[str, Any]) -> dict[str, Any]:
@@ -330,6 +362,8 @@ def _body(entry: Mapping[str, Any]) -> dict[str, Any]:
         return {"on_host": True}
     if present == ["run"]:
         return {"run": _argv(entry["run"])}
+    if present == ["report"]:
+        return {"report": _report(entry["report"])}
     if present == ["keep_newest"]:
         body = _object(entry["keep_newest"], dimension="keep_newest")
         _require(body, "root", dimension="keep_newest")
@@ -337,6 +371,47 @@ def _body(entry: Mapping[str, Any]) -> dict[str, Any]:
     body = _object(entry["drop_matching"], dimension="drop_matching")
     _require(body, "root", "suffix", dimension="drop_matching")
     return {"drop_matching": DropMatching(root=expand(body["root"]), suffix=body["suffix"])}
+
+
+def _report(raw: Any) -> Report:
+    body = _object(raw, dimension="report")
+    _require(body, "command", "codes", dimension="report")
+    return Report(command=_argv(body["command"]), codes=_codes(body["codes"]))
+
+
+def _codes(raw: Any) -> Mapping[int, str]:
+    """O mapa de código de saída para canal, e o que ele não aceita.
+
+    O zero fica de fora por decisão, e não por descuido: ele é o silêncio de um
+    passo saudável, e um canal amarrado a ele alarmaria toda vez que estivesse
+    tudo bem -- que é o jeito mais rápido de treinar o operador a ignorar o canal.
+    """
+    entries = _object(raw, dimension="report.codes")
+    codes: dict[int, str] = {}
+    for key, alarm in entries.items():
+        code = _exit_code(key)
+        if code == 0:
+            raise ValueError(
+                "o código 0 de um corpo `report` não pode ser mapeado para canal nenhum: "
+                "ele é o silêncio de um passo que rodou e não tinha nada a relatar"
+            )
+        codes[code] = str(alarm)
+    if not codes:
+        raise ValueError(
+            "o corpo `report` precisa mapear pelo menos um código em `codes`; sem mapa, "
+            "todo código diferente de zero viraria falha genérica e o corpo não teria razão "
+            "de existir"
+        )
+    return codes
+
+
+def _exit_code(key: Any) -> int:
+    try:
+        return int(key)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"chave de `report.codes` precisa ser um código de saída inteiro: veio {key!r}"
+        ) from exc
 
 
 def _argv(raw: Any) -> tuple[str, ...]:

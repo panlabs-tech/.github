@@ -42,6 +42,30 @@ Este documento entrega o **esqueleto**: os três eixos, os cinco tipos e o vocab
 
 O checker (`scripts/panlabs/checker/`) já opera sobre este esqueleto com um **catálogo-semente**: itens suficientes para exercitar os três escopos de verdade, não para cobrir a frota inteira. Onde o catálogo-semente e o catálogo final da #4 divergirem, a #4 é quem decide o item; este documento continua descrevendo a forma.
 
+O catálogo é um **pacote com um módulo por eixo** (`catalog/org.py`, `catalog/stack.py`, `catalog/tipo.py`), e o endereço de um item carrega o escopo dele. Não é organização: um item de stack morando no módulo de org mentiria sobre o eixo em que foi avaliado, e um teste guarda essa correspondência.
+
+## O que o checker enxerga
+
+Um item só pode ser escrito sobre o que a observação alcança, e por isso o alcance dela é parte da anatomia e não detalhe de implementação.
+
+| O que | Como | Por quê |
+| --- | --- | --- |
+| **A árvore inteira** do repositório, em caminho relativo à raiz | uma chamada recursiva por repo | manifesto em subpasta de monorepo é superfície igual à da raiz. Enquanto só a raiz era listada, o item de lockfile de um monorepo **nem chegava a ser avaliado**: não é falso positivo, é um item que ninguém mede e que parece verde |
+| O **conteúdo** de um conjunto **declarado** de arquivos | uma consulta por repo, com um apelido por arquivo | slot declarado dentro de um documento, referência à CI compartilhada dentro de um workflow e ferramenta declarada dentro de um manifesto são conteúdo, e nenhum deles se verifica por presença de arquivo. O conjunto é dado (`config/checker.json`), nunca varredura cega, e o custo não cresce com o número de arquivos |
+| **Descrição, topics, wiki e licença** | metadados de plataforma | nenhum deles mora no working tree. A fronteira de *decisão* com a spec de Org continua onde está; a de *verificação* atravessa de propósito, porque estes itens ficariam sem vigia nenhum se o checker não os lesse |
+
+Duas propriedades não se negociam. **Ler mais não é escrever nada:** o checker continua read-only, e rodá-lo não muda nada em nenhum repositório, em nenhum momento. E **observação parcial não pode parecer conforme:** uma árvore que a API devolve truncada vira erro de observação daquele repositório, pelo mesmo motivo que o falso-negativo da listagem raiz era grave.
+
+O caminho importa e é escolha de cada item: parte da anatomia é sobre o arquivo existir **em algum lugar** (o lockfile de um monorepo mora junto do manifesto), e parte é sobre ele existir num **caminho exato** (a declaração de runtime que o gerenciador da máquina lê está na raiz).
+
+## Quando o checker roda
+
+Como **passo do heartbeat da máquina**, no ramo em que o WSL está de pé, com cadência própria declarada em `config/heartbeat.json`. Ele precisa de rede e do token já autenticado da máquina, que é o oposto do que a poda precisa.
+
+Ele **alarma, não trava**, e o código de saída é a interface: `1` significa deriva, e só deriva; qualquer coisa que impeça a matriz de existir sai como erro. São dois canais de alarme distintos, e é isso que impede um token expirado de chegar ao operador como "toda a frota está fora do padrão".
+
+E ele **nunca é gate de PR**, em repositório nenhum. Anatomia é propriedade do repositório, não do diff: um gate puniria um PR inocente por dívida pré-existente, e metade dos itens nem mora no working tree para o diff poder consertar.
+
 ## Onde a anatomia mora
 
-Parte do padrão é **imposta por plataforma**: ruleset e required checks, que um repositório não consegue contornar. Parte é **documentada e checada**: este documento e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente, e essa diferença é deliberada: metade dos itens de anatomia (wiki, descrição, topics) nem mora no working tree, e nada aqui é gate de PR. Anatomia é propriedade do repositório, não do diff.
+Parte do padrão é **imposta por plataforma**: ruleset e required checks, que um repositório não consegue contornar. Parte é **documentada e checada**: este documento e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente, e essa diferença é deliberada.

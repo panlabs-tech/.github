@@ -6,7 +6,10 @@ Duas coisas aqui merecem explicação, porque nenhuma delas é decisão disfarç
 não são uma corrente: um `npm` que falhou não pode impedir a poda do browser de
 rodar, e muito menos engolir um alarme de disco que estava embaixo dele no plano.
 O canal em que a falha é reportada **não** é escolhido aqui: ele veio no `payload`,
-escrito pelo planner a partir do que o passo declarou.
+escrito pelo planner a partir do que o passo declarou. Isso vale inteiro para o
+passo que **relata pelo código de saída**: o código só existe depois de rodar, e
+por isso o mapa de código para canal atravessa no item -- o que este módulo faz é
+consulta em tabela, nunca decisão.
 
 **As marcas são gravadas uma vez, no fim.** A marca da própria execução é gravada
 **sempre**, inclusive quando o plano saiu vazio: ela é o que o vigia de homem-morto
@@ -26,12 +29,13 @@ from pathlib import Path
 from typing import Any
 
 from panlabs.heartbeat.observe import MARKS_FILE, read_marks
-from panlabs.heartbeat.planner import DROP_DIR, DROP_FILE, NOTIFY, RUN_STEP
+from panlabs.heartbeat.planner import DROP_DIR, DROP_FILE, NOTIFY, REPORT_STEP, RUN_STEP
 from panlabs.plan import Effect, Plan, PlanItem
 
 __all__ = [
     "ALARMS_FILE",
     "LOG_FILE",
+    "NOT_RUN",
     "STANDING_ORDER_FILE",
     "Alarm",
     "Runner",
@@ -43,6 +47,15 @@ __all__ = [
 ALARMS_FILE = "alarms.json"
 LOG_FILE = "heartbeat.log"
 STANDING_ORDER_FILE = "standing-order.json"
+
+NOT_RUN = -1
+"""O comando não chegou a rodar: executável ausente, permissão, ambiente sumido.
+
+Não é um código de saída, e por isso não pode se parecer com um. Enquanto isso
+respondia `1`, um passo que relata pelo código teria mandado "o binário não
+existe" para o canal que significa "a frota derivou da anatomia" -- o disfarce
+exato que o desenho de canais separados existe para impedir.
+"""
 
 Run = Callable[[Sequence[str]], tuple[int, str]]
 """Roda um comando e devolve o código de saída e o que ele disse."""
@@ -60,7 +73,7 @@ def run_command(command: Sequence[str]) -> tuple[int, str]:
     try:
         done = subprocess.run(command, capture_output=True, text=True, timeout=1800, check=False)
     except (OSError, subprocess.SubprocessError) as exc:
-        return 1, str(exc)
+        return NOT_RUN, str(exc)
     return done.returncode, (done.stderr or done.stdout or "").strip()[:400]
 
 
@@ -97,6 +110,7 @@ class Runner:
     def effects(self) -> dict[str, Effect]:
         return {
             RUN_STEP: self._run_step,
+            REPORT_STEP: self._report_step,
             DROP_DIR: self._drop_dir,
             DROP_FILE: self._drop_file,
             NOTIFY: self._notify,
@@ -127,7 +141,32 @@ class Runner:
         if code == 0:
             self._done(item, f"rodou `{' '.join(command)}`")
             return
-        self._failed(item, f"`{' '.join(command)}` saiu com código {code}: {said}")
+        self._failed(item, _broke(command, code, said))
+
+    def _report_step(self, item: PlanItem) -> None:
+        """O código de saída escolhe o canal, pelo mapa que o planner escreveu.
+
+        Um código declarado significa que o comando **rodou e relatou**: o passo
+        cumpriu o que tinha para fazer, ganha a marca dele, e o relatório sai no
+        canal daquele código. Um código fora do mapa é falha do próprio passo, e
+        aí a marca não é gravada -- senão a falha ganharia mais uma folga de
+        cadência a cada tentativa, e voltaria a falhar calada.
+        """
+        command = [str(part) for part in item.payload["run"]]
+        codes = dict(item.payload["codes"])
+        code, said = self.run(command)
+
+        if code == 0:
+            self._done(item, f"rodou `{' '.join(command)}`: nada a relatar")
+            return
+
+        channel = codes.get(str(code))
+        if channel is None:
+            self._failed(item, _broke(command, code, said))
+            return
+
+        self._done(item, f"rodou `{' '.join(command)}` e relatou no canal `{channel}` ({code})")
+        self._raise(str(channel), f"{item.payload['step']}: {said}")
 
     def _drop_dir(self, item: PlanItem) -> None:
         try:
@@ -169,6 +208,18 @@ class Runner:
         (self.state_dir / name).write_text(
             json.dumps(body, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
+
+
+def _broke(command: Sequence[str], code: int, said: str) -> str:
+    """O texto de uma falha de passo, e ele distingue não rodou de rodou e falhou.
+
+    Os dois casos vão para o mesmo canal, mas dizem coisas diferentes ao operador:
+    um pede olhar o ambiente da máquina, o outro pede olhar o que o comando disse.
+    """
+    line = " ".join(command)
+    if code == NOT_RUN:
+        return f"`{line}` não chegou a rodar: {said}"
+    return f"`{line}` saiu com código {code}: {said}"
 
 
 def write_standing_order(order: Plan, state_dir: Path) -> None:

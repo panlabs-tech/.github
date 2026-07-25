@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from panlabs.checker.cli import EXIT_DRIFT, EXIT_ERROR
 from panlabs.heartbeat.config import DEFAULT_CONFIG_PATH, Desired, load_desired
 from panlabs.heartbeat.model import BRANCH_DOWN, BRANCH_UP
 
@@ -26,6 +27,13 @@ não commitado morando lá dentro. O ciclo completo forçado foi rejeitado por i
 @pytest.fixture
 def shipped() -> Desired:
     return load_desired(DEFAULT_CONFIG_PATH)
+
+
+def shipped_step(shipped: Desired, name: str):
+    """O passo entregue com este nome. Ele existir é parte do que se afirma."""
+    found = [step for step in shipped.steps or () if step.name == name]
+    assert found, f"o passo `{name}` não está declarado no dado entregue"
+    return found[0]
 
 
 def config_with(tmp_path: Path, **overrides: object) -> Path:
@@ -83,12 +91,58 @@ def test_no_shipped_step_is_a_generic_age_sweep(shipped: Desired):
     nome declarada.
     """
     for step in shipped.steps or ():
-        assert step.run or step.keep_newest or step.drop_matching or step.on_host
+        assert step.run or step.keep_newest or step.drop_matching or step.on_host or step.report, (
+            step.name
+        )
 
 
 def test_no_shipped_command_can_shut_the_wsl_down(shipped: Desired):
     for step in shipped.steps or ():
-        assert not set(step.run) & set(NEVER), step.name
+        command = step.run or (step.report.command if step.report else ())
+        assert not set(command) & set(NEVER), step.name
+
+
+# --- o passo que relata: código de saída vira canal ---------------------------
+
+
+def test_the_shipped_configuration_declares_a_fourth_channel_with_its_reason(shipped: Desired):
+    """Quarto canal, declarado como os outros três: deriva de anatomia é natureza própria."""
+    channels = {channel.name: channel.why for channel in shipped.channels or ()}
+
+    assert len(channels) == 4
+    assert channels["anatomia"]
+
+
+def test_the_shipped_checker_is_a_step_of_the_branch_where_the_wsl_is_up(shipped: Desired):
+    """Ele precisa de rede e de token autenticado, e a poda não precisa de nada disso."""
+    step = shipped_step(shipped, "anatomy-checker")
+
+    assert step.branch == BRANCH_UP
+    assert step.every_days >= 1
+
+
+def test_the_shipped_checker_sends_drift_and_mechanism_failure_to_different_channels(
+    shipped: Desired,
+):
+    """O critério inteiro do passo: token expirado não pode chegar como deriva.
+
+    Os códigos são contrato com `panlabs.checker.cli`, e este teste amarra os dois
+    lados: mudar o número lá sem mudar o mapa aqui mandaria o alarme para o canal
+    errado, calado.
+    """
+    report = shipped_step(shipped, "anatomy-checker").report
+
+    assert report is not None
+    assert report.codes == {EXIT_DRIFT: "anatomia", EXIT_ERROR: "falha"}
+
+
+def test_the_shipped_checker_alarms_on_the_mechanism_channel_when_it_cannot_even_run(
+    shipped: Desired,
+):
+    """Um código não declarado é falha do passo, e o canal dele não é o da anatomia."""
+    step = shipped_step(shipped, "anatomy-checker")
+
+    assert step.alarm == "falha"
 
 
 def test_the_stopped_branch_is_only_ever_the_compaction_and_it_is_the_hosts(
@@ -112,8 +166,9 @@ def test_the_cheap_prunes_run_weekly_and_the_real_wipe_waits_a_month(shipped: De
 def test_every_shipped_executable_is_reachable_without_a_shell(shipped: Desired):
     """O passo roda em subprocesso sem rc, onde `~/.local/bin` não está no PATH."""
     for step in shipped.steps or ():
-        if step.run:
-            assert step.run[0].startswith("/"), step.name
+        command = step.run or (step.report.command if step.report else ())
+        if command:
+            assert command[0].startswith("/"), step.name
 
 
 def test_the_shipped_floor_is_the_measured_one(shipped: Desired):
@@ -150,6 +205,99 @@ def test_a_step_naming_an_undeclared_alarm_channel_is_refused(tmp_path: Path):
 
     with pytest.raises(ValueError, match="canal de alarme não declarado"):
         load_desired(path)
+
+
+def report_step(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "name": "checker",
+        "branch": BRANCH_UP,
+        "every_days": 1,
+        "alarm": "falha",
+        "why": "deriva de anatomia é alarme, não gate de PR",
+        "report": {"command": ["/usr/bin/true"], "codes": {"1": "falha"}},
+    }
+    base.update(overrides)
+    return base
+
+
+def test_a_report_step_declares_which_channel_each_exit_code_speaks_on(tmp_path: Path):
+    desired = load_desired(config_with(tmp_path, steps=[report_step()]))
+    assert desired.steps is not None
+    report = desired.steps[0].report
+
+    assert report is not None
+    assert report.codes == {1: "falha"}
+
+
+def test_a_report_step_mapping_a_code_to_an_undeclared_channel_is_refused(tmp_path: Path):
+    """O alarme sairia num canal que ninguém declarou, que é falhar calado no pior lugar."""
+    path = config_with(
+        tmp_path,
+        steps=[report_step(report={"command": ["/usr/bin/true"], "codes": {"1": "anatomia"}})],
+    )
+
+    with pytest.raises(ValueError, match="canal de alarme não declarado"):
+        load_desired(path)
+
+
+def test_a_report_step_mapping_the_success_code_is_refused(tmp_path: Path):
+    """Zero é o silêncio de um passo saudável, e alarmar nele treina o operador a ignorar."""
+    path = config_with(
+        tmp_path,
+        steps=[report_step(report={"command": ["/usr/bin/true"], "codes": {"0": "falha"}})],
+    )
+
+    with pytest.raises(ValueError, match="código 0"):
+        load_desired(path)
+
+
+def test_a_report_step_with_no_code_mapped_is_refused(tmp_path: Path):
+    """Sem mapa, todo código não-zero viraria falha genérica: o corpo não teria razão de ser."""
+    path = config_with(
+        tmp_path, steps=[report_step(report={"command": ["/usr/bin/true"], "codes": {}})]
+    )
+
+    with pytest.raises(ValueError, match="codes"):
+        load_desired(path)
+
+
+def test_a_report_step_with_a_non_numeric_exit_code_is_refused(tmp_path: Path):
+    path = config_with(
+        tmp_path,
+        steps=[report_step(report={"command": ["/usr/bin/true"], "codes": {"deriva": "falha"}})],
+    )
+
+    with pytest.raises(ValueError, match="código de saída"):
+        load_desired(path)
+
+
+def test_a_report_step_with_no_command_is_refused(tmp_path: Path):
+    path = config_with(tmp_path, steps=[report_step(report={"codes": {"1": "falha"}})])
+
+    with pytest.raises(ValueError, match="command"):
+        load_desired(path)
+
+
+def test_the_report_executable_is_expanded_like_the_one_of_a_run_step(tmp_path: Path):
+    path = config_with(
+        tmp_path,
+        steps=[
+            report_step(
+                report={
+                    "command": ["~/.venv/bin/panlabs-checker", "--org"],
+                    "codes": {"1": "falha"},
+                }
+            )
+        ],
+    )
+
+    desired = load_desired(path)
+    assert desired.steps is not None
+    report = desired.steps[0].report
+
+    assert report is not None
+    assert report.command[0] == str(Path("~/.venv/bin/panlabs-checker").expanduser())
+    assert report.command[1] == "--org"
 
 
 def test_a_step_with_two_bodies_is_refused(tmp_path: Path):

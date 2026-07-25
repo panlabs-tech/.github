@@ -64,6 +64,40 @@ def test_a_repo_with_no_surface_at_all_is_not_failed_for_a_missing_stack_leg():
     assert actions_for(the_plan, "panlabs-tech/skills") == []
 
 
+def test_the_node_surface_of_a_monorepo_is_charged_for_the_lockfile_beside_its_manifest():
+    """O lockfile de um monorepo mora junto do manifesto, não na raiz do repo.
+
+    Exigir a raiz reprovaria o layout que a própria anatomia manda uma aplicação
+    ter. O que a stack cobra é lockfile versionado, não lockfile na raiz.
+    """
+    state = observed(repo("panlabs-tech/mono", files=["web/package.json", "web/package-lock.json"]))
+
+    the_plan = planner.plan(state)
+
+    assert actions_for(the_plan, "panlabs-tech/mono") == []
+
+
+def test_a_node_surface_with_no_lockfile_anywhere_is_drift_like_before():
+    state = observed(repo("panlabs-tech/mono", files=["web/package.json"]))
+
+    the_plan = planner.plan(state)
+
+    assert actions_for(the_plan, "panlabs-tech/mono") == ["node-lockfile-committed"]
+
+
+def test_a_runtime_slot_buried_in_a_subfolder_does_not_satisfy_the_root_declaration():
+    """A árvore inteira é observada, e é justamente por isso que o caminho importa.
+
+    O gerenciador de runtime da máquina lê a declaração na raiz do repo; uma
+    homônima enterrada numa subpasta não é a mesma declaração.
+    """
+    state = observed(repo("panlabs-tech/app", files=["pyproject.toml", "docs/.python-version"]))
+
+    the_plan = planner.plan(state)
+
+    assert actions_for(the_plan, "panlabs-tech/app") == ["python-runtime-declared"]
+
+
 def test_a_repo_with_two_surfaces_is_evaluated_on_both():
     state = observed(repo("panlabs-tech/monorepo", files=["pyproject.toml", "package.json"]))
 

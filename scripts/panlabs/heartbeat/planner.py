@@ -37,6 +37,7 @@ __all__ = [
     "DROP_FILE",
     "HOST_ACTIONS",
     "NOTIFY",
+    "REPORT_STEP",
     "RUN_ON_HOST",
     "RUN_STEP",
     "plan",
@@ -44,6 +45,7 @@ __all__ = [
 ]
 
 RUN_STEP = "run-step"
+REPORT_STEP = "report-step"
 DROP_DIR = "drop-dir"
 DROP_FILE = "drop-file"
 RUN_ON_HOST = "run-on-host"
@@ -255,9 +257,41 @@ def _body_items(observed: Observed, step: DesiredStep, due: str) -> list[PlanIte
                 },
             )
         ]
+    if step.report is not None:
+        return _report_items(step, due)
     if step.keep_newest is not None:
         return _keep_newest_items(observed, step)
     return _drop_matching_items(observed, step)
+
+
+def _report_items(step: DesiredStep, due: str) -> list[PlanItem]:
+    """O passo que relata pelo código de saída, com o mapa inteiro no item.
+
+    O mapa atravessa porque o código só existe depois de o comando rodar: o
+    applier não escolhe canal, ele consulta a tabela que este planner escreveu.
+    As chaves vão como texto porque um plano é artefato serializável, e um mapa
+    que muda de forma ao passar por JSON quebraria em produção e não no teste.
+
+    O canal do passo continua no item e não é redundante: ele é o canal do que o
+    mapa **não** cobre, que é falha do próprio passo -- desde o comando que não
+    existe até um código que ninguém previu.
+    """
+    report = step.report
+    assert report is not None
+    return [
+        PlanItem(
+            action=REPORT_STEP,
+            target=step.name,
+            reason=f"{step.why}; {due}",
+            payload={
+                "step": step.name,
+                "run": list(report.command),
+                "codes": {str(code): alarm for code, alarm in sorted(report.codes.items())},
+                "alarm": step.alarm,
+                "branch": step.branch,
+            },
+        )
+    ]
 
 
 def _keep_newest_items(observed: Observed, step: DesiredStep) -> list[PlanItem]:
