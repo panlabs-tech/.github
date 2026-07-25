@@ -1,0 +1,15 @@
+{
+  "_": "O estado estacionário do espaço de trabalho, decidido pela spec de Máquina #3 (issue #21). Caminhos com `~` são expandidos na leitura. `null` numa dimensão significa ainda não decidido, e o planner não planeja nada para ela. Nenhuma lista de repo mora aqui: o alvo vem sempre da org viva.",
+
+  "_root": "A raiz do espaço de trabalho. Os repos da org ficam sob um diretório que espelha o nome da org, e é essa fronteira que torna visível no caminho o que é da org e o que é pessoal.",
+  "root": "~/workspaces",
+
+  "_remote": "O molde do remote canônico da org. Ele é dado, e não código, para que nenhum host fique cravado no planner. Os dois campos são preenchidos com o nome da org e o do repositório.",
+  "remote": "https://github.com/{org}/{name}.git",
+
+  "_migrated_from": "As contas antigas cujos remotes se referem a repositórios já migrados para a org. Um remote assim ainda funciona, por redirect, e é exatamente esse o problema: ele mente para quem lê o remote como dado, e já enganou pelo menos duas análises. Repositório genuinamente pessoal desta mesma conta fica intocado, porque o invariante é só da org.",
+  "migrated_from": ["ThiagoPanini"],
+
+  "_worktrees": "Onde um worktree nasce dentro do repositório pai, sempre relativo a ele. Aninhar torna visível na árvore a relação entre worktree e repo, que hoje só existe dentro do git.",
+  "worktrees": ".claude/worktrees"
+}

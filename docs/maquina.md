@@ -2,7 +2,7 @@
 
 A máquina de desenvolvimento é um WSL2 sobre Windows 11 Home. Este documento é a parte **documentada** do padrão de máquina: o que vale para o global, quem instala o quê, e onde estão os limites honestos. A parte **executável** é `uv run panlabs-machine`, cujo plano é a verificação de invariante.
 
-Origem: [spec de Máquina #3](https://github.com/panlabs-tech/.github/issues/3), issue [#20](https://github.com/panlabs-tech/.github/issues/20). O espaço de trabalho é a [issue #21](https://github.com/panlabs-tech/.github/issues/21) e o heartbeat é a [#22](https://github.com/panlabs-tech/.github/issues/22); nenhum dos dois mora aqui.
+Origem: [spec de Máquina #3](https://github.com/panlabs-tech/.github/issues/3), issue [#20](https://github.com/panlabs-tech/.github/issues/20). O espaço de trabalho é a [issue #21](https://github.com/panlabs-tech/.github/issues/21) e mora em [`docs/espaco-de-trabalho.md`](espaco-de-trabalho.md); o heartbeat é a [#22](https://github.com/panlabs-tech/.github/issues/22). Nenhum dos dois mora aqui.
 
 ## Método de instalação, por classe
 
@@ -94,7 +94,7 @@ Uma máquina perdida volta nesta ordem, e ela importa:
 1. **[`panlabs-tech/dotfiles`](https://github.com/panlabs-tech/dotfiles)**, por `chezmoi`. Sem pré-requisito nenhum: o instalador é binário estático e carrega a própria implementação de git, então funciona antes de haver git.
 2. **Toolchain**, pelo método por classe da tabela acima.
 3. **Equipamento de agente**, pela CLI de distribuição.
-4. **Espaço de trabalho** ([issue #21](https://github.com/panlabs-tech/.github/issues/21)), que é posterior e depende de ferramental já instalado.
+4. **Espaço de trabalho** ([`docs/espaco-de-trabalho.md`](espaco-de-trabalho.md)), que é posterior e depende de ferramental já instalado.
 
 Credencial de nuvem e token de CLI ficam **fora** do versionado, porque são segredo ou são regeneráveis. A recuperação deles é manual, e é assim de propósito.
 

@@ -11,6 +11,7 @@ panlabs-ruleset = "panlabs.ruleset.cli:main"
 panlabs-org = "panlabs.org.cli:main"
 panlabs-checker = "panlabs.checker.cli:main"
 panlabs-machine = "panlabs.machine.cli:main"
+panlabs-workspace = "panlabs.workspace.cli:main"
 panlabs-heartbeat = "panlabs.heartbeat.cli:main"
 
 [dependency-groups]
