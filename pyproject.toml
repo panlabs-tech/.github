@@ -10,6 +10,7 @@ dependencies = []
 panlabs-ruleset = "panlabs.ruleset.cli:main"
 panlabs-org = "panlabs.org.cli:main"
 panlabs-checker = "panlabs.checker.cli:main"
+panlabs-machine = "panlabs.machine.cli:main"
 
 [dependency-groups]
 # `pyyaml` e os seus stubs sao dependencia de teste, nao de runtime: parte da

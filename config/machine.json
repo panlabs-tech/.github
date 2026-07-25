@@ -1,0 +1,129 @@
+{
+  "_": "O estado equipado desta máquina, decidido pela spec de Máquina #3 (issue #20). Caminhos com `~` são expandidos na leitura. `null` numa dimensão significa ainda não decidido, e o planner não planeja nada para ela.",
+
+  "bin_dir": "~/.local/bin",
+
+  "_links": "Um nome só conta como alcançável se resolve pelo nome real: alias de shell não existe em subprocesso, que é como o agente roda. O alvo é sempre um endereço estável, nunca uma versão concreta, porque o gerenciador de runtime reaponta `latest` a cada upgrade.",
+  "links": [
+    {
+      "name": "node",
+      "target": "~/.local/share/mise/shims/node",
+      "why": "o runtime da máquina não pode depender do nome de um projeto"
+    },
+    {
+      "name": "npm",
+      "target": "~/.local/share/mise/shims/npm",
+      "why": "acompanha o node do gerenciador de runtime"
+    },
+    {
+      "name": "npx",
+      "target": "~/.local/share/mise/shims/npx",
+      "why": "acompanha o node do gerenciador de runtime"
+    },
+    {
+      "name": "pnpm",
+      "target": "~/.local/share/mise/shims/pnpm",
+      "why": "cinco repos da frota têm lockfile de pnpm"
+    },
+    {
+      "name": "pnpx",
+      "target": "~/.local/share/mise/shims/pnpx",
+      "why": "acompanha o pnpm"
+    },
+    {
+      "name": "fd",
+      "target": "/usr/bin/fdfind",
+      "why": "um alias do shell capturava o nome, e alias não vale em subprocesso"
+    },
+    {
+      "name": "bat",
+      "target": "/usr/bin/batcat",
+      "why": "existia apenas como alias, logo não existia em subprocesso"
+    },
+    {
+      "name": "ccstatusline",
+      "target": "~/.local/share/mise/installs/npm-ccstatusline/latest/node_modules/.bin/ccstatusline",
+      "why": "a barra de status aponta para cá em vez de baixar um pacote a cada render"
+    }
+  ],
+
+  "_retire": "Remoções decididas. A do diretório nomeado por projeto é retida pelo planner enquanto o runtime vivo ainda resolver lá dentro: esse sequenciamento não pode ser invertido.",
+  "retire": [
+    {
+      "path": "~/.local/share/nodeenvs/campfire-context",
+      "why": "hospedava o node/npm/npx vivos da máquina inteira sob o nome de um projeto"
+    },
+    {
+      "path": "~/.nvm",
+      "why": "gerenciador fantasma: instalado e sem nenhuma versão de node dentro"
+    },
+    {
+      "path": "~/.pyenv",
+      "why": "gerenciador fantasma: removido do PATH por linha de configuração do shell, e o Python da máquina é o uv"
+    }
+  ],
+
+  "_read_denylist": "A mitigação da postura agressiva de permissão. A negação vale sempre sobre o alvo resolvido, nunca sobre o nome escrito: negar um caminho com link bloqueia a leitura pela ferramenta e deixa o comando de terminal equivalente passar, porque o shell fala com o alvo. Medido, não deduzido.",
+  "read_denylist": [
+    {
+      "path": "~/.aws",
+      "why": "chave de acesso administrativo total, criada em 2022, nunca rotacionada, em arquivo cujo modo é impossível corrigir no sistema de arquivos em que mora"
+    },
+    {
+      "path": "~/.ssh",
+      "why": "chaves privadas de acesso a máquina remota"
+    },
+    {
+      "path": "~/.azure",
+      "why": "credencial de nuvem, pelo mesmo critério do resto"
+    },
+    {
+      "path": "~/secrets",
+      "why": "cofre local declarado pelo nome"
+    },
+    {
+      "path": "~/.claude/.credentials.json",
+      "why": "token do próprio agente"
+    }
+  ],
+
+  "_statusline": "Comando comparado literalmente com o que está na configuração global do agente. O `~` é expandido pelo shell que a executa, não por este dado.",
+  "statusline": "~/.local/bin/ccstatusline",
+
+  "_skills": "A cláusula de zero redundância: uma skill candidata a global não existe em repo nenhum, e a cópia global é a única. Só o lado global é escopo da issue #20. A varredura que prova a cláusula é do planner, e tudo que ela encontra dentro de um repositório sai retido, porque remover arquivo versionado de um repo é o retrofit da spec de Repo #4.",
+  "skills": {
+    "_promote": "As órfãs reais: existem num repo e não têm par no global, então des-vendorizar sem promover perderia capacidade.",
+    "promote": [
+      {
+        "name": "caveman",
+        "source": "panlabs",
+        "why": "órfã real, verificada por ausência de par no global"
+      },
+      {
+        "name": "frontend-design",
+        "source": "panlabs",
+        "why": "órfã real, verificada por ausência de par no global"
+      },
+      {
+        "name": "prompt-engineering-patterns",
+        "source": "panlabs",
+        "why": "órfã real, verificada por ausência de par no global"
+      }
+    ],
+    "_discard": "As duas que pareciam órfãs e não são: são revisão anterior de uma global que já existe, com outro nome. Promovê-las criaria duas globais para o mesmo trabalho, que é a redundância que a cláusula proíbe. Verificado por comparação de conteúdo, não por semelhança de nome.",
+    "discard": [
+      {
+        "name": "to-prd",
+        "source": "panlabs",
+        "superseded_by": "to-spec",
+        "why": "revisão anterior da global de produção de spec: mudou o vocabulário de PRD para spec e ganhou uma frase sobre número de pontos de teste"
+      },
+      {
+        "name": "to-issues",
+        "source": "panlabs",
+        "superseded_by": "to-tickets",
+        "why": "antecessora da global de fatiamento em tickets: a global ganhou declaração de dependências entre tickets"
+      }
+    ]
+  }
+}
