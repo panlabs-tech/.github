@@ -104,7 +104,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _summarize(observed: Observed) -> str:
-    unreachable = [link.name for link in observed.links if not link.present]
+    """O resumo conta nome que **roda**, não nome que existe.
+
+    Contar presença fez este resumo declarar 8/8 alcançáveis enquanto a barra de
+    status estava morta: o link existia, apontava para onde o dado pedia, e o
+    nome não rodava. Um resumo que aprova esse estado é pior que nenhum.
+    """
+    unreachable = [link.name for link in observed.links if not link.reachable]
     still_there = sum(1 for entry in observed.retire if entry.present)
     weight = sum(entry.bytes for entry in observed.retire if entry.present)
     loaded = sum(1 for cred in observed.credentials if cred.present and cred.entries)

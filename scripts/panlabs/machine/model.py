@@ -40,15 +40,29 @@ class Link:
     Vazio significa que o nome não existe no diretório de binários. Um alias de
     shell não aparece aqui de propósito: alias não existe em subprocesso, que é
     exatamente como o agente roda, então para este planner ele é ausência.
+
+    `anchored_target` é a terceira pergunta, e ela nasceu de um defeito real: o
+    nome apontava exatamente para onde o dado pedia e mesmo assim não rodava.
+    Existe alvo que só funciona no próprio diretório, porque calcula o que
+    executar a partir de `dirname $0`. Alcançado por link, `$0` passa a ser o
+    link, e ele procura o que executar ao lado do link. Apontar para o alvo
+    pedido e ser alcançável são coisas diferentes, e `points_to` sozinho não
+    distingue as duas.
     """
 
     name: str
     points_to: str = ""
     resolved: str = ""
+    anchored_target: bool = False
 
     @property
     def present(self) -> bool:
         return bool(self.points_to or self.resolved)
+
+    @property
+    def reachable(self) -> bool:
+        """O nome existe e roda pelo nome, que é o único sentido que importa aqui."""
+        return self.present and not self.anchored_target
 
 
 @dataclass(frozen=True)

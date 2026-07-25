@@ -3,7 +3,7 @@
 
   "bin_dir": "~/.local/bin",
 
-  "_links": "Um nome só conta como alcançável se resolve pelo nome real: alias de shell não existe em subprocesso, que é como o agente roda. O alvo é sempre um endereço estável, nunca uma versão concreta, porque o gerenciador de runtime reaponta `latest` a cada upgrade.",
+  "_links": "Um nome só conta como alcançável se resolve pelo nome real: alias de shell não existe em subprocesso, que é como o agente roda. O alvo é sempre um endereço estável, nunca uma versão concreta, porque o gerenciador de runtime reaponta `latest` a cada upgrade. E o alvo precisa ser **relocável**: um shim que calcula o que executa a partir do próprio diretório (`dirname $0`) quebra justamente por ser alcançado por link, porque o diretório passa a ser o do link. Apontar para onde foi pedido não é o mesmo que ser alcançável, e a diferença só aparece quando alguém invoca o nome.",
   "links": [
     {
       "name": "node",
@@ -42,8 +42,8 @@
     },
     {
       "name": "ccstatusline",
-      "target": "~/.local/share/mise/installs/npm-ccstatusline/latest/node_modules/.bin/ccstatusline",
-      "why": "a barra de status aponta para cá em vez de baixar um pacote a cada render"
+      "target": "~/.local/share/mise/shims/ccstatusline",
+      "why": "o nome precisa existir em subprocesso, e o shim do gerenciador é o único alvo dele que sobrevive a ser alcançado por link"
     }
   ],
 
@@ -87,8 +87,8 @@
     }
   ],
 
-  "_statusline": "Comando comparado literalmente com o que está na configuração global do agente. O `~` é expandido pelo shell que a executa, não por este dado.",
-  "statusline": "~/.local/bin/ccstatusline",
+  "_statusline": "Comando comparado literalmente com o que está na configuração global do agente. O `~` é expandido pelo shell que a executa, não por este dado. Ele aponta para o binário no endereço **real**, e não para o link de `bin_dir`, porque o shim do pacote se ancora no próprio diretório: alcançado pelo link ele procura o que executar dentro de `~/.local/bin` e morre com `MODULE_NOT_FOUND`, sem render nenhum. O link continua existindo, para o nome existir em subprocesso, e por isso os dois endereços aqui são deliberadamente diferentes.",
+  "statusline": "~/.local/share/mise/installs/npm-ccstatusline/latest/node_modules/.bin/ccstatusline",
 
   "_skills": "A cláusula de zero redundância: uma skill candidata a global não existe em repo nenhum, e a cópia global é a única. Só o lado global é escopo da issue #20. A varredura que prova a cláusula é do planner, e tudo que ela encontra dentro de um repositório sai retido, porque remover arquivo versionado de um repo é o retrofit da spec de Repo #4.",
   "skills": {
