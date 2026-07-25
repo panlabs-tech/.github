@@ -1,0 +1,41 @@
+name: pr-dependabot-auto-merge
+
+# O `.github` é o primeiro consumidor do auto-merge de Dependabot, por referência
+# local, como consome os outros reusable workflows (panlabs-tech/.github#15).
+#
+# O caller é fino de propósito: quem decide o que aterrissa sozinho é o workflow
+# chamado, num lugar só, para que nenhum repo da frota possa divergir e passar a
+# mergear major por conta própria. Aqui só moram o gatilho e a permissão.
+#
+# `pull_request` alcança `opened`, `synchronize` e `reopened`, que é exatamente
+# quando o PR do Dependabot nasce e quando ele rebasa. Num PR que não é do bot,
+# o job é pulado pela condição do workflow chamado.
+
+on:
+  pull_request:
+
+# Elevadas no nível do workflow, e não só no do job. Num evento disparado pelo
+# Dependabot o GITHUB_TOKEN nasce **somente de leitura**, e sem esta elevação o
+# merge seria negado em todo PR do bot. Que a chave `permissions` é o que eleva
+# esse token é documentado pelo GitHub, em "Changing GITHUB_TOKEN permissions":
+# https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions
+#
+# O README da action `dependabot/fetch-metadata` recomenda `pull_request_target`
+# no lugar disso. A recomendação é sobre **segredo**, que continua indisponível
+# aqui, e não sobre permissão de token; a receita oficial de auto-merge do
+# próprio GitHub usa `pull_request` com estas mesmas duas permissões. Este
+# workflow não precisa de segredo nenhum, e `pull_request_target` traria de
+# volta a superfície que ele existe para não ter.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-auto-merge:
+    name: dependabot-auto-merge
+    uses: ./.github/workflows/dependabot-auto-merge.yml
+    # Repetidas aqui porque é o `permissions` do job que é passado ao workflow
+    # chamado: o do nível de cima sozinho eleva o token, mas não atravessa.
+    permissions:
+      contents: write
+      pull-requests: write

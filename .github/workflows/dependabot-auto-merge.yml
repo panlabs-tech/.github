@@ -1,0 +1,77 @@
+name: dependabot-auto-merge (reusable)
+
+# Um PR de bump minor ou patch do Dependabot aterrissa sozinho assim que os
+# checks ficam verdes; um bump major nunca aterrissa sozinho, não importa o
+# estado dos checks (panlabs-tech/.github#15).
+#
+# Por que auto-merge e não revisão: sem ele, o aproveitamento medido nesta org
+# foi de 17%, com 46 PRs de atualização, 8 mergeados, 28 fechados e 10 parados.
+# Um PR de rotina que espera decisão humana não vira revisão, vira fila.
+#
+# Por que major fica de fora: é onde o contrato quebra, e é o único lugar da
+# lista em que o olho humano ainda paga o tempo dele.
+#
+# Pré-requisito que não é deste arquivo: o repositório precisa ter auto-merge
+# habilitado (`allow_auto_merge`), ligado pelo gate da issue #14.
+#
+# **Quem** aterrissa sozinho é decisão, e vive em Python puro, em
+# scripts/panlabs/ci/dependabot.py, que é onde ela é testada. As duas cópias
+# dessa regra, a de lá e os dois `if` daqui, mudam juntas.
+#
+# **Como** a aterrissagem acontece é efeito, e não decide nada: ligar auto-merge
+# e esperar, ou mergear agora, dão no mesmo PR mergeado. Por isso o passo abaixo
+# tem os dois caminhos sem que isso seja um `if` de decisão vazado para cá. Em
+# nenhum deles o merge fura o gate: um PR vermelho é recusado pelo ruleset, com
+# ou sem auto-merge ligado.
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: auto-merge
+    runs-on: ubuntu-latest
+    # O autor do PR, não quem disparou o evento: um PR de terceiro não passa a
+    # ser do Dependabot porque o bot mexeu nele depois. É esta linha que impede
+    # a automação de alcançar qualquer PR humano.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      - name: ler os metadados do bump
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Num PR agrupado, `update-type` é o **maior** bump do grupo. É por isso
+      # que a configuração entregue agrupa minor com patch e deixa major sozinho:
+      # um grupo misto chegaria aqui como major e travaria inteiro.
+      - name: ligar auto-merge para bump minor ou patch
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # O caminho normal: os checks ainda estão rodando, e o GitHub segura o
+          # merge até ficarem verdes. Ligar auto-merge de novo no mesmo PR é
+          # inofensivo, e acontece toda vez que o Dependabot rebasa a branch.
+          if gh pr merge --auto --squash "$PR_URL"; then
+            echo "::notice::auto-merge ligado em ${PR_URL}"
+            exit 0
+          fi
+
+          # O GitHub recusa **ligar** auto-merge quando já não há o que esperar.
+          # Nesse caso o merge é agora, e é pela API: é ela que assina o commit
+          # que aterrissa na branch protegida, e é ela que diz o motivo exato
+          # quando a recusa for de verdade.
+          echo "::notice::auto-merge recusado; mergeando agora pela API."
+          gh api -X PUT "repos/${REPO}/pulls/${NUMBER}/merge" -f merge_method=squash

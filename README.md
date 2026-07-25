@@ -10,6 +10,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | --- | --- |
 | **`profile/README.md`** | O perfil da org: a página que um visitante vê antes de abrir qualquer repo. |
 | **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. Ver [`.github/workflows/README.md`](.github/workflows/README.md). |
+| **`.github/dependabot.yml`** | Quais atualizações de dependência o bot abre, e quais delas aterrissam sozinhas no verde. |
 | **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo; o de org, que converge o que não é ruleset (a esteira, segurança e vitrine); e o checker de conformidade, que mede a frota contra a anatomia. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, cinco tipos, invariantes e slots. |
@@ -71,6 +72,8 @@ uv run pyright                           # tipos
 ```
 
 O que é testado é o **planner**: uma função pura de estado observado para plano, exercitada com fixtures capturadas da própria frota. O applier não é testado: ele é uma tabela de despacho, uma chamada de API por ação. Se algum dia ele precisar de um `if`, a decisão vazou para dentro dele, e o conserto é movê-la para o planner.
+
+Junto com o planner, testa-se a **configuração entregue**, incluindo a parte dela que só existe em YAML porque o GitHub exige esse formato. O comportamento dos workflows continua fora: se o gitleaks acha segredo ou se o CodeQL acha alerta são perguntas para o uso, não para o teste. O que se verifica é a fiação, que é decisão nossa: quem depende de quem, e quais alvos a configuração declara.
 
 ## Origem
 

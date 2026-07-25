@@ -1,0 +1,73 @@
+name: pr-code-scanning
+
+# O `.github` consome a análise estática advisory por referência local, do mesmo
+# jeito que consome os outros reusable workflows (panlabs-tech/.github#15).
+#
+# Arquivo separado de pr-checks.yml de propósito, e não por gosto de organizar:
+# é o que torna **estrutural** a garantia de que a análise nunca entra na
+# conclusão de um required check. Enquanto ela mora aqui, não existe `needs` que
+# a ligue ao rollup `checks` ou ao `security` sem que alguém mude de arquivo.
+#
+# O gatilho também é outro, e por motivo próprio. O pr-checks.yml roda no push
+# da branch de trabalho, porque é ele quem abre o PR. Aqui é `pull_request`:
+# é no PR que o code scanning compara o head com a base e reporta o que aquele
+# PR **introduziu**, em vez de repetir o passivo do repo a cada rodada.
+#
+# O push na `main` existe só para essa base existir. Sem uma análise na branch
+# default, não há com o que comparar, e todo achado antigo apareceria como novo
+# em todo PR: ruído que faria a análise ser ignorada em uma semana.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      # As mesmas branches de trabalho de pr-checks.yml, e a razão é uma
+      # pegadinha da plataforma, não gosto por redundância: um evento criado com
+      # o GITHUB_TOKEN **não** dispara workflow, e é o job `open-pr` que abre o
+      # PR deste repo, com esse token. O `pull_request: opened` correspondente é
+      # suprimido, e sem esta lista a análise simplesmente nunca rodaria num PR
+      # de agente que aterrissa no primeiro push. Medido neste próprio PR: só
+      # `pr-checks` rodou até esta linha existir.
+      #
+      # O custo é uma análise repetida quando um push chega numa branch que já
+      # tem PR aberto, porque aí o `push` e o `synchronize` disparam os dois.
+      # Pagar isso é melhor do que a análise não rodar, que é a falha que não
+      # aparece. Quem for cortar a duplicata: cortar o `pull_request` tira o
+      # reporte no diff do PR, e cortar esta lista traz o buraco de volta.
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
+      - "refactor/**"
+      - "test/**"
+      - "ci/**"
+      - "worktree/**"
+      - "worktree-**"
+      - "dependabot/**"
+
+# `security-events` já no nível do workflow: num PR do Dependabot o token nasce
+# somente de leitura, e é a chave `permissions` que o eleva. Sem isto, a análise
+# rodaria no PR do bot e não conseguiria subir achado nenhum.
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: pr-code-scanning-${{ github.ref }}
+  # Só o PR cancela a rodada anterior. Na `main`, cancelar deixaria a base de
+  # comparação parada num commit antigo, e é ela que dá sentido ao resto.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  code-scanning:
+    name: code-scanning
+    uses: ./.github/workflows/code-scanning.yml
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      # As mesmas duas que o próprio GitHub detecta para este repo. `actions` não
+      # é enfeite aqui: a maior parte do que este repo entrega são workflows, e
+      # é a linguagem que os analisa.
+      languages: '["python", "actions"]'

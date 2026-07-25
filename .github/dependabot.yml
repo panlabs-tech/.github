@@ -1,0 +1,62 @@
+version: 2
+
+# Dependabot version updates, com auto-merge no verde para minor e patch
+# (panlabs-tech/.github#15). Isto é atualização de rotina, e é diferente dos
+# **security updates**, que respondem a alerta e são configuração de org.
+#
+# Cada entrada declara um alvo (ecossistema mais diretório), e nenhum alvo
+# aparece duas vezes: alvo repetido faria o mesmo manifesto ser avaliado duas
+# vezes, e o mesmo bump viraria dois PRs. É o que tests/test_ci_dependabot.py
+# verifica contra este arquivo.
+#
+# O agrupamento não é economia de ruído, é o que sustenta o auto-merge. Num PR
+# agrupado, o tipo de bump que a automação lê é o **maior** do grupo: um grupo
+# que misturasse major com minor chegaria como major e travaria inteiro, levando
+# junto os minors que deveriam ter aterrissado sozinhos. Por isso o grupo carrega
+# minor e patch, e major fica de fora dele, num PR por dependência, esperando
+# olho humano.
+
+updates:
+  # Mantém vivos os pins por SHA dos workflows compartilhados. Sem este
+  # ecossistema, a estratégia de pinning deste repo vira dívida no dia um: o
+  # Dependabot bumpa o SHA **e** o comentário de versão ao lado, e nada mais faz
+  # isso. Também bumpa a referência versionada a reusable workflow (`@v1.0.0`)
+  # nos repos consumidores, do mesmo jeito que bumparia uma action.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Sem label: o vocabulário deste tracker é fechado e declarado em
+    # docs/agents/triage-labels.md. Um label criado por bot ao lado dele seria
+    # um sexto termo que ninguém decidiu.
+    labels: []
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # `uv`, e não `pip`: quem resolve as dependências deste repo é o uv, e a CI
+  # roda `uv sync --frozen`. Um bump que mexesse no pyproject sem refazer o
+  # `uv.lock` reprovaria o check, e o PR ficaria vermelho para sempre sem que o
+  # bump tivesse nada de errado.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels: []
+    groups:
+      python:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
