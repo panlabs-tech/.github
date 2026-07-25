@@ -1,0 +1,69 @@
+{
+  "_nota": "A configuração desejada de org e de repositório que **não** é ruleset (o ruleset mora em config/ruleset.json). Os valores são decididos pela spec de Org #2 (https://github.com/panlabs-tech/.github/issues/2) e pela issue #13. Uma chave null está *ainda não decidida*, e o planner não planeja nada para essa dimensão; isso é diferente de decidida-como-vazia.",
+
+  "_actions_can_approve_pull_requests": "P0. A política de organização que permite ao GitHub Actions criar e aprovar PR. Desligada em 2026-07-19T17:28Z, foi ela que quebrou a esteira worktree -> commit -> push -> PR -> merge. Vigiada como invariante: rodar o comando sem aplicar é a verificação.",
+  "actions_can_approve_pull_requests": true,
+
+  "_two_factor_requirement": "2FA exigida na org. Observável pela API, mas **não aplicável** por ela: PATCH /orgs não aceita two_factor_requirement_enabled. O item de plano é manual, e diz onde clicar.",
+  "two_factor_requirement": true,
+
+  "_new_repo_security_defaults": "Defaults de segurança para repositório novo, na org: um repo criado amanhã já nasce protegido. É o único item da spec que reduz manutenção em vez de criar. As chaves são as de PATCH /orgs. advanced_security_enabled_for_new_repositories fica de fora: é GHAS, indisponível no plano free.",
+  "new_repo_security_defaults": {
+    "dependency_graph_enabled_for_new_repositories": true,
+    "dependabot_alerts_enabled_for_new_repositories": true,
+    "dependabot_security_updates_enabled_for_new_repositories": true,
+    "secret_scanning_enabled_for_new_repositories": true,
+    "secret_scanning_push_protection_enabled_for_new_repositories": true
+  },
+
+  "_org_description": "A descrição atual promete 'soluções de software, dados e analytics', e nenhum repo sustenta a parte de dados e analytics. O texto abaixo é a tese do perfil (profile/README.md), que é onde ela já está publicada. Máximo de 160 caracteres, por limite da API.",
+  "org_description": "Laboratório pessoal de desenvolvimento de software: um mantenedor e agentes autônomos operando de ponta a ponta, do ticket ao merge.",
+
+  "_pinned_repos": "Os repos fixados no perfil da org, na ordem em que aparecem: produtos antes de ferramental. Fora dos pins ficam o repo meta (.github), o módulo de infraestrutura (tfbox) e a vitrine (panlabs, o site panlabs.tech), por decisão da spec #2. A spec fala em seis pins, número herdado de quando a org tinha outros repos: aqui a lista é dado, e o que vale é quem entra, não a contagem. **Não aplicável** pela API: o GitHub não expõe mutação de pinned items em REST nem em GraphQL, então o item de plano é manual.",
+  "pinned_repos": [
+    "panlabs-tech/travelmanager",
+    "panlabs-tech/life-under-control",
+    "panlabs-tech/ethitorial",
+    "panlabs-tech/skills"
+  ],
+
+  "_secret_scanning": "Secret scanning ligado em todo repo: segredo já commitado é detectado.",
+  "secret_scanning": true,
+
+  "_push_protection": "Push protection ligada em todo repo: segredo não chega ao remoto por descuido. Depende de secret scanning, e o plano a ordena depois dele.",
+  "push_protection": true,
+
+  "_dependabot_alerts": "Dependabot alerts ligado em todo repo: vulnerabilidade conhecida vira alerta.",
+  "dependabot_alerts": true,
+
+  "_dependabot_security_updates": "Dependabot security updates ligado em todo repo: vulnerabilidade conhecida vira PR sozinha. Depende dos alerts, e o plano o ordena depois deles.",
+  "dependabot_security_updates": true,
+
+  "_repo_descriptions": "A descrição de cada repo, para que a listagem da org seja legível sem abrir nada. Um repo ausente daqui não tem texto governado: o plano só cobra que ele tenha alguma descrição, e cobra isso como item manual, porque inventar o texto de um repo não é trabalho de script. Idioma pt-BR por default, inglês onde o domínio é global (tfbox).",
+  "repo_descriptions": {
+    "panlabs-tech/.github": "Repo meta da org panlabs-tech: o padrão, a CI compartilhada e os mecanismos que o aplicam e verificam",
+    "panlabs-tech/ethitorial": "🎓 Editorial de aprendizados pessoais materializados em conhecimento",
+    "panlabs-tech/life-under-control": "🎛️ Um gerenciador pessoal da \"vida adulta\"",
+    "panlabs-tech/panlabs": "🧪 A vitrine panlabs.tech: o site das soluções que passaram no gatilho de avaliação",
+    "panlabs-tech/skills": "Conjunto de skills usadas majoritariamente no desenvolvimento de soluções na org panlabs",
+    "panlabs-tech/tfbox": "📦 A collection of production-ready Terraform modules focused on AWS environments",
+    "panlabs-tech/travelmanager": "🧳Seu organizador de viagens"
+  },
+
+  "_repo_topics": "Topics de eixo único de **stack**, sempre em inglês: o consumidor real é o agente, que filtra a frota por tecnologia. Eixo de conteúdo (blog, learning) sai. Um repo ausente daqui não tem topics governados, e o plano só cobra que ele tenha algum, como item manual.",
+  "repo_topics": {
+    "panlabs-tech/.github": ["python", "github-actions"],
+    "panlabs-tech/ethitorial": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"],
+    "panlabs-tech/life-under-control": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"],
+    "panlabs-tech/panlabs": ["typescript", "nextjs", "docker"],
+    "panlabs-tech/skills": ["claude-code"],
+    "panlabs-tech/tfbox": ["terraform", "aws"],
+    "panlabs-tech/travelmanager": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"]
+  },
+
+  "_wiki": "Wiki desligado em todo repo que não o usa: superfície vazia que ninguém mantém. As exceções são **dado declarado**, nunca um `if` no planner: um repo listado aqui não é avaliado nesta dimensão e não aparece no plano. tfbox é a única, porque lá o wiki é gerado por automação de release, e desligá-lo quebraria a automação.",
+  "wiki": {
+    "enabled": false,
+    "exceptions": ["panlabs-tech/tfbox"]
+  }
+}
