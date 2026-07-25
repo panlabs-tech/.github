@@ -147,6 +147,33 @@ def test_the_summary_reports_the_real_radius_and_not_the_declared_list(
     assert "1 lugar(es) de credencial com conteúdo hoje" in capsys.readouterr().out
 
 
+def test_the_summary_does_not_count_a_name_that_exists_and_does_not_run(
+    forbid_effects: None, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    """O resumo declarava alcançável um nome morto, porque contava presença.
+
+    Foi assim que a barra de status ficou quebrada sem ninguém ver: o link
+    existia e apontava para onde o dado pedia.
+    """
+    observed = snapshot(
+        tmp_path,
+        links=[
+            {
+                "name": "ccstatusline",
+                "points_to": "/home/op/pkg/.bin/ccstatusline",
+                "resolved": "/home/op/pkg/.bin/ccstatusline",
+                "anchored_target": True,
+            }
+        ],
+    )
+
+    main(["--config", str(config(tmp_path)), "--observed", str(observed)])
+
+    out = capsys.readouterr().out
+    assert "0/1 nome(s) alcançável(is)" in out
+    assert "faltam: ccstatusline" in out
+
+
 # --- a fronteira entre o que tem efeito e o que é manual ----------------------
 
 
@@ -166,6 +193,7 @@ def test_every_action_the_planner_emits_is_either_manual_or_has_an_effect():
         planner.PROMOTE_SKILL,
         planner.DISCARD_SKILL,
         planner.DROP_VENDORED_SKILL,
+        planner.UNREACHABLE_NAME,
     }
 
     assert set(effects) == emitted - set(planner.MANUAL_ACTIONS)

@@ -26,6 +26,12 @@ O conserto é por link em `~/.local/bin`, e ele é verificado pelo planner. Dois
 - `fd` era capturado por um alias do `common-aliases` do oh-my-zsh (`alias fd='find . -type d -name'`). O alias é guardado por `(( $+commands[fd] ))`, então **criar o link aposenta o alias sozinho**, sem editar plugin nenhum.
 - `bat` existia apenas como alias para `batcat`. A guarda equivalente foi escrita à mão no arquivo de configuração modular, pelo mesmo motivo e com o mesmo efeito.
 
+### O alvo do link precisa sobreviver ao link
+
+Criar o link não basta, porque **apontar para o alvo pedido não é o mesmo que ser alcançável**. Existe alvo que só funciona no diretório dele: um shim que calcula o que executar a partir de `dirname $0` passa a procurar o que executar ao lado do link, e o nome morre. Foi o que aconteceu com a barra de status, que ficou sem renderizar enquanto a verificação declarava o nome alcançável, porque conferia o alvo imediato e nada mais.
+
+O critério é **relocabilidade**. Shim do gerenciador de runtime é binário e resolve pelo nome com que foi invocado, então sobrevive; shim de pacote npm em `node_modules/.bin` normalmente se ancora no próprio diretório e não sobrevive. O planner mede isso por leitura do alvo, nunca por execução, e reporta o nome inalcançável como item retido: nenhum relink resolve, porque o alvo é o defeito. Quando o binário só existe em forma ancorada, quem precisa dele por caminho fixo aponta para o **endereço real**, e o link em `~/.local/bin` fica para o nome existir em subprocesso.
+
 ## O sequenciamento que não pode ser invertido
 
 O `node`, o `npm` e o `npx` vivos da máquina moravam num diretório nomeado por um projeto (`nodeenvs/campfire-context`, 0,84 GB), por link direto. A remoção desse diretório estava decidida, e **só podia rodar depois** da migração: removê-lo antes deixaria a máquina sem runtime.

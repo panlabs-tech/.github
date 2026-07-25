@@ -4,7 +4,9 @@ Cinco dimensões, e cada uma tem uma decisão que não é óbvia:
 
 - **links**: um nome só conta como alcançável se resolve pelo nome real. Alias de
   shell não existe em subprocesso, que é como o agente roda, então alias é
-  ausência para este planner.
+  ausência para este planner. E apontar para o alvo pedido **não** é o mesmo que
+  ser alcançável: existe alvo que só funciona no próprio diretório, e o link é o
+  que o quebra. Esse caso sai como item próprio, porque nenhum relink o resolve.
 - **retire**: um diretório cuja remoção está decidida fica **retido** enquanto
   algum nome que precisa ser alcançável ainda resolve dentro dele. É o que impede
   o plano de agrupar a remoção do runtime vivo com as outras remoções.
@@ -35,6 +37,7 @@ __all__ = [
     "PIN_STATUSLINE",
     "PROMOTE_SKILL",
     "RETIRE_DIR",
+    "UNREACHABLE_NAME",
     "plan",
 ]
 
@@ -45,6 +48,7 @@ PIN_STATUSLINE = "pin-statusline"
 PROMOTE_SKILL = "promote-skill"
 DISCARD_SKILL = "discard-skill"
 DROP_VENDORED_SKILL = "drop-vendored-skill"
+UNREACHABLE_NAME = "unreachable-name"
 
 DEVENDOR_HOLD = (
     "remover arquivo versionado de dentro de um repositório é o retrofit da spec de Repo #4, "
@@ -56,7 +60,12 @@ DISCARD_HOLD = (
     "não existir no global; apagar o arquivo no repo é o retrofit da spec de Repo #4"
 )
 
-MANUAL_ACTIONS = (PROMOTE_SKILL, DISCARD_SKILL, DROP_VENDORED_SKILL)
+UNREACHABLE_HOLD = (
+    "nenhum relink resolve: refazer o link reproduz exatamente o mesmo alvo, e o alvo é o "
+    "defeito; a correção é escolher em `config/machine.json` um alvo que sobreviva ao link"
+)
+
+MANUAL_ACTIONS = (PROMOTE_SKILL, DISCARD_SKILL, DROP_VENDORED_SKILL, UNREACHABLE_NAME)
 """As ações que nenhum applier realiza, e o motivo de cada uma não ser daqui.
 
 Promover é da **CLI de distribuição**: ela é o único mecanismo de instalação de
@@ -67,7 +76,12 @@ carrega o comando exato, e quem o roda é a CLI.
 Descartar e des-vendorizar são da spec de Repo #4, que é onde a spec de Máquina #3
 põe a remoção de arquivo versionado de dentro de um repositório.
 
-Um teste garante que estas três não têm efeito e que todas as outras têm.
+Nome inalcançável não tem efeito porque **não existe efeito que o resolva**: o
+link já está onde o dado pediu, e é o alvo pedido que não sobrevive a ser
+alcançado por link. Aplicar qualquer coisa aqui reproduziria o defeito; o que
+muda é o dado, e mudar dado versionado é do humano que revisa o plano.
+
+Um teste garante que estas quatro não têm efeito e que todas as outras têm.
 """
 
 PROMOTE_HOLD = (
@@ -104,6 +118,8 @@ def _link_items(observed: Observed, desired: Desired) -> list[PlanItem]:
     for wanted in desired.links:
         current = observed.link(wanted.name)
         if current.points_to == wanted.target:
+            if current.anchored_target:
+                items.append(_unreachable_item(wanted.name, desired.bin_dir, current.resolved))
             continue
         where = "não existe" if not current.present else f"aponta para {current.points_to}"
         items.append(
@@ -115,6 +131,25 @@ def _link_items(observed: Observed, desired: Desired) -> list[PlanItem]:
             )
         )
     return items
+
+
+def _unreachable_item(name: str, bin_dir: str, resolved: str) -> PlanItem:
+    """O nome aponta para onde o dado pediu e mesmo assim não roda.
+
+    O item existe porque o silêncio é o defeito: um link conferido só pelo alvo
+    imediato passa na verificação e continua morto, e quem descobre é quem invoca
+    o nome. Ele sai **retido** porque a correção mora no dado, não no efeito.
+    """
+    return PlanItem(
+        action=UNREACHABLE_NAME,
+        target=f"{bin_dir}/{name}",
+        reason=(
+            f"aponta para o alvo pedido e mesmo assim não roda: {resolved} se ancora no "
+            f"próprio diretório, e alcançado pelo link procura o que executar dentro de {bin_dir}"
+        ),
+        payload={"name": name, "resolved": resolved},
+        hold=UNREACHABLE_HOLD,
+    )
 
 
 # --- remoções, e a única que precisa esperar ---------------------------------

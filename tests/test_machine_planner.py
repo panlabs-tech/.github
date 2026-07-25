@@ -293,6 +293,67 @@ def test_a_name_already_pointing_at_the_desired_target_plans_nothing():
     assert items_for(the_plan, planner.LINK_NAME) == []
 
 
+def test_a_name_pointing_where_asked_but_anchored_on_its_own_dir_is_reported_unreachable():
+    """O defeito medido: o link estava exatamente onde o dado pedia e o nome não rodava.
+
+    O shim do pacote calculava o que executar a partir do próprio diretório, e
+    alcançado pelo link passou a procurar o pacote ao lado do link. Conferir só o
+    alvo imediato aprova este estado e deixa o nome morto, que foi o que
+    aconteceu com a barra de status.
+    """
+    target = "/home/op/.local/share/mise/installs/npm-ccstatusline/latest/node_modules/.bin/cc"
+    state = Observed(
+        links=(
+            Link(
+                name="ccstatusline",
+                points_to=target,
+                resolved=target,
+                anchored_target=True,
+            ),
+        )
+    )
+    wanted = desired(
+        links=(DesiredLink(name="ccstatusline", target=target, why="a barra de status"),)
+    )
+
+    the_plan = planner.plan(state, wanted)
+
+    assert items_for(the_plan, planner.LINK_NAME) == []
+    (item,) = items_for(the_plan, planner.UNREACHABLE_NAME)
+    assert item.target == f"{BIN}/ccstatusline"
+    assert item.hold
+
+
+def test_an_unreachable_name_is_never_fixed_by_relinking_it():
+    """Refazer o link reproduz o mesmo alvo, e o alvo é o defeito."""
+    target = "/home/op/.local/share/mise/installs/npm-ccstatusline/latest/node_modules/.bin/cc"
+    state = Observed(
+        links=(Link(name="ccstatusline", points_to=target, resolved=target, anchored_target=True),)
+    )
+    wanted = desired(
+        links=(DesiredLink(name="ccstatusline", target=target, why="a barra de status"),)
+    )
+
+    the_plan = planner.plan(state, wanted)
+
+    assert planner.UNREACHABLE_NAME in planner.MANUAL_ACTIONS
+    assert targets_for(the_plan, planner.LINK_NAME) == []
+
+
+def test_a_name_pointing_at_a_relocatable_target_is_not_reported_unreachable():
+    """O shim do gerenciador de runtime é binário: ele resolve pelo nome, não pelo diretório."""
+    state = Observed(
+        links=(Link(name="node", points_to=f"{SHIMS}/node", resolved=f"{SHIMS}/node"),)
+    )
+    wanted = desired(
+        links=(DesiredLink(name="node", target=f"{SHIMS}/node", why="runtime gerido"),)
+    )
+
+    the_plan = planner.plan(state, wanted)
+
+    assert items_for(the_plan, planner.UNREACHABLE_NAME) == []
+
+
 # --- a barra de status não baixa nada por render ------------------------------
 
 

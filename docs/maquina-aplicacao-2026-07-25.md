@@ -51,6 +51,8 @@ Depois da remoção do diretório de 0,84 GB: `node` v24.18.0, `npm` 11.16.0, `p
 
 O binário direto foi o escolhido, e ele é estável apesar de o caminho conter uma versão: o gerenciador de runtime mantém `latest` como link que ele reaponta a cada upgrade. Foi exatamente esse detalhe que expôs um defeito no planner, descrito abaixo.
 
+**A medição foi feita no endereço real do binário, e a configuração apontou para o link.** Os dois não são a mesma coisa, e a diferença custou a barra inteira: ver o defeito abaixo. O estado corrigido tem dois endereços de propósito, o comando da barra no endereço real e o link em `~/.local/bin` no shim do gerenciador, porque as duas perguntas que eles respondem são diferentes.
+
 ## As skills
 
 Três órfãs reais subiram: `caveman`, `frontend-design`, `prompt-engineering-patterns`. Elas existiam versionadas em `panlabs` e **não tinham par no global**, então des-vendorizar sem promover custaria capacidade.
@@ -78,7 +80,7 @@ Boa parte dessas cópias é de worktree solto e de repositório pessoal que a [i
 
 ## Os defeitos que a máquina viva e a revisão expuseram
 
-Nenhum deles teria aparecido em fixture escrita à mão, e todos viraram teste.
+Nenhum deles teria aparecido em fixture escrita à mão, e todos viraram teste. O último não veio da revisão e sim do uso: a barra de status estava morta desde a aplicação, e a verificação que deveria pegá-la aprovava o estado.
 
 **A promoção instalava por cópia.** O efeito copiava o diretório para o global, o que contradiz a decisão de a CLI de distribuição ser o único mecanismo e deixaria a skill global sem upstream de onde atualizar. Promover virou ação manual, com o comando no plano, e um teste agora garante que toda ação declarada como manual **não** tem efeito registrado e toda outra tem.
 
@@ -87,6 +89,10 @@ Nenhum deles teria aparecido em fixture escrita à mão, e todos viraram teste.
 **A comparação de link replanejava para sempre.** O observador comparava o **fim** da cadeia de links com o alvo desejado. Para um alvo que é ele mesmo um link, como o `latest` que o gerenciador de runtime reaponta, o fim da cadeia é a versão concreta, nunca o `latest` pedido, e o plano pediria o mesmo relink em toda rodada. Corrigido separando duas perguntas que são diferentes: `points_to`, o alvo imediato, responde "aponta para onde eu pedi"; `resolved`, o fim da cadeia, responde "onde mora de verdade" e é o que decide se remover um diretório deixaria a máquina sem runtime.
 
 Um terceiro caso não era defeito e sim medição: a CLI de distribuição instala em `~/.claude/skills`, e o observador só conhecia `~/.agents/skills`. As três skills recém-instaladas apareciam como ausentes, e o plano pedia promoção de novo. "Global" passou a significar alcançável globalmente, em qualquer dos dois diretórios, o que é a definição honesta.
+
+**A barra de status ficou morta, e o resumo declarou 8/8 alcançáveis.** Este apareceu depois, com o uso, e é o mais instrutivo dos quatro. O link foi criado exatamente onde o dado pedia, e mesmo assim o nome não rodava: o shim do pacote calcula o que executar a partir de `dirname $0`, então alcançado pelo link ele procurava o pacote dentro de `~/.local/bin` e morria com `MODULE_NOT_FOUND`. A barra não mostra erro, ela simplesmente não renderiza, e a única pista era rodar o comando à mão.
+
+O que o defeito ensina é que **apontar para o alvo pedido não é o mesmo que ser alcançável**, e que `points_to` sozinho não distingue as duas coisas. A verificação conferia o alvo imediato, aprovava, e contava o nome como alcançável. Três correções saíram daí: o alvo do link passou a ser o shim do gerenciador, que é binário e resolve pelo nome com que foi invocado em vez do diretório em que mora; o observador passou a medir se o alvo se ancora no próprio diretório, por leitura e nunca por execução, porque este binário sem argumento abre interface interativa e travaria a medição; e o resumo passou a contar nome que **roda**, não nome que existe. O planner ganhou uma ação própria para o caso, retida, porque nenhum relink o resolve: refazer o link reproduz o mesmo alvo, e o alvo é o defeito.
 
 ## O que continua com o operador
 

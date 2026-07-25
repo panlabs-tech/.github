@@ -98,7 +98,39 @@ def _look_at_link(bin_dir: str | None, name: str) -> dict[str, Any]:
         "name": name,
         "points_to": points_to,
         "resolved": str(candidate.resolve()),
+        "anchored_target": candidate.is_symlink() and _anchors_on_own_dir(candidate.resolve()),
     }
+
+
+ANCHOR_MARKS = ('dirname "$0"', "dirname $0", "dirname `$0`", "dirname '$0'")
+"""Como um shim escreve "o diretório onde eu mesmo estou".
+
+A medição é por leitura, nunca por execução: um binário de barra de status
+invocado sem argumento abre uma interface interativa, e uma observação que o
+executasse travaria a medição da máquina inteira.
+"""
+
+
+def _anchors_on_own_dir(target: Path) -> bool:
+    """Se este alvo só funciona no diretório dele, e por isso quebra sob link.
+
+    O defeito que originou esta medição: o shim do pacote calculava o caminho do
+    que executar a partir de `dirname $0` e o compunha com `..`. Alcançado pelo
+    link em `bin_dir`, ele passou a procurar o pacote ao lado do link, e o nome
+    morria com `MODULE_NOT_FOUND` mesmo apontando para onde o dado pedia.
+
+    Só script conta. Um shim compilado resolve o que executar pelo nome com que
+    foi invocado, não pelo diretório em que mora, e sobrevive ao link: é o caso
+    dos shims do gerenciador de runtime, que são binário.
+    """
+    try:
+        head = target.read_bytes()[:4096]
+    except OSError:
+        return False
+    if not head.startswith(b"#!"):
+        return False
+    text = head.decode("utf-8", errors="replace")
+    return any(mark in text for mark in ANCHOR_MARKS) and "/.." in text
 
 
 def _look_at_dir(path: str) -> dict[str, Any]:
@@ -225,6 +257,7 @@ def build_observed(raw: Mapping[str, Any]) -> Observed:
                 name=entry["name"],
                 points_to=entry.get("points_to", ""),
                 resolved=entry.get("resolved", ""),
+                anchored_target=bool(entry.get("anchored_target")),
             )
             for entry in raw.get("links") or ()
         ),
@@ -260,7 +293,12 @@ def observed_to_dict(observed: Observed) -> dict[str, Any]:
     """O retrato observado, de volta a JSON legível. Igual aos subpacotes irmãos."""
     return {
         "links": [
-            {"name": x.name, "points_to": x.points_to, "resolved": x.resolved}
+            {
+                "name": x.name,
+                "points_to": x.points_to,
+                "resolved": x.resolved,
+                "anchored_target": x.anchored_target,
+            }
             for x in observed.links
         ],
         "retire": [
