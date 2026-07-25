@@ -1,0 +1,109 @@
+{
+  "_": "O heartbeat desta máquina, decidido pela spec de Máquina #3 (issue #22). Caminhos com `~` são expandidos na leitura, inclusive o executável de um passo. `null` numa dimensão significa ainda não decidido, e o planner não planeja nada para ela.",
+
+  "_channels": "Os canais de alarme. Eles existem separados para que uma falha não se disfarce de outra: o alarme de disco é o único vigia de uma métrica que não se mede de dentro do WSL, e gastá-lo com falha de rede de um passo o transformaria em ruído. Plugar o checker de conformidade da spec de Repo #4 acrescenta um quarto canal aqui e um passo na lista de baixo, e nenhuma linha de código muda.",
+  "channels": [
+    {
+      "name": "falha",
+      "why": "um passo não completou, ou uma dimensão não pôde ser observada. É o canal do próprio mecanismo"
+    },
+    {
+      "name": "disco",
+      "why": "o disco do host cruzou o piso. Este canal vigia a única métrica invisível de dentro do WSL, e por isso não divide espaço com nenhuma outra"
+    },
+    {
+      "name": "marca",
+      "why": "a tarefa parou de rodar. O disparo é diário, então marca velha significa que o gatilho morreu, e não que a máquina está saudável"
+    }
+  ],
+
+  "_host_floor": "O piso de 25 GB dá cerca de dois meses de folga na taxa de acréscimo medida em 2026-07-20: 3 GB nos últimos 30 dias, 0,22 GB nos últimos 7. Ele é generoso de propósito, porque a razão registrada pelo operador é agir cedo e longe do teto, em vez de reagir colado nele.",
+  "host_floor": {
+    "free_bytes": 25000000000,
+    "alarm": "disco",
+    "why": "o disco do host chegou a 99% em 2026-07-19, com 8,1 GB livres, hospedando trabalho não commitado de cinco repositórios, e nenhum instrumento de dentro do WSL o teria mostrado"
+  },
+
+  "_stale_mark": "Três dias, contra um disparo diário: dois disparos perdidos ainda podem ser máquina desligada; o terceiro já é sinal.",
+  "stale_mark": {
+    "after_days": 3,
+    "alarm": "marca",
+    "why": "o disparo é diário, e uma tarefa que um update do Windows desabilitou fica silenciosa exatamente como uma máquina saudável"
+  },
+
+  "_unobserved": "O canal de uma dimensão que não pôde ser medida. Ela é falha, e sai no canal de falha mesmo quando o que faltou medir foi o disco: um alarme de piso que na verdade significa `ninguém mediu` gastaria o canal que vigia a métrica invisível.",
+  "unobserved": {
+    "alarm": "falha",
+    "why": "silêncio e saúde já foram indistinguíveis nesta máquina uma vez, e o resultado foi um disco a 99%"
+  },
+
+  "_steps": "Cada passo declara ramo, cadência própria e canal de alarme. O disparo é diário; a cadência é do passo. O disparo diário existe para dar cerca de trinta chances por mês de encontrar o WSL no estado certo, e não porque a ação precise ser diária. Quase toda poda aqui é gentil (remove só o inalcançável), e por isso cabe em sete dias; a única que é wipe de verdade espera trinta.",
+  "steps": [
+    {
+      "name": "npm-cache",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "run": ["~/.local/bin/npm", "cache", "verify"],
+      "why": "3,6 GB em `~/.npm`, que NÃO mora em `~/.cache`: é um dos dois maiores consumidores que uma varredura genérica do diretório de cache erraria por inteiro"
+    },
+    {
+      "name": "pnpm-store",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "run": ["~/.local/bin/pnpm", "store", "prune"],
+      "why": "1,7 GB no store, que também não mora em `~/.cache`, mais 0,5 GB do cache; `store prune` remove só o inalcançável"
+    },
+    {
+      "name": "uv-cache",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "run": ["~/.local/bin/uv", "cache", "prune"],
+      "why": "até 2,2 GB, e `prune` é gentil: ele remove entrada inalcançável, não cache quente"
+    },
+    {
+      "name": "playwright-browsers",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "keep_newest": { "root": "~/.cache/ms-playwright", "keep": 1 },
+      "why": "1,7 dos 2,4 GB são revisão velha de chromium; o desperdício não é browser, é versão velha de browser, e a atual fica"
+    },
+    {
+      "name": "puppeteer-browsers",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "keep_newest": { "root": "~/.cache/puppeteer", "keep": 1 },
+      "why": "mesma regra do outro cache de browser, e aqui a família inclui o caminho do produto, porque `chrome` e `chrome-headless-shell` versionam com o mesmo prefixo"
+    },
+    {
+      "name": "puppeteer-archives",
+      "branch": "wsl-up",
+      "every_days": 7,
+      "alarm": "falha",
+      "drop_matching": { "root": "~/.cache/puppeteer", "suffix": ".zip" },
+      "why": "0,2 GB em arquivo de instalação que nunca foi apagado depois de extraído; reconhecido pela forma do nome, nunca pela idade"
+    },
+    {
+      "name": "pip-cache",
+      "branch": "wsl-up",
+      "every_days": 30,
+      "alarm": "falha",
+      "run": ["/usr/bin/pip", "cache", "purge"],
+      "why": "1,2 GB, e é o único wipe de verdade da lista: `purge` destrói cache útil, então a cadência dele é de trinta dias e não de sete"
+    },
+    {
+      "name": "compact-vhdx",
+      "branch": "wsl-down",
+      "every_days": 30,
+      "alarm": "falha",
+      "on_host": true,
+      "why": "a compactação por `diskpart` é o único caminho nesta edição Home do Windows, exige elevação, e só roda no estado de risco zero: com o WSL já parado por conta própria, nunca forçado. Ela rende pouco (0,28 GiB medidos contra ~12 GB previstos) e fica porque é oportunista e de custo praticamente zero; o resultado real vem da poda"
+    }
+  ],
+
+  "_docker": "`docker builder prune` NÃO está aqui, e a ausência é decidida. Ele é o passo de maior retorno conhecido (18,4 GB de build cache medidos em 2026-07-24) e precisa do daemon de pé, que é uma dimensão que este heartbeat não observa. Um passo que só falha quando o Docker Desktop está parado alarmaria todo dia até alguém subi-lo, e treinar o operador a ignorar o canal de falha custaria mais do que os 18 GB valem. Ele entra quando chegar com a observação que o guarda: é exatamente o tipo de extensão para a qual o hospedeiro foi construído."
+}
