@@ -130,13 +130,6 @@ def test_the_wiki_exception_repo_converges_with_its_wiki_still_on():
 # sem abrir o código.
 
 
-def break_org(mutate: Callable[[dict[str, Any]], None]) -> Callable[[dict[str, Any]], None]:
-    def apply_to(raw: dict[str, Any]) -> None:
-        mutate(raw)
-
-    return apply_to
-
-
 ORG_BREAKAGES: list[tuple[str, Callable[[dict[str, Any]], None], str, str]] = [
     (
         "política de Actions",

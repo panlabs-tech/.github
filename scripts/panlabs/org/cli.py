@@ -24,11 +24,11 @@ from pathlib import Path
 
 from panlabs import gh
 from panlabs.org.applier import EFFECTS
-from panlabs.org.config import DEFAULT_CONFIG_PATH, Desired, load_desired
+from panlabs.org.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.org.model import Observed
 from panlabs.org.observe import build_observed, fetch_raw, observed_to_dict
 from panlabs.org.planner import MANUAL_ACTIONS, plan
-from panlabs.plan import Plan, apply, dump_raw, load_raw
+from panlabs.plan import Plan, PlanItem, apply, dump_raw, load_raw, report_undecided, why_empty
 
 DEFAULT_ORG = "panlabs-tech"
 
@@ -84,33 +84,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _report_undecided(desired: Desired, config: Path) -> None:
-    if desired.is_decided:
-        return
-    print(
-        f"Configuração desejada incompleta em {config}: "
-        f"{', '.join(desired.undecided)} ainda sem decisão.\n"
-        "Nada é planejado para uma dimensão não decidida. Os valores são da spec de Org #2.\n",
-        file=sys.stderr,
-    )
-
-
-def _why_empty(the_plan: Plan, desired: Desired, config: Path) -> str:
-    """Um plano vazio tem duas causas opostas, e confundi-las seria caro.
-
-    Se a configuração desejada ainda não foi decidida, vazio significa "nada foi
-    pedido": não "está tudo conforme". Só quem carregou o dado sabe a diferença.
-    """
-    if the_plan:
-        return ""
-    if desired.is_decided:
-        return "O estado observado já converge com o desejado, dimensão por dimensão."
-    return (
-        f"Isso NÃO quer dizer que a org está conforme: {', '.join(desired.undecided)} "
-        f"ainda não foi decidido em {config}, então nada foi pedido."
-    )
-
-
 def _summarize(observed: Observed) -> str:
     org = observed.org
     esteira = "ligada" if org.actions.can_approve_pull_requests else "DESLIGADA"
@@ -147,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
 
     dump_raw(args.dump_observed, raw)
 
-    _report_undecided(desired, args.config)
+    report_undecided(desired.undecided, args.config)
     the_plan = plan(observed, desired)
 
     if args.json:
@@ -159,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(observed_to_dict(observed), indent=2, ensure_ascii=False))
             print()
         print(the_plan.render())
-        print(_why_empty(the_plan, desired, args.config))
+        print(why_empty(the_plan, desired.undecided, args.config, subject="a org"))
 
     if not args.apply:
         return 0
@@ -174,8 +147,10 @@ def _apply(the_plan: Plan) -> int:
     efeito registrado, e o `apply` do seam continua sendo uma tabela de despacho
     sem decisão nenhuma.
     """
-    appliable = Plan(tuple(item for item in the_plan if item.action not in MANUAL_ACTIONS))
-    manual = tuple(item for item in the_plan if item.action in MANUAL_ACTIONS)
+    appliable: list[PlanItem] = []
+    manual: list[PlanItem] = []
+    for item in the_plan:
+        (manual if item.action in MANUAL_ACTIONS else appliable).append(item)
 
     if manual:
         print(
@@ -191,7 +166,7 @@ def _apply(the_plan: Plan) -> int:
 
     print(f"\nAplicando {len(appliable)} item(ns)...", file=sys.stderr)
     try:
-        apply(appliable, EFFECTS)
+        apply(Plan(tuple(appliable)), EFFECTS)
     except gh.GhError as exc:
         print(f"erro ao aplicar: {exc}", file=sys.stderr)
         return 1

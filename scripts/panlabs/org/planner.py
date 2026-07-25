@@ -25,10 +25,12 @@ e some do plano quando o operador a resolver na web.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from panlabs.org.config import Desired
-from panlabs.org.model import Observed, OrgState, RepoState
+from panlabs.org.model import ActionsPolicy, Observed, OrgState, RepoState
 from panlabs.plan import Plan, PlanItem
 
 __all__ = [
@@ -110,13 +112,13 @@ def _plan_actions_policy(org: OrgState, desired: Desired) -> list[PlanItem]:
         PlanItem(
             action=SET_ACTIONS_PR_POLICY,
             target=org.login,
-            reason=_switch(
+            reason=_toggle_reason(
                 "a política que permite ao Actions criar e aprovar PR",
                 org.actions.can_approve_pull_requests,
                 want,
                 "é ela que sustenta a esteira worktree, commit, push, PR, merge no verde",
             ),
-            payload={"body": org.actions.as_body(can_approve=want)},
+            payload={"body": _actions_body(org.actions, can_approve=want)},
         )
     ]
 
@@ -159,7 +161,7 @@ def _plan_two_factor(org: OrgState, desired: Desired) -> list[PlanItem]:
         PlanItem(
             action=SET_TWO_FACTOR_REQUIREMENT,
             target=org.login,
-            reason=_switch(
+            reason=_toggle_reason(
                 "a exigência de 2FA na org",
                 org.two_factor_required,
                 want,
@@ -167,7 +169,7 @@ def _plan_two_factor(org: OrgState, desired: Desired) -> list[PlanItem]:
                 f"{WEB_ONLY} (Settings > Authentication security): "
                 "PATCH /orgs não aceita two_factor_requirement_enabled",
             ),
-            payload={"two_factor_requirement_enabled": want},
+            payload={},
         )
     ]
 
@@ -205,7 +207,7 @@ def _plan_pins(org: OrgState, desired: Desired) -> list[PlanItem]:
                 f"são {_show(list(want))}, nessa ordem: produtos antes de ferramental. "
                 f"{WEB_ONLY} em REST nem em GraphQL"
             ),
-            payload={"pinned_repos": list(want)},
+            payload={},
         )
     ]
 
@@ -213,97 +215,96 @@ def _plan_pins(org: OrgState, desired: Desired) -> list[PlanItem]:
 # --- cada repo ----------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class Toggle:
+    """Uma dimensão liga-desliga de repositório, como dado em vez de como código.
+
+    Quatro dimensões desta configuração têm exatamente a mesma forma: ler um
+    booleano observado, comparar com um booleano desejado, montar um corpo. O
+    que muda entre elas é constante, e constante é tabela. É a mesma escolha do
+    catálogo do checker (`panlabs.checker.catalog`), pelo mesmo motivo: uma
+    quinta dimensão deve ser uma linha, não uma quinta cópia do mesmo `if`.
+    """
+
+    action: str
+    label: str
+    why: str
+    """O que essa dimensão protege, dito sem depender do sentido da mudança."""
+    observed: Callable[[RepoState], bool]
+    wanted: Callable[[Desired], bool | None]
+    payload: Callable[[bool], Mapping[str, Any]]
+
+
+REPO_TOGGLES: tuple[Toggle, ...] = (
+    # A ordem é a de aplicação, e ela importa: push protection depende de secret
+    # scanning, e os security updates dependem dos alerts. Aplicar na ordem
+    # inversa deixaria o segundo passo sem o alicerce que a API exige.
+    Toggle(
+        action=SET_SECRET_SCANNING,
+        label="secret scanning",
+        why="é ele que detecta segredo já commitado",
+        observed=lambda repo: repo.secret_scanning,
+        wanted=lambda desired: desired.secret_scanning,
+        payload=lambda enabled: {"body": _security_analysis("secret_scanning", enabled)},
+    ),
+    Toggle(
+        action=SET_PUSH_PROTECTION,
+        label="push protection",
+        why="é ela que impede um segredo de chegar ao remoto por descuido",
+        observed=lambda repo: repo.push_protection,
+        wanted=lambda desired: desired.push_protection,
+        payload=lambda enabled: {
+            "body": _security_analysis("secret_scanning_push_protection", enabled)
+        },
+    ),
+    Toggle(
+        action=SET_DEPENDABOT_ALERTS,
+        label="dependabot alerts",
+        why="é ele que transforma vulnerabilidade conhecida em alerta",
+        observed=lambda repo: repo.dependabot_alerts,
+        wanted=lambda desired: desired.dependabot_alerts,
+        payload=lambda enabled: {"method": _toggle_method(enabled)},
+    ),
+    Toggle(
+        action=SET_DEPENDABOT_SECURITY_UPDATES,
+        label="dependabot security updates",
+        why="é ele que transforma vulnerabilidade conhecida em PR sem ninguém pedir",
+        observed=lambda repo: repo.dependabot_security_updates,
+        wanted=lambda desired: desired.dependabot_security_updates,
+        payload=lambda enabled: {"method": _toggle_method(enabled)},
+    ),
+)
+
+
 def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
     """Tudo que falta neste repo, com a dependência entre dimensões respeitada."""
     items: list[PlanItem] = []
-    items.extend(_plan_secret_scanning(repo, desired))
-    items.extend(_plan_push_protection(repo, desired))
-    items.extend(_plan_dependabot_alerts(repo, desired))
-    items.extend(_plan_dependabot_security_updates(repo, desired))
+    items.extend(_plan_toggles(repo, desired))
     items.extend(_plan_repo_description(repo, desired))
     items.extend(_plan_repo_topics(repo, desired))
     items.extend(_plan_wiki(repo, desired))
     return items
 
 
-def _plan_secret_scanning(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    want = desired.secret_scanning
-    if want is None or repo.secret_scanning == want:
-        return []
-
-    return [
-        PlanItem(
-            action=SET_SECRET_SCANNING,
-            target=repo.name,
-            reason=_switch(
-                "secret scanning",
-                repo.secret_scanning,
-                want,
-                "é ele que detecta segredo já commitado",
-            ),
-            payload={"body": _security_analysis("secret_scanning", want)},
+def _plan_toggles(repo: RepoState, desired: Desired) -> list[PlanItem]:
+    """As dimensões liga-desliga do repo, na ordem em que podem ser aplicadas."""
+    items: list[PlanItem] = []
+    for toggle in REPO_TOGGLES:
+        want = toggle.wanted(desired)
+        if want is None:
+            continue
+        observed = toggle.observed(repo)
+        if observed == want:
+            continue
+        items.append(
+            PlanItem(
+                action=toggle.action,
+                target=repo.name,
+                reason=_toggle_reason(toggle.label, observed, want, toggle.why),
+                payload=toggle.payload(want),
+            )
         )
-    ]
-
-
-def _plan_push_protection(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    want = desired.push_protection
-    if want is None or repo.push_protection == want:
-        return []
-
-    return [
-        PlanItem(
-            action=SET_PUSH_PROTECTION,
-            target=repo.name,
-            reason=_switch(
-                "push protection",
-                repo.push_protection,
-                want,
-                "é ela que impede um segredo de chegar ao remoto por descuido",
-            ),
-            payload={"body": _security_analysis("secret_scanning_push_protection", want)},
-        )
-    ]
-
-
-def _plan_dependabot_alerts(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    want = desired.dependabot_alerts
-    if want is None or repo.dependabot_alerts == want:
-        return []
-
-    return [
-        PlanItem(
-            action=SET_DEPENDABOT_ALERTS,
-            target=repo.name,
-            reason=_switch(
-                "dependabot alerts",
-                repo.dependabot_alerts,
-                want,
-                "é ele que transforma vulnerabilidade conhecida em alerta",
-            ),
-            payload={"method": _toggle_method(want)},
-        )
-    ]
-
-
-def _plan_dependabot_security_updates(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    want = desired.dependabot_security_updates
-    if want is None or repo.dependabot_security_updates == want:
-        return []
-
-    return [
-        PlanItem(
-            action=SET_DEPENDABOT_SECURITY_UPDATES,
-            target=repo.name,
-            reason=_switch(
-                "dependabot security updates",
-                repo.dependabot_security_updates,
-                want,
-                "é ele que transforma vulnerabilidade conhecida em PR sem ninguém pedir",
-            ),
-            payload={"method": _toggle_method(want)},
-        )
-    ]
+    return items
 
 
 def _plan_repo_description(repo: RepoState, desired: Desired) -> list[PlanItem]:
@@ -410,7 +411,7 @@ def _plan_wiki(repo: RepoState, desired: Desired) -> list[PlanItem]:
         PlanItem(
             action=SET_WIKI,
             target=repo.name,
-            reason=_switch(
+            reason=_toggle_reason(
                 "wiki",
                 repo.wiki_enabled,
                 want,
@@ -425,7 +426,7 @@ def _plan_wiki(repo: RepoState, desired: Desired) -> list[PlanItem]:
 # --- vocabulário compartilhado ------------------------------------------------
 
 
-def _switch(label: str, observed: bool, want: bool, why: str) -> str:
+def _toggle_reason(label: str, observed: bool, want: bool, why: str) -> str:
     """O motivo de uma dimensão liga-desliga: estado, alvo e o que está em jogo.
 
     A forma é a mesma que o planner do ruleset usa para divergência de campo,
@@ -436,6 +437,19 @@ def _switch(label: str, observed: bool, want: bool, why: str) -> str:
     estado = "ligado" if observed else "desligado"
     alvo = "ligado" if want else "desligado"
     return f"{label}: observado {estado}, desejado {alvo}; {why}"
+
+
+def _actions_body(observed: ActionsPolicy, *, can_approve: bool) -> dict[str, Any]:
+    """O corpo do PUT da política de Actions, com o que ele não governa preservado.
+
+    Os dois campos viajam juntos porque a API os trata como um par: enviar só um
+    devolveria o outro ao default, e a permissão default do token de workflow não
+    é dimensão desta configuração, é estado observado a preservar.
+    """
+    return {
+        "default_workflow_permissions": observed.default_workflow_permissions,
+        "can_approve_pull_request_reviews": can_approve,
+    }
 
 
 def _security_analysis(key: str, enabled: bool) -> dict[str, Any]:

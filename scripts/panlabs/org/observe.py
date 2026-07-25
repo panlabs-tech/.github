@@ -49,46 +49,66 @@ def build_observed(raw: Mapping[str, Any]) -> Observed:
     )
 
 
+def _require(raw: Mapping[str, Any], key: str, source: str, *, admin: bool = False) -> Any:
+    """O valor, ou um erro que diz de onde ele deveria ter vindo.
+
+    Nenhuma dimensão tem valor de fallback, e é de propósito: um default aqui
+    seria uma afirmação sobre a org que ninguém observou. Para as dimensões que
+    só o administrador enxerga, o erro ainda diz como elevar o token, porque essa
+    é de longe a causa mais provável de o campo faltar.
+    """
+    if key not in raw:
+        hint = f": {ADMIN_SCOPE_HINT}" if admin else ""
+        raise ValueError(f"resposta de `{source}` sem {key}{hint}")
+    return raw[key]
+
+
 def _build_org(raw: Mapping[str, Any]) -> OrgState:
     org = raw["org"]
-    if "two_factor_requirement_enabled" not in org:
-        raise ValueError(f"resposta de `orgs/{org.get('login')}` sem 2FA: {ADMIN_SCOPE_HINT}")
-
+    login = org["login"]
+    source = f"orgs/{login}"
     actions = raw.get("actions_workflow_permissions") or {}
+    actions_source = f"{source}/actions/permissions/workflow"
+
     return OrgState(
-        login=org["login"],
+        login=login,
+        actions=ActionsPolicy(
+            can_approve_pull_requests=bool(
+                _require(actions, "can_approve_pull_request_reviews", actions_source, admin=True)
+            ),
+            default_workflow_permissions=str(
+                _require(actions, "default_workflow_permissions", actions_source, admin=True)
+            ),
+        ),
         description=org.get("description"),
-        two_factor_required=bool(org["two_factor_requirement_enabled"]),
+        two_factor_required=bool(
+            _require(org, "two_factor_requirement_enabled", source, admin=True)
+        ),
         security_defaults={
             key: bool(value) for key, value in org.items() if key.endswith("_for_new_repositories")
         },
-        actions=ActionsPolicy(
-            can_approve_pull_requests=bool(actions.get("can_approve_pull_request_reviews", False)),
-            default_workflow_permissions=str(actions.get("default_workflow_permissions", "read")),
-        ),
-        pinned_repos=tuple(raw.get("pinned_repos") or ()),
+        pinned_repos=tuple(_require(raw, "pinned_repos", "graphql: pinnedItems")),
     )
 
 
 def _build_repo(raw: Mapping[str, Any]) -> RepoState:
     name = raw["full_name"]
-    security = raw.get("security_and_analysis")
-    if security is None:
-        raise ValueError(
-            f"resposta de `repos/{name}` sem security_and_analysis: {ADMIN_SCOPE_HINT}"
-        )
+    source = f"repos/{name}"
+    fixes_source = f"{source}/automated-security-fixes"
+    security = _require(raw, "security_and_analysis", source, admin=True)
+    fixes = _require(raw, "automated_security_fixes", fixes_source, admin=True)
 
     return RepoState(
         name=name,
         description=raw.get("description"),
         topics=tuple(raw.get("topics") or ()),
-        wiki_enabled=bool(raw.get("has_wiki", False)),
+        wiki_enabled=bool(_require(raw, "has_wiki", source)),
         secret_scanning=_enabled(security, "secret_scanning"),
         push_protection=_enabled(security, "secret_scanning_push_protection"),
-        dependabot_alerts=bool(raw["vulnerability_alerts"]),
-        dependabot_security_updates=bool(
-            (raw.get("automated_security_fixes") or {}).get("enabled")
+        dependabot_alerts=bool(
+            _require(raw, "vulnerability_alerts", f"{source}/vulnerability-alerts", admin=True)
         ),
+        dependabot_security_updates=bool(_require(fixes, "enabled", fixes_source)),
     )
 
 

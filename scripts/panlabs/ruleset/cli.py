@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
-from panlabs.plan import Plan, apply, dump_raw, load_raw
+from panlabs.plan import Plan, apply, dump_raw, load_raw, report_undecided, why_empty
 from panlabs.ruleset.applier import EFFECTS
-from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, Desired, load_desired
+from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.ruleset.model import Observed, RepoState
 from panlabs.ruleset.observe import build_observed, fetch_raw, observed_to_dict
 from panlabs.ruleset.planner import plan
@@ -105,33 +105,6 @@ def _report_only(excluded: tuple[RepoState, ...]) -> None:
     )
 
 
-def _report_undecided(desired: Desired, config: Path) -> None:
-    if desired.is_decided:
-        return
-    print(
-        f"Configuração desejada incompleta em {config}: "
-        f"{', '.join(desired.undecided)} ainda sem decisão.\n"
-        "Nada é planejado para uma dimensão não decidida. Os valores são da spec de Org #2.\n",
-        file=sys.stderr,
-    )
-
-
-def _why_empty(the_plan: Plan, desired: Desired, config: Path) -> str:
-    """Um plano vazio tem duas causas opostas, e confundi-las seria caro.
-
-    Se a configuração desejada ainda não foi decidida, vazio significa "nada foi
-    pedido": não "está tudo conforme". Só quem carregou o dado sabe a diferença.
-    """
-    if the_plan:
-        return ""
-    if desired.is_decided:
-        return "O estado observado já converge com o desejado."
-    return (
-        f"Isso NÃO quer dizer que a frota está conforme: {', '.join(desired.undecided)} "
-        f"ainda não foi decidido em {config}, então nada foi pedido."
-    )
-
-
 def _summarize(observed: Observed) -> str:
     governed = sum(1 for repo in observed.repos if repo.rulesets_governing_default_branch())
     classic = sum(1 for repo in observed.repos if repo.classic_protection is not None)
@@ -166,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
         observed, excluded = _restrict(observed, args.only)
         _report_only(excluded)
 
-    _report_undecided(desired, args.config)
+    report_undecided(desired.undecided, args.config)
     the_plan = plan(observed, desired)
 
     if args.json:
@@ -178,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(observed_to_dict(observed), indent=2, ensure_ascii=False))
             print()
         print(the_plan.render())
-        print(_why_empty(the_plan, desired, args.config))
+        print(why_empty(the_plan, desired.undecided, args.config, subject="a frota"))
 
     if not args.apply:
         return 0

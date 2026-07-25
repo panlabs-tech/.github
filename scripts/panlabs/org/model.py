@@ -20,35 +20,31 @@ __all__ = ["ActionsPolicy", "Observed", "OrgState", "RepoState"]
 
 @dataclass(frozen=True)
 class ActionsPolicy:
-    """A política de workflow da org, onde mora o botão que quebrou a esteira."""
+    """A política de workflow da org, onde mora o botão que quebrou a esteira.
+
+    A permissão default do token de workflow não é dimensão desta configuração,
+    mas é lida junto porque a API trata as duas como um par: quem escreve uma
+    precisa reenviar a outra, e reenviá-la exige tê-la observado.
+    """
 
     can_approve_pull_requests: bool
     default_workflow_permissions: str
 
-    def as_body(self, *, can_approve: bool) -> dict[str, object]:
-        """O corpo do PUT que muda só o que se quer mudar.
-
-        Os dois campos viajam juntos porque a API os trata como um par: enviar um
-        só devolveria o outro ao default, e a permissão default não é dimensão
-        desta issue -- é estado a preservar.
-        """
-        return {
-            "default_workflow_permissions": self.default_workflow_permissions,
-            "can_approve_pull_request_reviews": can_approve,
-        }
-
 
 @dataclass(frozen=True)
 class OrgState:
-    """A org como ela está agora."""
+    """A org como ela está agora.
+
+    A política de Actions não tem default: um default aqui seria "a esteira está
+    desligada" dito por quem não observou nada, e é justamente essa dimensão que
+    esta configuração existe para vigiar.
+    """
 
     login: str
+    actions: ActionsPolicy
     description: str | None = None
     two_factor_required: bool = False
     security_defaults: Mapping[str, bool] = field(default_factory=dict)
-    actions: ActionsPolicy = ActionsPolicy(
-        can_approve_pull_requests=False, default_workflow_permissions="read"
-    )
     pinned_repos: tuple[str, ...] = ()
     """Os repos fixados no perfil, em ordem. A ordem é semântica: ela é a vitrine."""
 
