@@ -8,10 +8,11 @@ Domínio: governança da org no GitHub, ambiente da máquina de desenvolvimento 
 
 - **`profile/README.md`**: o perfil da org, a página que um humano de fora vê em 30 segundos.
 - **`.github/workflows/`**: os reusable workflows que todos os repos da org referenciam em vez de copiar.
-- **`scripts/`**: o script de ruleset (aplica a configuração de proteção repo a repo), o script de org (converge o que não é ruleset: a política de Actions que sustenta a esteira, segurança, vitrine e features desligadas), o checker de conformidade (mede a frota contra a anatomia) e o script de máquina (converge o equipamento global da máquina de desenvolvimento).
+- **`scripts/`**: o script de ruleset (aplica a configuração de proteção repo a repo), o script de org (converge o que não é ruleset: a política de Actions que sustenta a esteira, segurança, vitrine e features desligadas), o checker de conformidade (mede a frota contra a anatomia), o script de máquina (converge o equipamento global da máquina de desenvolvimento) e o heartbeat (o hospedeiro de passos que a tarefa diária do host dirige).
 - **`config/`**: a configuração desejada, como **dado**. Os scripts leem daqui; nenhum deles crava valor em código.
 - **`ANATOMY.md`**: a definição canônica do que é um repo panlabs.
 - **[`docs/maquina.md`](docs/maquina.md)**: o padrão da máquina de desenvolvimento, com o método de instalação por classe, a ordem de bootstrap e os limites honestos da postura de permissão.
+- **[`docs/heartbeat.md`](docs/heartbeat.md)**: o heartbeat da máquina, com o motivo de o relógio morar no host, o ciclo oportunista, os canais de alarme e a expectativa honesta sobre o que a compactação rende.
 
 Parte do padrão é **imposta por plataforma** (ruleset e required checks); parte é **documentada e checada** (`ANATOMY.md` + checker). As duas metades moram juntas com dureza honestamente diferente.
 
@@ -40,7 +41,7 @@ Runtime gerido por `uv`, versão declarada em `.python-version`. Toolchain espel
 | `uv run ruff check` / `uv run ruff format` | Verificação e formatação. |
 | `uv run pyright` | Tipos, em modo estrito sobre `scripts/`. |
 
-O pacote vive em `scripts/panlabs/`. O seam compartilhado está em `scripts/panlabs/plan.py`, e cada script o instancia num subpacote: `panlabs.ruleset` (proteção de branch), `panlabs.org` (o resto da configuração de org e repo), `panlabs.checker` (conformidade, read-only) e `panlabs.machine` (o equipamento global da máquina).
+O pacote vive em `scripts/panlabs/`. O seam compartilhado está em `scripts/panlabs/plan.py`, e cada script o instancia num subpacote: `panlabs.ruleset` (proteção de branch), `panlabs.org` (o resto da configuração de org e repo), `panlabs.checker` (conformidade, read-only), `panlabs.machine` (o equipamento global da máquina) e `panlabs.heartbeat` (o hospedeiro de passos da tarefa diária).
 
 ## Autonomia
 

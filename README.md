@@ -11,7 +11,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | **`profile/README.md`** | O perfil da org: a página que um visitante vê antes de abrir qualquer repo. |
 | **`.github/workflows/`** | Os *reusable workflows* que os repos da org referenciam em vez de copiar. Ver [`.github/workflows/README.md`](.github/workflows/README.md). |
 | **`.github/dependabot.yml`** | Quais atualizações de dependência o bot abre, e quais delas aterrissam sozinhas no verde. |
-| **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo; o de org, que converge o que não é ruleset (a esteira, segurança e vitrine); e o checker de conformidade, que mede a frota contra a anatomia. |
+| **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo; o de org, que converge o que não é ruleset (a esteira, segurança e vitrine); o checker de conformidade, que mede a frota contra a anatomia; o de máquina, que converge o equipamento global; e o heartbeat, o hospedeiro de passos que a tarefa diária do host dirige. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, cinco tipos, invariantes e slots. |
 
@@ -51,6 +51,10 @@ uv run panlabs-checker --json            # a mesma matriz, serializada
 uv run panlabs-machine                   # o plano do equipamento global desta máquina
 uv run panlabs-machine --json            # o mesmo plano, serializado
 uv run panlabs-machine --apply           # aplica  (não usa token nenhum)
+
+uv run panlabs-heartbeat                 # o plano do heartbeat desta máquina agora
+uv run panlabs-heartbeat --json          # o mesmo plano, serializado
+uv run panlabs-heartbeat --apply         # roda os passos cuja cadência venceu
 ```
 
 **Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva: aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado. O checker não tem `--apply`: ele não tem efeito que mute nada, então a flag não existe.
@@ -66,6 +70,8 @@ A configuração desejada cobre duas superfícies, porque são dois recursos na 
 Duas dessas dimensões o GitHub não expõe para escrita: a exigência de 2FA (`PATCH /orgs` não a aceita) e os repos fixados no perfil (não há mutação em REST nem em GraphQL). Elas aparecem no plano como itens **manuais**, com o motivo dizendo onde resolver, e o `--apply` não finge aplicá-las.
 
 `panlabs-machine` é o único que não fala com a org: o alvo dele é o **global desta máquina**, e ele não usa token nenhum. Ele cobre os nomes que precisam ser alcançáveis em subprocesso, os diretórios cuja remoção está decidida, a negação de leitura sobre credencial e a cláusula de zero redundância das skills. Duas decisões dele valem a leitura: a negação vale sempre sobre o **alvo resolvido**, porque negar um caminho com link deixa o comando de terminal equivalente passar; e a remoção de um diretório fica **retida** enquanto algo que precisa ser alcançável ainda resolver lá dentro, que é o que impedia a máquina de ficar sem `node` no meio da migração. Ver [`docs/maquina.md`](docs/maquina.md).
+
+`panlabs-heartbeat` é o **hospedeiro de passos** que a tarefa diária do agendador do host dirige. Ele não é um script de higiene: é o lugar onde um passo declara em qual ramo roda (WSL de pé ou parado), qual é a cadência dele e qual canal de alarme ele usa, e é essa forma que permite o checker de conformidade entrar como passo sem que a tarefa seja reescrita. Três decisões dele valem a leitura: **disparo diário não é cadência da ação**, e um passo cujo prazo não venceu não entra no plano; o estado do WSL é **tri-estado**, porque tratar não consultado como parado mandaria a compactação para cima de um disco vivo; e o ramo parado atravessa a fronteira como **ordem permanente**, emitida de véspera, porque ele só é executável exatamente quando o planner é inalcançável. Ver [`docs/heartbeat.md`](docs/heartbeat.md).
 
 Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`. Metade das dimensões de `panlabs-org` também **se lê** com esse escopo: sem ele o GitHub omite os campos em vez de negar a resposta, e por isso um campo omitido vira erro alto, nunca "está desligado".
 
