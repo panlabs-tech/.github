@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
-from panlabs.plan import Plan, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.plan import Plan, PlanItem, apply, dump_raw, load_raw, report_undecided, why_empty
 from panlabs.workspace.applier import GitError, build_effects
 from panlabs.workspace.config import DEFAULT_CONFIG_PATH, Desired, load_desired
 from panlabs.workspace.model import EMPTY, REPO, WORKTREE, Observed
@@ -77,8 +77,10 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help=(
             "autoriza o descarte deste alvo (repetível). É a aprovação humana, alvo "
-            "por alvo, sem a qual nenhum diretório é apagado. Um caminho que não é "
-            "elegível é erro, e não silêncio."
+            "por alvo, sem a qual nenhum diretório é apagado. O caminho é o que o "
+            "plano mostra, que é o endereço **final**: um worktree de um repositório "
+            "que se move é autorizado pelo endereço para onde ele vai. Um caminho que "
+            "não é elegível é erro, e não silêncio."
         ),
     )
     parser.add_argument(
@@ -190,8 +192,26 @@ def _restrict(the_plan: Plan, only: list[str]) -> tuple[Plan, int]:
     quer restringir é sempre uma subárvore: um repositório vem com os worktrees
     dele, que é a unidade em que a convergência faz sentido.
     """
-    kept = tuple(item for item in the_plan if _under_any(item.target, only))
+    kept = tuple(item for item in the_plan if _touches(item, only))
     return Plan(items=kept), len(the_plan) - len(kept)
+
+
+def _touches(item: PlanItem, roots: list[str]) -> bool:
+    """Um item é do recorte quando **qualquer endereço que ele nomeia** está lá dentro.
+
+    O alvo sozinho não basta, e o caso que prova isso é o worktree solto de um
+    repositório que se move: ele não mora sob o pai em endereço nenhum, nem no de
+    antes nem no de depois, porque a relação entre os dois é de parentesco e não de
+    contenção. Casar só pelo alvo levaria a movimentação do pai e deixaria para
+    trás o reparo do vínculo, que a spec chama de passo obrigatório, e o worktree
+    que o recorte nem mencionou pararia de funcionar em silêncio.
+
+    Varrer o payload inteiro é seguro porque o casamento é por caminho: um valor
+    que não é endereço, como um remote ou um refspec, nunca fica sob a raiz do
+    recorte.
+    """
+    named = [item.target, *(value for value in item.payload.values() if isinstance(value, str))]
+    return any(_under_any(address, roots) for address in named)
 
 
 def _under_any(target: str, roots: list[str]) -> bool:
@@ -221,8 +241,7 @@ def _apply(the_plan: Plan) -> int:
             file=sys.stderr,
         )
         for item in the_plan.held:
-            print(f"  {item.action}  {item.target}", file=sys.stderr)
-        print("  autorize um a um com --discard PATH.", file=sys.stderr)
+            print(f"  {item.action}  {item.target}: {item.hold}", file=sys.stderr)
 
     if not the_plan.applicable:
         return 0

@@ -38,7 +38,10 @@ Repos genuinamente pessoais ficam intocados. O invariante é só da org, e quem 
 | --- | --- |
 | Repo da org | sob o diretório que espelha a org |
 | Repo pessoal | plano na raiz, como alvo de faxina |
-| Worktree | aninhado no próprio repositório pai |
+| Worktree que carrega trabalho | aninhado no próprio repositório pai |
+| Worktree que já aterrissou por inteiro | fica onde está, e é proposto para descarte |
+
+A última linha é a única exceção, e ela é deliberada: a regra de layout existe para tornar visível a relação entre worktree e pai, e um worktree que não carrega mais nada que só exista nele é descartável, não organizável. Mover antes de descartar seria trabalho jogado fora. Se ele voltar a carregar trabalho, volta a ser movido.
 
 **Mover um worktree quebra o vínculo com o pai**, porque o ponteiro de volta é caminho absoluto dos dois lados. Reparar esse vínculo é passo obrigatório do plano, não detalhe: sem ele, worktrees que hoje funcionam param de funcionar em silêncio.
 
@@ -53,6 +56,8 @@ Um worktree aninhado num pai que anda **anda junto**, sem item de movimentação
 **Sem eixo de recência**, e isso é decisão consciente: um projeto parado há um ano não é um projeto morto. Não é promessa de comentário: o modelo observado **não tem campo de data**, então um critério com eixo de tempo não teria de onde tirá-la. O teste que prova isso compara o motivo de um repo parado há muito tempo com o de qualquer outro, e exige que sejam o mesmo texto.
 
 **Elegibilidade é sugestão. A decisão de apagar continua humana**, alvo por alvo. Todo item de descarte nasce **retido**: ele aparece no plano, com o motivo à vista, e o `apply` não encosta nele. Só um alvo nomeado em `--discard` vira aplicável. Um caminho que o critério não considera elegível é **erro**, e não silêncio: um plano sem aquele descarte se leria como "não era elegível" quando na verdade foi erro de digitação.
+
+O caminho a nomear é o que o plano mostra, que é o endereço **final**: o descarte é o último item do plano, então quando ele roda o diretório já está onde o layout o pôs. Um worktree de um repositório que se move é autorizado pelo endereço para onde ele vai, e não pelo de hoje.
 
 O predicado que veta o descarte é deliberadamente mais largo que o que reconhece um clone da org: aqui basta o **nome** estar na listagem viva para o diretório nunca correr risco. Nas duas metades o erro seguro é para o lado de preservar.
 
@@ -109,7 +114,7 @@ E explicitamente **sem pegar carona no heartbeat**. A estrutura fica verdadeira 
 uv run panlabs-workspace                              # o plano do espaço vivo
 uv run panlabs-workspace --json                       # o mesmo plano, serializado
 uv run panlabs-workspace --show-observed              # o retrato antes do plano
-uv run panlabs-workspace --only ~/workspaces/campfire # recorta a leitura
+uv run panlabs-workspace --only ~/workspaces/campfire # recorta o plano
 uv run panlabs-workspace --apply                      # aplica o que é aplicável
 uv run panlabs-workspace --discard PATH --apply       # autoriza um alvo, um a um
 ```

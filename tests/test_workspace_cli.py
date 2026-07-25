@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from panlabs.plan import PlanItem
-from panlabs.workspace import applier, planner
+from panlabs.plan import Plan, PlanItem
+from panlabs.workspace import applier, cli, planner
 from panlabs.workspace.cli import main
 
 ORG = "panlabs-tech"
@@ -21,12 +21,30 @@ ROOT = "/home/op/workspaces"
 
 @pytest.fixture
 def forbid_effects(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Nenhum efeito pode rodar sem `--apply`. Um só já seria um bug grave."""
+    """Nenhum efeito pode rodar sem `--apply`. Um só já seria um bug grave.
+
+    O alvo do remendo é o nome **no módulo da CLI**, e não no do applier: a CLI
+    importa a função pelo nome, então remendar a origem trocaria um nome que
+    ninguém mais lê e a guarda passaria a nunca disparar. Uma guarda que não
+    dispara é pior do que nenhuma, porque ela é lida como prova.
+    """
 
     def explode(*_args: object, **_kwargs: object) -> object:
         raise AssertionError("o script de espaço de trabalho agiu sem --apply")
 
-    monkeypatch.setattr(applier, "build_effects", explode)
+    monkeypatch.setattr(cli, "build_effects", explode)
+
+
+def test_the_guard_that_forbids_effects_reaches_the_name_the_cli_calls(forbid_effects: None):
+    """A prova da prova: um remendo no módulo errado deixaria a guarda muda.
+
+    Ela percorre o caminho real, o mesmo que `--apply` percorre, porque uma guarda
+    que só parece instalada é pior do que nenhuma: ela é lida como prova.
+    """
+    applicable = Plan(items=(PlanItem(action="qualquer", target="/x", reason="por quê"),))
+
+    with pytest.raises(AssertionError, match="agiu sem --apply"):
+        cli._apply(applicable)  # pyright: ignore[reportPrivateUsage]
 
 
 def snapshot(tmp_path: Path, **overrides: object) -> Path:
@@ -142,6 +160,47 @@ def test_what_the_cut_left_out_is_reported_instead_of_vanishing(
     run(tmp_path, "--only", f"{ROOT}/campfire")
 
     assert "continuam pendentes" in capsys.readouterr().err
+
+
+def test_the_cut_keeps_the_repair_of_a_worktree_that_lives_outside_it(
+    forbid_effects: None, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    """Reparar o vínculo é passo obrigatório, e um recorte não pode desfazer o par.
+
+    O worktree solto mora fora da subárvore do pai, então casar só por alvo levaria
+    a movimentação do pai e deixaria o reparo para trás. O worktree que o recorte
+    nem menciona é justamente o que quebraria em silêncio.
+    """
+    parent = f"{ROOT}/travelmanager"
+    observed = snapshot(
+        tmp_path,
+        org_repos=["travelmanager"],
+        dirs=[
+            {
+                "path": parent,
+                "kind": "repo",
+                "remote": f"https://github.com/{ORG}/travelmanager.git",
+                "head": "main",
+                "branches": [{"name": "main", "content_on_remote": True}],
+            },
+            {
+                "path": f"{ROOT}/wt-212",
+                "kind": "worktree",
+                "parent": parent,
+                "remote": f"https://github.com/{ORG}/travelmanager.git",
+                "head": "feat/212",
+                "branches": [{"name": "feat/212", "content_on_remote": False}],
+            },
+        ],
+    )
+
+    main(
+        ["--config", str(config(tmp_path)), "--observed", str(observed), "--only", parent, "--json"]
+    )
+
+    actions = {item["action"] for item in json.loads(capsys.readouterr().out)["items"]}
+    assert planner.MOVE_REPO in actions
+    assert planner.REPAIR_WORKTREE in actions
 
 
 def test_the_cut_never_changes_what_the_planner_decided(

@@ -23,8 +23,19 @@ __all__ = [
     "Observed",
     "Stash",
     "WorkDir",
+    "basename",
     "remote_parts",
 ]
+
+
+def basename(path: str) -> str:
+    """O último segmento de um caminho. Vive aqui porque o planner também o pede.
+
+    Ele nomeia diretório a partir de caminho **de pai**, que é string solta e não
+    `WorkDir`, e duas cópias desta linha divergiriam no primeiro caminho estranho.
+    """
+    return path.rsplit("/", 1)[-1]
+
 
 EMPTY = "empty"
 """Diretório sem nenhuma entrada dentro. Sempre elegível ao descarte."""
@@ -116,11 +127,27 @@ class WorkDir:
 
     @property
     def name(self) -> str:
-        return self.path.rsplit("/", 1)[-1]
+        return basename(self.path)
 
     @property
     def is_git(self) -> bool:
         return self.kind in (REPO, WORKTREE)
+
+    @property
+    def is_repo(self) -> bool:
+        return self.kind == REPO
+
+    @property
+    def is_worktree(self) -> bool:
+        return self.kind == WORKTREE
+
+    @property
+    def is_empty(self) -> bool:
+        return self.kind == EMPTY
+
+    @property
+    def branch_names(self) -> frozenset[str]:
+        return frozenset(branch.name for branch in self.branches)
 
     @property
     def owner(self) -> str:
@@ -156,9 +183,3 @@ class Observed:
     root: str = ""
     org_repos: tuple[str, ...] = ()
     dirs: tuple[WorkDir, ...] = ()
-
-    def at(self, path: str) -> WorkDir | None:
-        for entry in self.dirs:
-            if entry.path == path:
-                return entry
-        return None

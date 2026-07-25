@@ -68,8 +68,16 @@ def build_effects() -> dict[str, Effect]:
         _git(Path(item.target), "remote", "set-url", "origin", str(item.payload["url"]))
 
     def commit_local(item: PlanItem) -> None:
+        """Commita exatamente os arquivos que o item mostrou, e nada além deles.
+
+        `git add -A` sem caminho pegaria também o que apareceu entre o plano e a
+        aplicação, e o ato deixaria de ser o que o operador revisou. Com os
+        caminhos, o `-A` continua servindo para o que importa: um arquivo daquela
+        lista que sumiu no meio entra como remoção em vez de estourar.
+        """
         here = Path(item.target)
-        _git(here, "add", "-A")
+        files = [str(name) for name in item.payload["files"]]
+        _git(here, "add", "-A", "--", *files)
         _git(here, "commit", "--no-verify", "-m", str(item.payload["message"]))
 
     def push_branch(item: PlanItem) -> None:

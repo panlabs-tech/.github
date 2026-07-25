@@ -31,10 +31,11 @@ não usado.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from panlabs.plan import Plan, PlanItem
 from panlabs.workspace.config import Desired
-from panlabs.workspace.model import EMPTY, REPO, WORKTREE, Observed, WorkDir
+from panlabs.workspace.model import Observed, Stash, WorkDir, basename
 
 __all__ = [
     "CLONE_REPO",
@@ -84,16 +85,14 @@ def plan(observed: Observed, desired: Desired, *, approved: Iterable[str] = ()) 
     descarte, porque preservar precede mexer. O descarte é sempre o último.
     """
     at_risk = {entry.path for entry in observed.dirs if _at_risk(entry, observed)}
-    doomed = {entry.path for entry in observed.dirs if _spent_worktree(entry)}
-    final = _final_paths(observed, desired, doomed)
-    okay = set(approved)
+    layout = _resolve_layout(observed, desired)
 
     items: list[PlanItem] = []
     items.extend(_rewrite_items(observed, desired))
     items.extend(_clone_items(observed, desired))
     items.extend(_preflight_items(observed, at_risk))
-    items.extend(_layout_items(observed, desired, final, doomed))
-    items.extend(_discard_items(observed, final, doomed, okay))
+    items.extend(_layout_items(observed, layout))
+    items.extend(_discard_items(observed, layout, set(approved)))
     return Plan(items=tuple(items))
 
 
@@ -108,7 +107,7 @@ def _is_org_clone(entry: WorkDir, observed: Observed, desired: Desired) -> bool:
     para a conta antiga. A conta antiga conta como da org porque o repo migrou, e é
     justamente esse remote que a reescrita conserta.
     """
-    if entry.kind != REPO or not entry.remote:
+    if not entry.is_repo or not entry.remote:
         return False
     if entry.repo_name not in observed.org_repos:
         return False
@@ -125,7 +124,7 @@ def _at_risk(entry: WorkDir, observed: Observed) -> bool:
     preservar. Quando `migrated_from` ainda não foi decidido, é este predicado que
     impede um repo da org de aparecer como descartável só porque o remote é antigo.
     """
-    return entry.kind == REPO and bool(entry.remote) and entry.repo_name not in observed.org_repos
+    return entry.is_repo and bool(entry.remote) and entry.repo_name not in observed.org_repos
 
 
 def _spent_worktree(entry: WorkDir) -> bool:
@@ -134,36 +133,54 @@ def _spent_worktree(entry: WorkDir) -> bool:
     A comparação é de **conteúdo**. Um worktree cujo identificador divergiu sob
     squash-merge continua gasto, porque o que ele carrega já está no remote.
     """
-    return entry.kind == WORKTREE and not entry.only_local
+    return entry.is_worktree and not entry.only_local
 
 
 # --- o layout final de cada diretório, antes de qualquer item -----------------
 
 
-def _final_paths(observed: Observed, desired: Desired, doomed: set[str]) -> dict[str, str]:
-    """Onde cada diretório termina, calculado uma vez e usado por todo o resto.
+@dataclass(frozen=True)
+class _Layout:
+    """O endereço final de cada diretório, resolvido de uma vez só.
 
-    Sem isto, cada seção recalcularia o endereço final e elas divergiriam: um
-    worktree aninhado num pai que anda **anda junto**, sem item de movimentação
-    próprio, e ainda assim precisa de reparo porque o caminho absoluto mudou.
+    Os três campos são uma resposta só e viajam juntos por construção: separá-los
+    faria cada seção recalcular o endereço final por conta própria, e elas
+    divergiriam no caso que menos perdoa, que é o worktree aninhado num pai que
+    anda. Ele **anda junto**, sem item de movimentação próprio, e ainda assim
+    precisa de reparo porque o caminho absoluto mudou.
     """
+
+    final: dict[str, str]
+    moving: frozenset[str]
+    spent: frozenset[str]
+
+    def at(self, path: str) -> str:
+        return self.final.get(path, path)
+
+
+def _resolve_layout(observed: Observed, desired: Desired) -> _Layout:
+    """Onde cada diretório termina, e quais worktrees andam por conta própria."""
+    spent = frozenset(entry.path for entry in observed.dirs if _spent_worktree(entry))
     final = {entry.path: entry.path for entry in observed.dirs}
+    moving: set[str] = set()
 
     for entry in observed.dirs:
         if _is_org_clone(entry, observed, desired) and observed.root and observed.org:
             final[entry.path] = f"{observed.root}/{observed.org}/{entry.repo_name}"
 
     for entry in observed.dirs:
-        if entry.kind != WORKTREE:
-            continue
-        carried = _carried(entry.path, entry.parent, final.get(entry.parent, entry.parent))
-        if entry.path in doomed or desired.worktrees is None:
-            final[entry.path] = carried
+        if not entry.is_worktree:
             continue
         parent_final = final.get(entry.parent, entry.parent)
+        carried = _carried(entry.path, entry.parent, parent_final)
+        if entry.path in spent or desired.worktrees is None:
+            final[entry.path] = carried
+            continue
         final[entry.path] = f"{parent_final}/{desired.worktrees}/{entry.name}"
+        if final[entry.path] != carried:
+            moving.add(entry.path)
 
-    return final
+    return _Layout(final=final, moving=frozenset(moving), spent=spent)
 
 
 def _carried(path: str, parent: str, parent_final: str) -> str:
@@ -184,7 +201,7 @@ def _rewrite_items(observed: Observed, desired: Desired) -> list[PlanItem]:
     """
     riders: dict[str, int] = {}
     for entry in observed.dirs:
-        if entry.kind == WORKTREE and entry.parent:
+        if entry.is_worktree and entry.parent:
             riders[entry.parent] = riders.get(entry.parent, 0) + 1
 
     items: list[PlanItem] = []
@@ -334,6 +351,12 @@ def _stash_items(entry: WorkDir, at_risk: set[str]) -> list[PlanItem]:
     Os descartes saem em ordem decrescente de índice porque descartar um stash
     desloca os de baixo. Isso é decisão de plano, e não do applier: quem percorre a
     tabela de despacho não pode precisar saber disso.
+
+    Um stash cuja branch de preservação **já existe** não é preservado de novo. Sem
+    essa cláusula o plano nunca sairia vazio: preservar não consome o stash, então
+    a rodada seguinte pediria a mesma preservação, e o `git branch` estouraria por
+    já existir o nome. O stash em si fica, de propósito: ele não corre risco, e
+    consumi-lo tiraria do operador um `git stash pop` que ainda é dele.
     """
     if entry.path not in at_risk or not entry.stashes:
         return []
@@ -343,31 +366,37 @@ def _stash_items(entry: WorkDir, at_risk: set[str]) -> list[PlanItem]:
             action=PRESERVE_STASH,
             target=entry.path,
             reason=(
-                f"`{stash.ref}` só existe neste disco e a branch `{stash.branch}` ainda "
-                "existe; o repositório é candidato a sair da máquina"
+                f"`{stash.ref}` ({stash.message}) só existe neste disco e a branch "
+                f"`{stash.branch}` ainda existe; o repositório é candidato a sair da máquina"
             ),
-            payload={
-                "sha": stash.sha,
-                "ref": stash.ref,
-                "branch": f"{PRESERVE_PREFIX}/{_slot(stash.ref)}-{entry.name}",
-            },
+            payload={"sha": stash.sha, "ref": stash.ref, "branch": _keepsake(stash, entry)},
         )
         for stash in entry.stashes
-        if stash.branch_alive
+        if stash.branch_alive and _keepsake(stash, entry) not in entry.branch_names
     ]
     items.extend(
         PlanItem(
             action=DROP_STASH,
             target=entry.path,
             reason=(
-                f"`{stash.ref}` nasceu em `{stash.branch}`, que não existe mais nem local "
-                "nem em remote nenhum: não há a que aplicá-lo"
+                f"`{stash.ref}` ({stash.message}) nasceu em `{stash.branch}`, que não existe "
+                "mais nem local nem em remote nenhum: não há a que aplicá-lo"
             ),
             payload={"ref": stash.ref, "sha": stash.sha},
         )
         for stash in reversed([stash for stash in entry.stashes if not stash.branch_alive])
     )
     return items
+
+
+def _keepsake(stash: Stash, entry: WorkDir) -> str:
+    """O nome da branch em que um stash vivo é preservado.
+
+    Derivado do índice **e** do diretório porque ele precisa ser o mesmo em toda
+    rodada: é comparando-o com as branches que já existem que o plano sabe que
+    aquele stash já foi preservado.
+    """
+    return f"{PRESERVE_PREFIX}/{_slot(stash.ref)}-{entry.name}"
 
 
 def _slot(ref: str) -> str:
@@ -378,9 +407,7 @@ def _slot(ref: str) -> str:
 # --- o layout: org sob a org, worktree dentro do pai --------------------------
 
 
-def _layout_items(
-    observed: Observed, desired: Desired, final: dict[str, str], doomed: set[str]
-) -> list[PlanItem]:
+def _layout_items(observed: Observed, layout: _Layout) -> list[PlanItem]:
     """Primeiro os pais, depois os worktrees, e só então os reparos.
 
     A ordem não é estética: reparar um vínculo antes de o pai chegar ao endereço
@@ -394,10 +421,10 @@ def _layout_items(
                 "repositório da org fora do diretório que espelha a org; "
                 "é o caminho que torna visível a fronteira entre org e pessoal"
             ),
-            payload={"to": final[entry.path]},
+            payload={"to": layout.at(entry.path)},
         )
         for entry in observed.dirs
-        if entry.kind == REPO and final[entry.path] != entry.path
+        if entry.is_repo and layout.at(entry.path) != entry.path
     ]
 
     moves.extend(
@@ -405,38 +432,38 @@ def _layout_items(
             action=MOVE_WORKTREE,
             target=entry.path,
             reason=(
-                f"worktree solto ao lado do pai `{_name_of(entry.parent)}`; "
+                f"worktree solto ao lado do pai `{basename(entry.parent)}`; "
                 "aninhá-lo torna visível na árvore a relação que hoje só existe no git"
             ),
-            payload={"to": final[entry.path], "parent": final.get(entry.parent, entry.parent)},
+            payload={"to": layout.at(entry.path), "parent": layout.at(entry.parent)},
         )
         for entry in observed.dirs
-        if entry.kind == WORKTREE
-        and entry.path not in doomed
-        and final[entry.path]
-        != _carried(entry.path, entry.parent, final.get(entry.parent, entry.parent))
+        if entry.path in layout.moving
     )
 
     moves.extend(
         PlanItem(
             action=REPAIR_WORKTREE,
-            target=final[entry.path],
+            target=layout.at(entry.path),
             reason=(
                 "o ponteiro de volta ao pai é caminho absoluto dos dois lados, e mudar "
-                "de endereço qualquer um dos dois o quebra em silêncio"
+                "de endereço qualquer um dos dois o quebra em silêncio; os endereços de "
+                "antes ficam no item porque é por eles que o operador reconhece o par"
             ),
             payload={
-                "parent": final.get(entry.parent, entry.parent),
-                "worktree": final[entry.path],
+                "parent": layout.at(entry.parent),
+                "worktree": layout.at(entry.path),
+                "was": entry.path,
+                "was_parent": entry.parent,
             },
         )
         for entry in observed.dirs
-        if entry.kind == WORKTREE and _link_broken(entry, final)
+        if entry.is_worktree and _link_broken(entry, layout)
     )
     return moves
 
 
-def _link_broken(entry: WorkDir, final: dict[str, str]) -> bool:
+def _link_broken(entry: WorkDir, layout: _Layout) -> bool:
     """O vínculo quebra quando **qualquer um dos dois lados** muda de endereço.
 
     O worktree solto de um pai que anda é o caso que só se enxerga olhando o pai:
@@ -445,38 +472,35 @@ def _link_broken(entry: WorkDir, final: dict[str, str]) -> bool:
     Um worktree proposto para descarte também precisa do reparo: sem ele o próprio
     `git worktree remove` não acha mais o que remover.
     """
-    parent = entry.parent
-    return final[entry.path] != entry.path or final.get(parent, parent) != parent
-
-
-def _name_of(path: str) -> str:
-    return path.rsplit("/", 1)[-1]
+    return layout.at(entry.path) != entry.path or layout.at(entry.parent) != entry.parent
 
 
 # --- a metade subtrativa: sugestão, nunca decisão -----------------------------
 
 
-def _discard_items(
-    observed: Observed, final: dict[str, str], doomed: set[str], approved: set[str]
-) -> list[PlanItem]:
+def _discard_items(observed: Observed, layout: _Layout, approved: set[str]) -> list[PlanItem]:
     """O critério, e a razão de ele nunca virar ato sozinho.
 
     Elegibilidade é sugestão: todo item nasce retido, e só um alvo que o operador
     nomeou vira aplicável. A máquina não toma decisão irreversível pelo operador.
+
+    O alvo é o endereço **final**, e não o de hoje, porque o descarte é o último
+    item do plano: quando ele roda, o diretório já está onde o layout o pôs. É por
+    esse endereço que o operador o autoriza, e é ele que o plano mostra.
     """
     items: list[PlanItem] = []
     for entry in observed.dirs:
         reason = _why_disposable(entry, observed)
-        if reason is None and entry.path not in doomed:
+        if reason is None and entry.path not in layout.spent:
             continue
-        action = DISCARD_WORKTREE if entry.kind == WORKTREE else DISCARD_DIR
-        target = final[entry.path]
+        action = DISCARD_WORKTREE if entry.is_worktree else DISCARD_DIR
+        target = layout.at(entry.path)
         items.append(
             PlanItem(
                 action=action,
                 target=target,
                 reason=reason or _WORKTREE_REASON,
-                payload={"path": target, "parent": final.get(entry.parent, entry.parent)},
+                payload={"path": target, "parent": layout.at(entry.parent)},
                 hold="" if target in approved else DISCARD_HOLD,
             )
         )
@@ -495,9 +519,9 @@ def _why_disposable(entry: WorkDir, observed: Observed) -> str | None:
     Três cláusulas, e nenhuma delas olha o relógio: não pertence à org, tem remote,
     e está pushado. Diretório vazio é sempre elegível, porque não há o que preservar.
     """
-    if entry.kind == EMPTY:
+    if entry.is_empty:
         return "diretório vazio: não há nada aqui para preservar"
-    if entry.kind != REPO:
+    if not entry.is_repo:
         return None
     if not _at_risk(entry, observed):
         return None

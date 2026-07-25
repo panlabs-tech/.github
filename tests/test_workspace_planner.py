@@ -137,9 +137,27 @@ def test_an_org_repo_already_cloned_anywhere_is_not_cloned_again():
     assert items_for(the_plan, planner.CLONE_REPO) == []
 
 
-def test_a_personal_repo_missing_from_disk_is_never_cloned():
-    """A regra aditiva é só da org. Sem isso ela desfaria a faxina toda rodada."""
-    the_plan = planner.plan(state(org_repos=()), wanted())
+def test_a_deleted_personal_repo_leaves_no_trace_to_be_re_cloned_from():
+    """A regra aditiva é só da org. Sem isso ela desfaria a faxina toda rodada.
+
+    O repo pessoal apagado não aparece em lugar nenhum do observado, e é essa
+    ausência que é a garantia: os alvos de clonagem saem **só** da listagem viva
+    da org, então não existe de onde tirar o que foi apagado de propósito.
+    """
+    # `b3stocks` foi apagado numa faxina anterior; o que sobrou é o repo da org.
+    the_plan = planner.plan(
+        state(
+            repo("panlabs", owner=ORG, at=f"{ORG_DIR}/panlabs"),
+            org_repos=("panlabs", "skills"),
+        ),
+        wanted(),
+    )
+
+    assert targets_for(the_plan, planner.CLONE_REPO) == [f"{ORG_DIR}/skills"]
+
+
+def test_an_empty_org_listing_plans_no_clone_at_all():
+    the_plan = planner.plan(state(repo("b3stocks"), org_repos=()), wanted())
 
     assert items_for(the_plan, planner.CLONE_REPO) == []
 
@@ -525,6 +543,49 @@ def test_a_living_stash_of_a_repo_at_risk_is_preserved_instead_of_dropped():
     assert items_for(the_plan, planner.DROP_STASH) == []
 
 
+def test_a_stash_already_preserved_is_not_preserved_a_second_time():
+    """Preservar não consome o stash, e sem esta cláusula o plano nunca esvaziaria.
+
+    A rodada seguinte pediria a mesma preservação, e o `git branch` estouraria por
+    o nome já existir. Quem responde "já preservei este" é a branch que ficou.
+    """
+    alive = Stash(ref="stash@{0}", sha="abc123", branch="mvp/lofi", branch_alive=True)
+    the_plan = planner.plan(
+        state(
+            repo(
+                "campfire",
+                stashes=(alive,),
+                branches=(landed("main"), landed("preservado/0-campfire")),
+            )
+        ),
+        wanted(),
+    )
+
+    assert items_for(the_plan, planner.PRESERVE_STASH) == []
+
+
+def test_the_preservation_branch_is_the_one_the_next_round_looks_for():
+    alive = Stash(ref="stash@{0}", sha="abc123", branch="mvp/lofi", branch_alive=True)
+    the_plan = planner.plan(state(repo("campfire", stashes=(alive,))), wanted())
+
+    (item,) = items_for(the_plan, planner.PRESERVE_STASH)
+    assert item.payload["branch"] == "preservado/0-campfire"
+
+
+def test_a_stash_item_names_the_stash_so_the_operator_can_tell_them_apart():
+    orphan = Stash(
+        ref="stash@{0}",
+        sha="abc123",
+        branch="visual-reset",
+        message="On visual-reset: pre-poster-recovery-font-patch",
+        branch_alive=False,
+    )
+    the_plan = planner.plan(state(repo("campfire", stashes=(orphan,))), wanted())
+
+    (item,) = items_for(the_plan, planner.DROP_STASH)
+    assert "pre-poster-recovery-font-patch" in item.reason
+
+
 def test_stashes_are_dropped_from_the_highest_index_down():
     """Descartar por índice desloca os de baixo, e a ordem é decisão do planner."""
     stashes = tuple(
@@ -569,6 +630,28 @@ def test_a_divergent_commit_with_identical_content_proposes_no_preservation():
     assert items_for(the_plan, planner.PUSH_BRANCH) == []
     (item,) = items_for(the_plan, planner.DISCARD_WORKTREE)
     assert "conteúdo" in item.reason
+
+
+def test_the_identifier_alone_never_makes_a_worktree_disposable():
+    """O teste que isola qual dos dois campos o planner lê.
+
+    Identificador no remote e conteúdo fora dele é estado que o disco não produz,
+    e é exatamente por isso que ele serve aqui: se o planner algum dia passasse a
+    consultar `commit_on_remote`, este é o único cenário em que ele responderia
+    diferente, e o descarte apareceria para um worktree que carrega trabalho.
+    """
+    parent = repo("travelmanager", owner=ORG, at=f"{ORG_DIR}/travelmanager")
+    live = worktree(
+        "wt-216",
+        parent,
+        at=f"{parent.path}/{NEST}/wt-216",
+        branches=(Branch(name="feat/216", content_on_remote=False, commit_on_remote=True),),
+    )
+
+    the_plan = planner.plan(state(parent, live, org_repos=("travelmanager",)), wanted())
+
+    assert items_for(the_plan, planner.DISCARD_WORKTREE) == []
+    assert targets_for(the_plan, planner.PUSH_BRANCH) == [live.path]
 
 
 def test_a_worktree_carrying_work_is_never_proposed_for_discard():
