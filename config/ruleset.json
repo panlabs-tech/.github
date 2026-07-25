@@ -1,7 +1,7 @@
 {
   "_nota": "A configuração desejada é dado, não código. Os valores abaixo são a decisão da spec de Org #2 (https://github.com/panlabs-tech/.github/issues/2), aterrissada pela issue #14. Uma chave null significaria *ainda não decidida*, e o planner não planejaria nada para essa dimensão; hoje não sobrou nenhuma.",
 
-  "_ruleset": "O corpo exato de POST/PUT /repos/{owner}/{repo}/rulesets. O applier envia isto sem interpretar. Campos obrigatórios quando preenchido: name, target, enforcement, bypass_actors, conditions, rules. `bypass_actors` está vazio de propósito: numa org de um mantenedor, um ator de bypass faz a regra inteira virar teatro. `required_approving_review_count` é 0 porque o autor não pode aprovar o próprio PR, e exigir revisão travaria o merge autônomo num deadlock formal. Os dois contextos de check são o contrato de rollup publicado por scripts/panlabs/ci/rollup.py, iguais para todo repo, inclusive um sem superfície de build, onde o rollup passa trivialmente.",
+  "_ruleset": "O corpo exato de POST/PUT /repos/{owner}/{repo}/rulesets. O applier envia isto sem interpretar. Campos obrigatórios quando preenchido: name, target, enforcement, bypass_actors, conditions, rules. `bypass_actors` está vazio de propósito: numa org de um mantenedor, um ator de bypass faz a regra inteira virar teatro. `required_approving_review_count` é 0 porque o autor não pode aprovar o próprio PR, e exigir revisão travaria o merge autônomo num deadlock formal. Os dois contextos de check são o contrato de rollup publicado por scripts/panlabs/ci/rollup.py, iguais para todo repo, inclusive um sem superfície de build, onde o rollup passa trivialmente. A regra `pull_request` carrega o conjunto inteiro de parâmetros porque a API o exige: um corpo parcial é recusado com 422 (`data matches no possible input`), mesmo que os campos omitidos fossem exatamente o default.",
   "ruleset": {
     "name": "panlabs",
     "target": "branch",
@@ -22,7 +22,11 @@
         "type": "pull_request",
         "parameters": {
           "required_approving_review_count": 0,
-          "allowed_merge_methods": ["squash"]
+          "allowed_merge_methods": ["squash"],
+          "dismiss_stale_reviews_on_push": false,
+          "require_code_owner_review": false,
+          "require_last_push_approval": false,
+          "required_review_thread_resolution": false
         }
       },
       {

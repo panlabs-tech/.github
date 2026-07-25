@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from panlabs.ruleset.model import REPO_SETTINGS_KEYS
+from panlabs.ruleset.model import CHECKS_RULE_TYPE, REPO_SETTINGS_KEYS, check_contexts_of
 
 __all__ = ["DEFAULT_CONFIG_PATH", "Desired", "load_desired"]
 
@@ -29,7 +29,6 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "ruleset.
 
 KNOWN_KEYS = ("ruleset", "repo_settings", "retire_classic_protection")
 REQUIRED_RULESET_KEYS = ("name", "target", "enforcement", "bypass_actors", "conditions", "rules")
-REQUIRED_STATUS_CHECKS_RULE = "required_status_checks"
 
 
 @dataclass(frozen=True)
@@ -51,7 +50,7 @@ class Desired:
         return not self.undecided
 
     @property
-    def required_check_contexts(self) -> tuple[str, ...]:
+    def check_contract(self) -> tuple[str, ...]:
         """Os nomes de check que o ruleset desejado exige, lidos do próprio dado.
 
         O contrato de nomes é dado, não código: quem decide quais checks são
@@ -61,10 +60,8 @@ class Desired:
         if self.ruleset is None:
             return ()
         for rule in self.ruleset.get("rules") or ():
-            if rule.get("type") != REQUIRED_STATUS_CHECKS_RULE:
-                continue
-            checks = (rule.get("parameters") or {}).get(REQUIRED_STATUS_CHECKS_RULE) or ()
-            return tuple(sorted(check["context"] for check in checks if "context" in check))
+            if rule.get("type") == CHECKS_RULE_TYPE:
+                return check_contexts_of(rule.get("parameters") or {})
         return ()
 
     @classmethod

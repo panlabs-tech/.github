@@ -174,7 +174,7 @@ def test_only_restricts_the_plan_to_the_named_repo_and_reports_who_is_left_out(
     assert code == 0
     assert "panlabs-tech/.github" in captured.out
     assert "panlabs-tech/skills" not in captured.out
-    assert "aguardando retrofit" in captured.err
+    assert "não são avaliados" in captured.err
     assert "panlabs-tech/skills" in captured.err
 
 
@@ -209,7 +209,7 @@ def test_only_naming_the_whole_fleet_reports_nothing_left_out(
 
     main(argv)
 
-    assert "aguardando retrofit" not in capsys.readouterr().err
+    assert "não são avaliados" not in capsys.readouterr().err
 
 
 def test_naming_a_repo_in_only_lifts_the_hold_that_would_otherwise_defer_it(

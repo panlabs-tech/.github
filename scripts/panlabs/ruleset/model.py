@@ -21,11 +21,33 @@ __all__ = [
     "Observed",
     "RepoState",
     "RulesetState",
+    "check_contexts_of",
 ]
 
 DEFAULT_BRANCH_REF = "~DEFAULT_BRANCH"
 ALL_REFS = "~ALL"
-REQUIRED_STATUS_CHECKS_RULE = "required_status_checks"
+
+CHECKS_RULE_TYPE = "required_status_checks"
+"""O `type` da regra de status check, como a API a nomeia."""
+
+CHECKS_RULE_CONTEXTS = "required_status_checks"
+"""A chave, dentro dos parâmetros dessa regra, que lista os checks exigidos.
+
+Tem o mesmo texto do `type` e não é a mesma coisa: uma nomeia a regra, a outra
+nomeia um campo dentro dela. Duas constantes porque são dois conceitos, e ler
+`rules[X][X]` com uma constante só passaria por erro de digitação.
+"""
+
+
+def check_contexts_of(parameters: Mapping[str, Any]) -> tuple[str, ...]:
+    """Os nomes de check listados nos parâmetros de uma regra de status check.
+
+    Um leitor só, usado tanto sobre o ruleset observado quanto sobre o desejado:
+    são o mesmo formato de dado, e duas leituras divergiriam calada.
+    """
+    checks = parameters.get(CHECKS_RULE_CONTEXTS) or ()
+    return tuple(sorted(check["context"] for check in checks if "context" in check))
+
 
 REPO_SETTINGS_KEYS = (
     "allow_auto_merge",
@@ -71,10 +93,7 @@ class RulesetState:
 
     def required_check_contexts(self) -> tuple[str, ...]:
         """Os nomes de check que este ruleset exige hoje."""
-        checks = (self.rules.get(REQUIRED_STATUS_CHECKS_RULE) or {}).get(
-            REQUIRED_STATUS_CHECKS_RULE
-        ) or ()
-        return tuple(sorted(check["context"] for check in checks if "context" in check))
+        return check_contexts_of(self.rules.get(CHECKS_RULE_TYPE) or {})
 
     def comparable(self) -> Mapping[str, Any]:
         """A parte do ruleset que se compara campo a campo com o desejado.
@@ -108,22 +127,26 @@ class ClassicProtection:
         A descrição inteira vira o motivo do item que a aposenta, então ela não
         pode omitir nada: um plano que apaga uma garantia sem nomeá-la não é
         revisável.
+
+        Cada dimensão é nomeada nas duas polaridades, e não só quando está ligada.
+        Calar sobre uma garantia ausente pareceria omissão, e calar sobre uma
+        presente apagaria justamente o que o operador precisava ver antes de
+        aprovar: "se aplica a administradores" é a mais forte que ela pode ter.
         """
-        parts: list[str] = []
-        if self.required_status_checks:
-            checks = ", ".join(self.required_status_checks)
-            parts.append(f"checks {checks}{' (estrito)' if self.strict else ''}")
-        else:
-            parts.append("nenhum check exigido")
-        if self.requires_pull_request:
-            parts.append("PR exigido")
-        if self.required_linear_history:
-            parts.append("histórico linear")
-        if self.required_signatures:
-            parts.append("commits assinados")
-        if not self.enforce_admins:
-            parts.append("não se aplica a administradores")
-        return "; ".join(parts)
+        checks = ", ".join(self.required_status_checks)
+        return "; ".join(
+            [
+                f"checks {checks}{' (estrito)' if self.strict else ''}"
+                if self.required_status_checks
+                else "nenhum check exigido",
+                "PR exigido" if self.requires_pull_request else "PR não exigido",
+                "histórico linear" if self.required_linear_history else "sem histórico linear",
+                "commits assinados" if self.required_signatures else "sem exigir assinatura",
+                "se aplica a administradores"
+                if self.enforce_admins
+                else "não se aplica a administradores",
+            ]
+        )
 
 
 @dataclass(frozen=True)

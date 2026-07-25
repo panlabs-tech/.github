@@ -66,11 +66,11 @@ def test_the_config_also_decides_branch_deletion_on_merge_and_auto_merge():
 def test_the_check_contract_is_read_from_the_desired_data_not_written_in_code():
     want = load_desired(DEFAULT_CONFIG_PATH)
 
-    assert want.required_check_contexts == ("checks", "security")
+    assert want.check_contract == ("checks", "security")
 
 
 def test_a_desired_state_without_a_ruleset_declares_no_check_contract_at_all():
-    assert Desired().required_check_contexts == ()
+    assert Desired().check_contract == ()
 
 
 def test_a_filled_config_reports_nothing_undecided():
@@ -126,15 +126,9 @@ def test_keys_prefixed_with_underscore_are_notes_for_humans_and_are_ignored(tmp_
     assert load_desired(path) == Desired()
 
 
-def test_the_dotgithub_required_checks_config_decides_only_the_rollup_contract():
-    """A #8 decide só os dois checks do rollup; o resto continua com a Org #2."""
-    path = Path(__file__).resolve().parents[1] / "config" / "ruleset-dotgithub-required-checks.json"
+def test_the_only_desired_configuration_that_ships_is_the_full_gate():
+    """A configuração mínima da #8 foi aposentada: aplicá-la hoje desfaria o gate."""
+    config_dir = Path(__file__).resolve().parents[1] / "config"
 
-    want = load_desired(path)
-
-    assert want.ruleset is not None
-    assert want.retire_classic_protection is None
-    rule_types = {rule["type"] for rule in want.ruleset["rules"]}
-    assert rule_types == {"required_status_checks"}
-    checks = want.ruleset["rules"][0]["parameters"]["required_status_checks"]
-    assert {c["context"] for c in checks} == {"checks", "security"}
+    assert not (config_dir / "ruleset-dotgithub-required-checks.json").exists()
+    assert load_desired(config_dir / "ruleset.json").is_decided

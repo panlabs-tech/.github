@@ -96,12 +96,19 @@ def _restrict(observed: Observed, only: list[str]) -> tuple[Observed, tuple[Repo
 
 
 def _report_only(excluded: tuple[RepoState, ...]) -> None:
+    """Quem ficou de fora do recorte, e não da aplicação.
+
+    São coisas diferentes desde que o portão existe: sem `--only`, um repo não
+    retrofitado continua no plano, retido e com o motivo à vista. Aqui ele nem
+    foi olhado, e dizer o contrário faria o operador ler uma varredura da org
+    onde houve um recorte.
+    """
     if not excluded:
         return
     names = ", ".join(repo.name for repo in excluded)
     print(
-        f"--only restringe o plano; {len(excluded)} repo(s) da org ficam de fora desta "
-        f"rodada, aguardando retrofit antes de poder receber este ruleset: {names}.",
+        f"--only restringe o plano; {len(excluded)} repo(s) da org nem entram nesta "
+        f"leitura, e portanto não são avaliados: {names}.",
         file=sys.stderr,
     )
 

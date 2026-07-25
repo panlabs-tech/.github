@@ -632,7 +632,7 @@ def test_a_full_fleet_run_applies_only_to_repos_already_speaking_the_contract():
     assert applicable_targets
     assert not (held_targets & applicable_targets)
     for repo_state in fleet().repos:
-        speaks_contract = repo_state.required_check_contexts() == want.required_check_contexts
+        speaks_contract = repo_state.required_check_contexts() == want.check_contract
         assert (repo_state.name in applicable_targets) is (
             speaks_contract and repo_state.name in {i.target for i in plan}
         )

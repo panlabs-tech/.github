@@ -48,7 +48,7 @@ apply(Plan)    -> efeitos    # fino, sem teste
 - **Nenhum alvo é hardcoded.** A lista de repos vem sempre da org viva.
 - Um item pode ser **retido**: planejado, mostrado com o motivo da retenção, e não aplicado. É o que permite planejar a frota inteira sem quebrar quem ainda não pode receber a convergência.
 
-Se o `apply` precisa de um `if`, esse `if` está no lugar errado.
+Se o `apply` precisa de um `if`, esse `if` está no lugar errado. Item retido não é exceção a isso: o `apply` percorre `plan.applicable`, e quem decidiu reter foi o planner, que escreveu o motivo no próprio item. A tabela de despacho continua sem ramificação.
 
 **A configuração desejada entra como segundo argumento**, `plan(observed, desired)`, porque ela é *dado versionado* e não observação: ela mora em `config/`, não no código. O seam continua sendo o mesmo: uma função pura de estado para plano, e acima dela só a chamada real de API. Um valor `null` no dado significa **ainda não decidido**, e o planner não planeja nada para essa dimensão; isso é diferente de decidido-como-vazio, e quem lê um plano vazio precisa saber qual dos dois é.
 

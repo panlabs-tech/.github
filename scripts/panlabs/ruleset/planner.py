@@ -67,6 +67,9 @@ def _plan_repo(repo: RepoState, desired: Desired, *, hold: str) -> list[PlanItem
     O `hold` é do repo inteiro, não de um item: metade da convergência é pior que
     nenhuma. Aposentar a clássica sem subir o ruleset deixaria a branch nua, e
     restringir o merge sem exigir assinatura mudaria o fluxo sem entregar a garantia.
+    Nem mesmo o auto-merge escapa disso: ele só faz efeito quando existe um required
+    check segurando o PR, então ligá-lo num repo cujo ruleset ficou para depois não
+    entregaria nada, só mexeria na configuração de um repo que ninguém convergiu.
     """
     items: list[PlanItem] = []
     if desired.repo_settings is not None:
@@ -97,7 +100,7 @@ def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> st
     um PR espera. Se exige outra coisa, ou nada, o contrato fixo penduraria todo
     PR do repo esperando um status que nunca sai com esse nome.
     """
-    contract = desired.required_check_contexts
+    contract = desired.check_contract
     if not contract or repo.name in retrofitted:
         return ""
 
