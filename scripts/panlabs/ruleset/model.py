@@ -12,13 +12,35 @@ o planner precisa para conversar sobre eles.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-__all__ = ["ClassicProtection", "Observed", "RepoState", "RulesetState"]
+__all__ = [
+    "REPO_SETTINGS_KEYS",
+    "ClassicProtection",
+    "Observed",
+    "RepoState",
+    "RulesetState",
+]
 
 DEFAULT_BRANCH_REF = "~DEFAULT_BRANCH"
 ALL_REFS = "~ALL"
+REQUIRED_STATUS_CHECKS_RULE = "required_status_checks"
+
+REPO_SETTINGS_KEYS = (
+    "allow_auto_merge",
+    "allow_merge_commit",
+    "allow_rebase_merge",
+    "allow_squash_merge",
+    "delete_branch_on_merge",
+)
+"""As dimensões de repositório que este script enxerga, em `GET /repos/{owner}/{repo}`.
+
+São as mesmas chaves que a configuração desejada pode declarar: observar uma
+coisa e desejar outra faria o plano nunca esvaziar. O ruleset não alcança nenhuma
+delas, e é por isso que elas existem aqui: método de merge, deleção de branch no
+merge e auto-merge são configuração do repositório, não regra de branch.
+"""
 
 
 @dataclass(frozen=True)
@@ -46,6 +68,13 @@ class RulesetState:
         return (
             ALL_REFS in refs or DEFAULT_BRANCH_REF in refs or f"refs/heads/{default_branch}" in refs
         )
+
+    def required_check_contexts(self) -> tuple[str, ...]:
+        """Os nomes de check que este ruleset exige hoje."""
+        checks = (self.rules.get(REQUIRED_STATUS_CHECKS_RULE) or {}).get(
+            REQUIRED_STATUS_CHECKS_RULE
+        ) or ()
+        return tuple(sorted(check["context"] for check in checks if "context" in check))
 
     def comparable(self) -> Mapping[str, Any]:
         """A parte do ruleset que se compara campo a campo com o desejado.
@@ -105,10 +134,26 @@ class RepoState:
     default_branch: str
     rulesets: tuple[RulesetState, ...] = ()
     classic_protection: ClassicProtection | None = None
+    settings: Mapping[str, Any] = field(default_factory=dict)
 
     def rulesets_governing_default_branch(self) -> tuple[RulesetState, ...]:
         governing = [rs for rs in self.rulesets if rs.governs(self.default_branch)]
         return tuple(sorted(governing, key=lambda rs: rs.id))
+
+    def required_check_contexts(self) -> tuple[str, ...]:
+        """Os nomes de check exigidos hoje na branch default, venham de onde vierem.
+
+        Ruleset e proteção clássica entram na mesma conta porque a pergunta é uma
+        só: quais nomes de status a CI deste repo já precisa publicar para que um
+        PR consiga mergear. É o melhor proxy disponível para o que ela publica,
+        e é o critério que decide se o contrato fixo de checks pode alcançá-lo hoje.
+        """
+        names: set[str] = set()
+        for ruleset in self.rulesets_governing_default_branch():
+            names.update(ruleset.required_check_contexts())
+        if self.classic_protection is not None:
+            names.update(self.classic_protection.required_status_checks)
+        return tuple(sorted(names))
 
 
 @dataclass(frozen=True)

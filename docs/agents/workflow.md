@@ -28,6 +28,12 @@ Todo repo da org expõe os **mesmos nomes de status check**, independentemente d
 
 Sem o rollup, um required check de nome fixo nunca casaria com os status de uma matriz (que saem com os valores anexados ao nome), e um repo sem superfície penduraria o merge para sempre esperando um check que não roda.
 
+O ruleset da org exige exatamente esses nomes, sem exceção por tipo de repo. Enquanto a CI de um repo não os publica, o script de ruleset **retém** aquele repo em vez de convergi-lo: o portão é o nome de check que ele já exige hoje, e `--only` é como o operador afirma que o retrofit daquele repo aterrissou.
+
+## Merge autônomo sob assinatura
+
+A branch default exige **commit assinado**, e o repositório permite **squash como único método de merge**. As duas coisas são uma decisão só: quem assina o commit que aterrissa na branch é o GitHub, no squash via API, e por isso o commit local do agente nunca precisa ser assinado. Ligar a exigência sem restringir o merge quebraria a esteira na hora, porque sob merge-commit ou rebase o commit local não assinado chegaria na branch e reprovaria a regra.
+
 ## Forma dos scripts
 
 Todo script deste repo separa decisão de efeito:
@@ -40,6 +46,7 @@ apply(Plan)    -> efeitos    # fino, sem teste
 - **Plano é o default.** Rodar sem argumento nunca muda nada; aplicar exige flag explícita.
 - Cada item do plano carrega **ação, alvo e motivo**. Plano sem motivo não é revisável.
 - **Nenhum alvo é hardcoded.** A lista de repos vem sempre da org viva.
+- Um item pode ser **retido**: planejado, mostrado com o motivo da retenção, e não aplicado. É o que permite planejar a frota inteira sem quebrar quem ainda não pode receber a convergência.
 
 Se o `apply` precisa de um `if`, esse `if` está no lugar errado.
 

@@ -16,6 +16,7 @@ from panlabs.ruleset.planner import (
     CREATE_RULESET,
     DELETE_CLASSIC_PROTECTION,
     DELETE_RULESET,
+    UPDATE_REPO_SETTINGS,
     UPDATE_RULESET,
 )
 
@@ -45,9 +46,14 @@ def _delete_classic_protection(item: PlanItem) -> None:
     )
 
 
+def _update_repo_settings(item: PlanItem) -> None:
+    gh.api(f"repos/{item.target}", method="PATCH", body=item.payload["settings"])
+
+
 EFFECTS: dict[str, Effect] = {
     CREATE_RULESET: _create_ruleset,
     UPDATE_RULESET: _update_ruleset,
     DELETE_RULESET: _delete_ruleset,
     DELETE_CLASSIC_PROTECTION: _delete_classic_protection,
+    UPDATE_REPO_SETTINGS: _update_repo_settings,
 }

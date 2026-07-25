@@ -86,18 +86,58 @@ def repo(
     *,
     rulesets: list[dict[str, Any]] | None = None,
     classic_protection: dict[str, Any] | None = None,
+    settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Um repo observado cuja única divergência é a que o teste declarar.
+
+    Por isso a configuração de repositório já vem convergida por default: quem
+    quer exercitar essa dimensão passa `settings` explicitamente.
+    """
     return {
         "name": name,
         "default_branch": "main",
         "rulesets": rulesets or [],
         "classic_protection": classic_protection,
+        "settings": converged_settings() if settings is None else settings,
     }
+
+
+def converged_settings() -> dict[str, Any]:
+    """A configuração de repositório que o desejado pede, para exercitar idempotência."""
+    want = desired()
+    assert want.repo_settings is not None
+    return dict(want.repo_settings)
+
+
+def contract_checks() -> dict[str, Any]:
+    """Um ruleset observado que já exige exatamente os checks do contrato.
+
+    Só isso é o que faz um repo passar pelo portão de nomes de check: é o retrato
+    de um repo já retrofitado, como o `.github`.
+    """
+    want = desired()
+    assert want.ruleset is not None
+    minimal = {
+        **want.ruleset,
+        "name": "required-checks",
+        "rules": [
+            rule for rule in want.ruleset["rules"] if rule["type"] == "required_status_checks"
+        ],
+    }
+    return echo_ruleset(minimal, ruleset_id=99)
 
 
 def observed(*repos: dict[str, Any]) -> Observed:
     return build_observed({"org": "panlabs-tech", "repos": list(repos)})
 
+
+OPEN_SETTINGS = {
+    "allow_squash_merge": True,
+    "allow_merge_commit": True,
+    "allow_rebase_merge": True,
+    "delete_branch_on_merge": False,
+    "allow_auto_merge": False,
+}
 
 CLASSIC = {
     "required_status_checks": {"strict": False, "contexts": ["web", "security"]},
@@ -275,9 +315,32 @@ def test_repo_with_ruleset_and_classic_protection_yields_one_action_per_source_n
     plan = planner.plan(state, want)
     actions = actions_for(plan, "panlabs-tech/tfbox")
 
-    assert actions == [planner.UPDATE_RULESET, planner.DELETE_CLASSIC_PROTECTION]
+    assert actions == [
+        planner.UPDATE_REPO_SETTINGS,
+        planner.UPDATE_RULESET,
+        planner.DELETE_CLASSIC_PROTECTION,
+    ]
     assert planner.CREATE_RULESET not in actions
     assert {item.target for item in plan} == {"panlabs-tech/tfbox"}
+
+
+def test_the_item_that_retires_classic_protection_lands_in_the_same_round_as_the_ruleset():
+    """Nomear tudo que ela segurava é o que torna o item revisável antes de apagá-la."""
+    want = desired()
+    state = build_observed(
+        {
+            "org": "panlabs-tech",
+            "repos": [r for r in load_fleet_raw()["repos"] if r["name"] == "panlabs-tech/panlabs"],
+        }
+    )
+
+    plan = planner.plan(state, want)
+    retire = items_for(plan, "panlabs-tech/panlabs")[-1]
+
+    assert retire.action == planner.DELETE_CLASSIC_PROTECTION
+    assert planner.CREATE_RULESET in actions_for(plan, "panlabs-tech/panlabs")
+    assert "checks, security" in retire.reason
+    assert "administrador" in retire.reason
 
 
 def test_a_second_ruleset_governing_the_same_branch_is_planned_for_deletion():
@@ -350,19 +413,235 @@ def test_the_live_fleet_snapshot_plans_exactly_what_the_observed_state_calls_for
 
     plan = planner.plan(fleet(), want)
 
-    assert actions_for(plan, "panlabs-tech/.github") == [planner.CREATE_RULESET]
-    assert actions_for(plan, "panlabs-tech/skills") == [planner.CREATE_RULESET]
-    assert actions_for(plan, "panlabs-tech/ethitorial") == [planner.UPDATE_RULESET]
+    assert actions_for(plan, "panlabs-tech/.github") == [
+        planner.UPDATE_REPO_SETTINGS,
+        planner.UPDATE_RULESET,
+    ]
+    assert actions_for(plan, "panlabs-tech/skills") == [
+        planner.UPDATE_REPO_SETTINGS,
+        planner.CREATE_RULESET,
+    ]
+    assert actions_for(plan, "panlabs-tech/ethitorial") == [
+        planner.UPDATE_REPO_SETTINGS,
+        planner.UPDATE_RULESET,
+    ]
     assert actions_for(plan, "panlabs-tech/panlabs") == [
+        planner.UPDATE_REPO_SETTINGS,
         planner.CREATE_RULESET,
         planner.DELETE_CLASSIC_PROTECTION,
     ]
+
+
+def test_the_dotgithub_converges_from_its_minimal_ruleset_into_the_full_one():
+    """Mesmo recurso atualizado, não um segundo ruleset concorrente sobre a mesma branch."""
+    want = desired()
+
+    plan = planner.plan(fleet(), want)
+    ruleset_items = [
+        item for item in items_for(plan, "panlabs-tech/.github") if "ruleset" in item.action
+    ]
+
+    assert [item.action for item in ruleset_items] == [planner.UPDATE_RULESET]
+    item = ruleset_items[0]
+    assert item.payload["ruleset_id"] == 19713873
+    assert "required_signatures" in item.reason
+    assert "pull_request" in item.reason
+
+
+def test_a_repo_with_no_build_surface_gets_the_very_same_required_checks_as_one_with_two():
+    """Mesmo contrato, sem exceção por tipo: quem não tem superfície passa no rollup trivial."""
+    want = desired()
+
+    plan = planner.plan(fleet(), want, retrofitted=("panlabs-tech/skills",))
+    bodies = {
+        item.target: item.payload["body"]
+        for item in plan
+        if item.action in {planner.CREATE_RULESET, planner.UPDATE_RULESET}
+    }
+
+    def checks_of(body: dict[str, Any]) -> list[dict[str, Any]]:
+        rules = {rule["type"]: rule.get("parameters") or {} for rule in body["rules"]}
+        return rules["required_status_checks"]["required_status_checks"]
+
+    contract = [{"context": "checks"}, {"context": "security"}]
+    assert checks_of(bodies["panlabs-tech/skills"]) == contract
+    assert checks_of(bodies["panlabs-tech/ethitorial"]) == contract
+
+
+# --- as três dimensões de repositório ----------------------------------------
+#
+# Método de merge, deleção de branch no merge e auto-merge não são regra de branch:
+# são configuração do repositório, e nenhum ruleset as alcança.
+
+
+def test_open_merge_methods_yield_an_item_that_names_every_divergence_it_found():
+    want = desired()
+    state = observed(repo("panlabs-tech/frouxo", settings=OPEN_SETTINGS))
+
+    item = items_for(planner.plan(state, want), "panlabs-tech/frouxo")[0]
+
+    assert item.action == planner.UPDATE_REPO_SETTINGS
+    assert "allow_merge_commit" in item.reason
+    assert "allow_rebase_merge" in item.reason
+    assert "delete_branch_on_merge" in item.reason
+    assert "allow_auto_merge" in item.reason
+    assert item.payload["settings"] == converged_settings()
+
+
+def test_squash_only_lands_before_the_ruleset_that_will_demand_signed_commits():
+    """Uma decisão só, e nesta ordem: sob merge ou rebase, o commit local do agente
+    chegaria na branch sem assinatura e reprovaria a própria regra que acabou de subir."""
+    want = desired()
+    state = observed(
+        repo("panlabs-tech/legado", classic_protection=CLASSIC, settings=OPEN_SETTINGS)
+    )
+
+    assert actions_for(planner.plan(state, want), "panlabs-tech/legado") == [
+        planner.UPDATE_REPO_SETTINGS,
+        planner.CREATE_RULESET,
+        planner.DELETE_CLASSIC_PROTECTION,
+    ]
+
+
+def test_a_repo_converged_in_all_dimensions_including_the_three_new_ones_plans_nothing():
+    want = desired()
+    assert want.ruleset is not None
+    state = observed(
+        repo(
+            "panlabs-tech/conforme",
+            rulesets=[echo_ruleset(want.ruleset)],
+            settings=converged_settings(),
+        )
+    )
+
+    assert not planner.plan(state, want)
+
+
+def test_a_repo_settings_dimension_never_observed_counts_as_divergent_not_as_converged():
+    """Ausente não é igual: um retrato sem a dimensão não pode passar por conforme."""
+    want = desired()
+    state = observed(repo("panlabs-tech/mudo", settings={}))
+
+    item = items_for(planner.plan(state, want), "panlabs-tech/mudo")[0]
+
+    assert item.action == planner.UPDATE_REPO_SETTINGS
+    assert "ausente" in item.reason
+
+
+def test_undecided_repo_settings_plan_nothing_even_with_the_ruleset_decided():
+    want = desired()
+    partial = Desired(ruleset=want.ruleset, repo_settings=None, retire_classic_protection=True)
+    state = observed(repo("panlabs-tech/frouxo", settings=OPEN_SETTINGS))
+
+    assert planner.UPDATE_REPO_SETTINGS not in actions_for(
+        planner.plan(state, partial), "panlabs-tech/frouxo"
+    )
+
+
+# --- o portão: nomes de check observados contra o contrato fixo ---------------
+#
+# O contrato de checks é fixo, e a CI de cada repo só publica esses nomes depois
+# do retrofit. Aplicá-lo antes penduraria todo PR daquele repo esperando um check
+# que nunca sai com esse nome. A divergência é planejada e mostrada; não aplicada.
+
+
+def test_a_repo_whose_check_names_diverge_from_the_contract_is_planned_but_held():
+    want = desired()
+    divergent = {**CLASSIC, "required_status_checks": {"strict": False, "contexts": ["web", "api"]}}
+    state = observed(repo("panlabs-tech/travelmanager", classic_protection=divergent))
+
+    plan = planner.plan(state, want)
+
+    assert plan
+    assert plan.applicable == ()
+    assert len(plan.held) == len(plan)
+    hold = plan.items[0].hold
+    assert "api, web" in hold
+    assert "checks, security" in hold
+    assert "--only panlabs-tech/travelmanager" in hold
+
+
+def test_a_repo_that_requires_no_check_at_all_today_is_held_too():
+    """Sem nenhum check exigido não há evidência de que a CI publique os nomes fixos."""
+    want = desired()
+    state = observed(repo("panlabs-tech/skills"))
+
+    plan = planner.plan(state, want)
+
+    assert plan.applicable == ()
+    assert "nenhum" in plan.items[0].hold
+
+
+def test_a_repo_already_requiring_exactly_the_contract_is_not_held():
+    """O caso do `.github`: já retrofitado, e por isso alcançável nesta rodada."""
+    want = desired()
+    state = observed(repo("panlabs-tech/.github", rulesets=[contract_checks()]))
+
+    plan = planner.plan(state, want)
+
+    assert plan
+    assert plan.held == ()
+
+
+def test_the_hold_covers_every_item_of_the_repo_so_the_branch_is_never_left_half_converged():
+    """Aposentar a proteção clássica sem subir o ruleset deixaria a branch nua."""
+    want = desired()
+    state = observed(
+        repo("panlabs-tech/legado", classic_protection=CLASSIC, settings=OPEN_SETTINGS)
+    )
+
+    plan = planner.plan(state, want)
+
+    assert len(plan) == 3
+    assert plan.applicable == ()
+
+
+def test_naming_a_repo_as_retrofitted_lifts_its_hold_and_nobody_elses():
+    want = desired()
+    state = observed(repo("panlabs-tech/skills"), repo("panlabs-tech/tfbox"))
+
+    plan = planner.plan(state, want, retrofitted=("panlabs-tech/skills",))
+
+    assert [item.target for item in plan.applicable] == ["panlabs-tech/skills"]
+    assert [item.target for item in plan.held] == ["panlabs-tech/tfbox"]
+
+
+def test_a_desired_state_that_demands_no_check_holds_nobody():
+    """Sem contrato de check não há merge a pendurar, e portanto nada a adiar."""
+    want = desired()
+    assert want.ruleset is not None
+    without_checks = {
+        **want.ruleset,
+        "rules": [r for r in want.ruleset["rules"] if r["type"] != "required_status_checks"],
+    }
+    state = observed(repo("panlabs-tech/skills"))
+
+    plan = planner.plan(state, Desired(ruleset=without_checks, retire_classic_protection=True))
+
+    assert plan.held == ()
+
+
+def test_a_full_fleet_run_applies_only_to_repos_already_speaking_the_contract():
+    """Rodar sem `--only` contra a frota inteira é seguro por construção."""
+    want = desired()
+
+    plan = planner.plan(fleet(), want)
+
+    held_targets = {item.target for item in plan.held}
+    applicable_targets = {item.target for item in plan.applicable}
+    assert applicable_targets
+    assert not (held_targets & applicable_targets)
+    for repo_state in fleet().repos:
+        speaks_contract = repo_state.required_check_contexts() == want.required_check_contexts
+        assert (repo_state.name in applicable_targets) is (
+            speaks_contract and repo_state.name in {i.target for i in plan}
+        )
 
 
 # --- configuração ainda não decidida -----------------------------------------
 
 
 def test_an_undecided_desired_state_plans_nothing_at_all():
-    plan = planner.plan(fleet(), Desired(ruleset=None, retire_classic_protection=None))
+    plan = planner.plan(fleet(), Desired())
 
     assert not plan

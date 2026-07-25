@@ -51,6 +51,7 @@ def test_serialized_plan_carries_action_target_reason_and_the_payload_to_send():
                 "target": "panlabs-tech/skills",
                 "reason": "nenhum ruleset governa a branch main",
                 "payload": {"name": "main", "rules": [{"type": "deletion"}]},
+                "hold": "",
             }
         ]
     }
@@ -87,6 +88,63 @@ def test_rendered_empty_plan_reports_emptiness_without_claiming_convergence():
 
     assert "Nada a fazer" in rendered
     assert "converge" not in rendered
+
+
+# --- item retido: planejado, visível, não aplicado ---------------------------
+
+
+def test_a_held_item_stays_in_the_plan_to_be_read_but_is_not_applied():
+    """Reter é decisão do planner. O plano continua mostrando o que não vai rodar."""
+    calls: list[str] = []
+    plan = Plan(
+        (
+            PlanItem(action="create", target="a", reason="r"),
+            PlanItem(action="create", target="b", reason="r", hold="a CI de b não publica o check"),
+        )
+    )
+
+    apply(plan, {"create": lambda item: calls.append(item.target)})
+
+    assert calls == ["a"]
+    assert len(plan) == 2
+    assert [item.target for item in plan.applicable] == ["a"]
+    assert [item.target for item in plan.held] == ["b"]
+
+
+def test_a_plan_entirely_held_applies_nothing_at_all():
+    calls: list[str] = []
+    plan = Plan((PlanItem(action="create", target="a", reason="r", hold="adiado"),))
+
+    apply(plan, {"create": lambda item: calls.append(item.target)})
+
+    assert calls == []
+    assert plan
+
+
+def test_rendered_plan_names_what_is_held_and_why_instead_of_hiding_it():
+    plan = Plan(
+        (
+            PlanItem(action="update-ruleset", target="org/x", reason="diverge no merge"),
+            PlanItem(
+                action="update-ruleset",
+                target="org/y",
+                reason="diverge no merge",
+                hold="os checks observados são web, api",
+            ),
+        )
+    )
+
+    rendered = plan.render()
+
+    assert "retido" in rendered
+    assert "os checks observados são web, api" in rendered
+    assert "1 retido" in rendered
+
+
+def test_serialized_plan_carries_the_hold_so_a_reader_knows_what_will_not_run():
+    plan = Plan((PlanItem(action="a", target="b", reason="c", hold="adiado até o retrofit"),))
+
+    assert json.loads(plan.to_json())["items"][0]["hold"] == "adiado até o retrofit"
 
 
 def test_apply_runs_the_effect_registered_for_each_action_in_plan_order():

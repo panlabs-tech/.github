@@ -104,5 +104,5 @@ def test_json_output_is_the_serialized_matrix_and_nothing_else(
     payload = json.loads(capsys.readouterr().out)
 
     assert len(payload["items"]) == 1
-    assert {"action", "target", "reason", "payload"} == set(payload["items"][0])
+    assert {"action", "target", "reason", "payload", "hold"} == set(payload["items"][0])
     assert payload["items"][0]["payload"]["verdict"] == "deriva"

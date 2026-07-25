@@ -1,9 +1,49 @@
 {
-  "_nota": "Esqueleto do dado. A configuração desejada é dado, não código, e os valores são decididos pela spec de Org #2 (https://github.com/panlabs-tech/.github/issues/2), que é bloqueada pela Fundação. Enquanto uma chave for null, ela está *ainda não decidida*, e o planner não planeja nada para essa dimensão. Isso é diferente de decidida-como-vazia.",
+  "_nota": "A configuração desejada é dado, não código. Os valores abaixo são a decisão da spec de Org #2 (https://github.com/panlabs-tech/.github/issues/2), aterrissada pela issue #14. Uma chave null significaria *ainda não decidida*, e o planner não planejaria nada para essa dimensão; hoje não sobrou nenhuma.",
 
-  "_ruleset": "O corpo exato de POST/PUT /repos/{owner}/{repo}/rulesets. O applier envia isto sem interpretar. Campos obrigatórios quando preenchido: name, target, enforcement, bypass_actors, conditions, rules.",
-  "ruleset": null,
+  "_ruleset": "O corpo exato de POST/PUT /repos/{owner}/{repo}/rulesets. O applier envia isto sem interpretar. Campos obrigatórios quando preenchido: name, target, enforcement, bypass_actors, conditions, rules. `bypass_actors` está vazio de propósito: numa org de um mantenedor, um ator de bypass faz a regra inteira virar teatro. `required_approving_review_count` é 0 porque o autor não pode aprovar o próprio PR, e exigir revisão travaria o merge autônomo num deadlock formal. Os dois contextos de check são o contrato de rollup publicado por scripts/panlabs/ci/rollup.py, iguais para todo repo, inclusive um sem superfície de build, onde o rollup passa trivialmente.",
+  "ruleset": {
+    "name": "panlabs",
+    "target": "branch",
+    "enforcement": "active",
+    "bypass_actors": [],
+    "conditions": {
+      "ref_name": {
+        "include": ["~DEFAULT_BRANCH"],
+        "exclude": []
+      }
+    },
+    "rules": [
+      { "type": "deletion" },
+      { "type": "non_fast_forward" },
+      { "type": "required_linear_history" },
+      { "type": "required_signatures" },
+      {
+        "type": "pull_request",
+        "parameters": {
+          "required_approving_review_count": 0,
+          "allowed_merge_methods": ["squash"]
+        }
+      },
+      {
+        "type": "required_status_checks",
+        "parameters": {
+          "strict_required_status_checks_policy": true,
+          "required_status_checks": [{ "context": "checks" }, { "context": "security" }]
+        }
+      }
+    ]
+  },
 
-  "_retire_classic_protection": "Se true, toda proteção de branch clássica encontrada na branch default vira item de plano que a aposenta, para que não existam duas fontes de verdade sobre a mesma branch.",
-  "retire_classic_protection": null
+  "_repo_settings": "O corpo de PATCH /repos/{owner}/{repo}: dimensões do próprio repositório, que nenhum ruleset alcança. Squash-only é a outra metade da exigência de assinatura, não uma decisão separada: quem assina o commit que aterrissa na branch é o GitHub, no squash via API, e o commit local do agente nunca precisa ser assinado. Ligar `required_signatures` sem restringir a squash quebraria o merge autônomo na hora, porque sob merge-commit ou rebase o commit local não assinado reprovaria a regra. `allow_auto_merge` é pré-requisito técnico do Dependabot com auto-merge (issue #15): sem ele, a automação não liga.",
+  "repo_settings": {
+    "allow_squash_merge": true,
+    "allow_merge_commit": false,
+    "allow_rebase_merge": false,
+    "delete_branch_on_merge": true,
+    "allow_auto_merge": true
+  },
+
+  "_retire_classic_protection": "Se true, toda proteção de branch clássica encontrada na branch default vira item de plano que a aposenta, para que não existam duas fontes de verdade sobre a mesma branch. O item entra depois do ruleset convergir, na mesma rodada, e o motivo nomeia tudo que a proteção clássica segurava.",
+  "retire_classic_protection": true
 }
