@@ -149,6 +149,22 @@ def test_the_analysis_runs_on_pull_request_which_is_where_it_reports():
     assert "pull_request" in triggers
 
 
+def test_the_analysis_also_runs_on_the_same_work_branches_as_the_required_checks():
+    """Um PR aberto com o GITHUB_TOKEN não dispara `pull_request`, e a plataforma
+    não avisa: sem o gatilho de push, a análise não rodaria em PR de agente
+    nenhum. Medido, não suposto, no PR que introduziu este arquivo.
+    """
+    analysis = workflow(CODE_SCANNING_CALLER)["on"]["push"]["branches"]
+    checks = workflow("pr-checks.yml")["on"]["push"]["branches"]
+
+    assert set(checks) <= set(analysis)
+
+
+def test_the_analysis_also_runs_on_the_default_branch_so_a_base_exists():
+    """Sem análise na base, todo achado antigo apareceria como novo em todo PR."""
+    assert "main" in workflow(CODE_SCANNING_CALLER)["on"]["push"]["branches"]
+
+
 def test_no_job_of_the_analysis_caller_can_publish_a_required_check_name():
     """Coincidir com `checks` ou `security` faria o advisory virar gate pelo nome."""
     jobs = set(workflow(CODE_SCANNING_CALLER)["jobs"])

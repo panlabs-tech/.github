@@ -22,6 +22,29 @@ on:
   push:
     branches:
       - main
+      # As mesmas branches de trabalho de pr-checks.yml, e a razão é uma
+      # pegadinha da plataforma, não gosto por redundância: um evento criado com
+      # o GITHUB_TOKEN **não** dispara workflow, e é o job `open-pr` que abre o
+      # PR deste repo, com esse token. O `pull_request: opened` correspondente é
+      # suprimido, e sem esta lista a análise simplesmente nunca rodaria num PR
+      # de agente que aterrissa no primeiro push. Medido neste próprio PR: só
+      # `pr-checks` rodou até esta linha existir.
+      #
+      # O custo é uma análise repetida quando um push chega numa branch que já
+      # tem PR aberto, porque aí o `push` e o `synchronize` disparam os dois.
+      # Pagar isso é melhor do que a análise não rodar, que é a falha que não
+      # aparece. Quem for cortar a duplicata: cortar o `pull_request` tira o
+      # reporte no diff do PR, e cortar esta lista traz o buraco de volta.
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
+      - "refactor/**"
+      - "test/**"
+      - "ci/**"
+      - "worktree/**"
+      - "worktree-**"
+      - "dependabot/**"
 
 # `security-events` já no nível do workflow: num PR do Dependabot o token nasce
 # somente de leitura, e é a chave `permissions` que o eleva. Sem isto, a análise
