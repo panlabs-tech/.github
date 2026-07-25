@@ -17,6 +17,15 @@ não aparece aqui, e ausente é diferente de vazio.
 **Descrição, topics, wiki e licença são estado observado como qualquer outro.**
 Nenhum deles mora no working tree, e sem o checker eles ficariam sem vigia nenhum:
 a fronteira de *verificação* com a spec de Org atravessa a de *decisão* de propósito.
+`has_license` e `license` não são o mesmo fato dito duas vezes: o primeiro é "a
+plataforma reconhece um arquivo de licença", e o segundo é **qual** ela reconheceu,
+que pode ser `NOASSERTION` num arquivo que existe e ela não identificou.
+
+**`private` entra junto, e não é só mais um metadado.** A frota tem repositório
+privado, e o retrato observado vira fixture versionada num repositório **público**:
+sem esse campo, decidir o que pode ser versionado dependeria de alguém lembrar
+quais nomes são privados. Com ele, o dado carrega a própria prova, e um teste
+recusa uma fixture que traga repositório privado dentro.
 
 `error` é o canal de alarme do próprio checker: quando a observação de um
 repositório falha (rede, credencial, 404, árvore truncada), nenhum item do
@@ -47,19 +56,8 @@ class RepoObserved:
     topics: frozenset[str] = frozenset()
     has_wiki: bool = False
     license: str | None = None
+    private: bool = False
     error: str | None = None
-
-    @property
-    def basenames(self) -> frozenset[str]:
-        """Os nomes de arquivo da árvore, sem o caminho até eles.
-
-        Existe porque parte da anatomia é sobre o arquivo existir **em algum
-        lugar** (o lockfile de um monorepo mora junto do manifesto, não na raiz)
-        e parte é sobre ele existir num caminho exato (a declaração de runtime
-        que o gerenciador da máquina lê está na raiz do repositório). Um item
-        escolhe qual das duas pergunta faz, e o escopo dele fica revisável.
-        """
-        return frozenset(path.rsplit("/", 1)[-1] for path in self.files)
 
     def content(self, path: str) -> str | None:
         """O conteúdo de um arquivo declarado, ou `None` se ele não está lá.

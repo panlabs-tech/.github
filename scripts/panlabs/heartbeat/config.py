@@ -380,11 +380,17 @@ def _report(raw: Any) -> Report:
 
 
 def _codes(raw: Any) -> Mapping[int, str]:
-    """O mapa de código de saída para canal, e o que ele não aceita.
+    """O mapa de código de saída para canal, e os dois valores que ele não aceita.
 
     O zero fica de fora por decisão, e não por descuido: ele é o silêncio de um
     passo saudável, e um canal amarrado a ele alarmaria toda vez que estivesse
     tudo bem -- que é o jeito mais rápido de treinar o operador a ignorar o canal.
+
+    Fora de 1..255 também não entra, porque não existe: código de saída de
+    processo cabe nessa faixa. A recusa não é zelo de tipo, é o que torna o
+    sentinela de "não completou" do applier **inalcançável por dado** -- um passo
+    que mapeasse o sentinela mandaria "o binário não existe" para o canal de
+    deriva, exatamente o disfarce que este desenho existe para impedir.
     """
     entries = _object(raw, dimension="report.codes")
     codes: dict[int, str] = {}
@@ -394,6 +400,11 @@ def _codes(raw: Any) -> Mapping[int, str]:
             raise ValueError(
                 "o código 0 de um corpo `report` não pode ser mapeado para canal nenhum: "
                 "ele é o silêncio de um passo que rodou e não tinha nada a relatar"
+            )
+        if not 1 <= code <= 255:
+            raise ValueError(
+                f"código de saída fora de 1..255 em `report.codes`: {code}; nenhum processo "
+                "sai com esse valor, e mapeá-lo alcançaria o sentinela de 'não completou'"
             )
         codes[code] = str(alarm)
     if not codes:

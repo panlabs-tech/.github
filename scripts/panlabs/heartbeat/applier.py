@@ -8,8 +8,8 @@ rodar, e muito menos engolir um alarme de disco que estava embaixo dele no plano
 O canal em que a falha é reportada **não** é escolhido aqui: ele veio no `payload`,
 escrito pelo planner a partir do que o passo declarou. Isso vale inteiro para o
 passo que **relata pelo código de saída**: o código só existe depois de rodar, e
-por isso o mapa de código para canal atravessa no item -- o que este módulo faz é
-consulta em tabela, nunca decisão.
+por isso o mapa de código para canal atravessa no item -- o canal sai de consulta
+em tabela, e não de escolha daqui.
 
 **As marcas são gravadas uma vez, no fim.** A marca da própria execução é gravada
 **sempre**, inclusive quando o plano saiu vazio: ela é o que o vigia de homem-morto
@@ -48,13 +48,17 @@ ALARMS_FILE = "alarms.json"
 LOG_FILE = "heartbeat.log"
 STANDING_ORDER_FILE = "standing-order.json"
 
-NOT_RUN = -1
-"""O comando não chegou a rodar: executável ausente, permissão, ambiente sumido.
+NOT_RUN = -1000
+"""O comando não completou: executável ausente, permissão, ou prazo estourado.
 
-Não é um código de saída, e por isso não pode se parecer com um. Enquanto isso
-respondia `1`, um passo que relata pelo código teria mandado "o binário não
-existe" para o canal que significa "a frota derivou da anatomia" -- o disfarce
-exato que o desenho de canais separados existe para impedir.
+Não é um código de saída, e o valor é escolhido para **não poder ser confundido**
+com um. Enquanto isso respondia `1`, um passo que relata pelo código teria mandado
+"o binário não existe" para o canal que significa "a frota derivou da anatomia",
+que é o disfarce exato que os canais separados existem para impedir. `-1` também
+não serve: é o que o sistema devolve para um processo morto por SIGHUP, e o
+sentinela ficaria indistinguível de um caso real. Do outro lado, a leitura da
+configuração recusa mapear qualquer código fora de 1..255, então nenhum sentinela
+é alcançável por dado.
 """
 
 Run = Callable[[Sequence[str]], tuple[int, str]]
@@ -70,8 +74,17 @@ class Alarm:
 
 
 def run_command(command: Sequence[str]) -> tuple[int, str]:
+    """Roda, e devolve ou um código de saída de verdade, ou o sentinela de não completou.
+
+    O prazo estourado tem texto próprio porque o comando **rodou**: dizer que ele
+    não chegou a rodar mandaria o operador olhar o ambiente da máquina quando o
+    que aconteceu foi um passo que travou. Já aconteceu nesta máquina, com o
+    `uv cache prune` esperando um lock por cinco minutos.
+    """
     try:
         done = subprocess.run(command, capture_output=True, text=True, timeout=1800, check=False)
+    except subprocess.TimeoutExpired as exc:
+        return NOT_RUN, f"passou de {exc.timeout:.0f}s rodando e foi interrompido"
     except (OSError, subprocess.SubprocessError) as exc:
         return NOT_RUN, str(exc)
     return done.returncode, (done.stderr or done.stdout or "").strip()[:400]
@@ -211,14 +224,15 @@ class Runner:
 
 
 def _broke(command: Sequence[str], code: int, said: str) -> str:
-    """O texto de uma falha de passo, e ele distingue não rodou de rodou e falhou.
+    """O texto de uma falha de passo, e ele distingue não completou de saiu com erro.
 
     Os dois casos vão para o mesmo canal, mas dizem coisas diferentes ao operador:
-    um pede olhar o ambiente da máquina, o outro pede olhar o que o comando disse.
+    um pede olhar o ambiente ou o que travou, o outro pede olhar o que o comando
+    disse ao sair.
     """
     line = " ".join(command)
     if code == NOT_RUN:
-        return f"`{line}` não chegou a rodar: {said}"
+        return f"`{line}` não completou: {said}"
     return f"`{line}` saiu com código {code}: {said}"
 
 

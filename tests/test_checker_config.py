@@ -57,7 +57,7 @@ def test_the_shipped_config_declares_which_files_have_their_content_read():
     assert load_read_files(DEFAULT_CHECKER_CONFIG_PATH)
 
 
-def test_every_declared_path_is_relative_to_the_repo_root(tmp_path: Path):
+def test_every_declared_path_is_relative_to_the_repo_root():
     """Um caminho absoluto seria da máquina, e o que se lê é o conteúdo do repo."""
     for path in load_read_files(DEFAULT_CHECKER_CONFIG_PATH):
         assert not path.startswith("/"), path

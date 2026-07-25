@@ -64,21 +64,22 @@ def test_a_repo_with_no_surface_at_all_is_not_failed_for_a_missing_stack_leg():
     assert actions_for(the_plan, "panlabs-tech/skills") == []
 
 
-def test_the_node_surface_of_a_monorepo_is_charged_for_the_lockfile_beside_its_manifest():
-    """O lockfile de um monorepo mora junto do manifesto, não na raiz do repo.
+def test_a_manifest_in_a_subfolder_puts_the_repo_in_scope_for_the_node_item():
+    """O que a árvore recursiva mudou é **quem é avaliado**, não o que se exige.
 
-    Exigir a raiz reprovaria o layout que a própria anatomia manda uma aplicação
-    ter. O que a stack cobra é lockfile versionado, não lockfile na raiz.
+    Este é o layout de workspace de `pnpm` que três repositórios da frota usam:
+    manifesto em `apps/web`, um lockfile na raiz servindo o workspace inteiro.
+    Antes, o item nem chegava a ser avaliado aqui.
     """
-    state = observed(repo("panlabs-tech/mono", files=["web/package.json", "web/package-lock.json"]))
+    state = observed(repo("panlabs-tech/mono", files=["apps/web/package.json", "pnpm-lock.yaml"]))
 
     the_plan = planner.plan(state)
 
     assert actions_for(the_plan, "panlabs-tech/mono") == []
 
 
-def test_a_node_surface_with_no_lockfile_anywhere_is_drift_like_before():
-    state = observed(repo("panlabs-tech/mono", files=["web/package.json"]))
+def test_a_node_surface_with_no_lockfile_at_all_is_drift_like_before():
+    state = observed(repo("panlabs-tech/mono", files=["apps/web/package.json"]))
 
     the_plan = planner.plan(state)
 

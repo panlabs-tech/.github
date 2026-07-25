@@ -80,11 +80,11 @@ def test_a_repo_with_no_manifest_anywhere_has_no_surface_at_all():
     assert state.surfaces == frozenset()
 
 
-def test_the_full_path_is_what_is_observed_and_the_basename_is_derived_from_it():
+def test_what_is_observed_is_the_full_path_and_never_the_bare_name():
+    """O caminho é o que permite um item perguntar pela raiz em vez de "em algum lugar"."""
     state = only(repo("panlabs-tech/app", files=["apps/api/pyproject.toml"]))
 
     assert "apps/api/pyproject.toml" in state.files
-    assert "pyproject.toml" in state.basenames
     assert "pyproject.toml" not in state.files
 
 
@@ -166,6 +166,13 @@ def test_an_empty_declared_set_asks_nothing_at_all():
 # --- os metadados de plataforma ------------------------------------------------
 
 
+def test_a_private_repo_is_observed_as_private():
+    """A frota tem repositório privado, e o retrato dela vira fixture num repo público."""
+    state = only(repo("panlabs-tech/dotfiles", private=True))
+
+    assert state.private is True
+
+
 def test_description_topics_wiki_and_license_enter_the_observed_state():
     """A fronteira de verificação atravessa a de decisão de propósito (spec de Repo #4).
 
@@ -231,3 +238,16 @@ def test_the_versioned_fleet_snapshot_carries_the_whole_tree_and_the_declared_co
     assert any("/" in path for path in tfbox.files)
     assert "node" in tfbox.surfaces
     assert any(entry.contents for entry in state.repos)
+
+
+def test_the_versioned_snapshot_carries_no_private_repo_into_this_public_one():
+    """Este repositório é público, e a frota tem repositório privado.
+
+    Uma árvore recursiva mais conteúdo de arquivo é exatamente o tipo de retrato
+    que não pode atravessar essa fronteira: nomes de arquivo de um repositório
+    privado são informação dele. O guarda é o próprio dado observado, e não uma
+    lista de nomes escrita à mão, que envelheceria no primeiro repo novo.
+    """
+    state = build_observed(json.loads(FLEET.read_text(encoding="utf-8")))
+
+    assert [entry.name for entry in state.repos if entry.private] == []

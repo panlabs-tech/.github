@@ -384,12 +384,16 @@ def test_a_command_that_could_not_even_start_never_lands_on_the_drift_channel(tm
     assert runner.failed == ["anatomy-checker"]
 
 
-def test_running_a_command_that_does_not_exist_is_not_reported_as_an_exit_code(tmp_path: Path):
-    del tmp_path
+def test_running_a_command_that_does_not_exist_is_not_reported_as_an_exit_code():
     code, said = applier.run_command(["/nao/existe/panlabs-checker"])
 
     assert code == applier.NOT_RUN
     assert said
+
+
+def test_the_not_run_sentinel_cannot_collide_with_a_real_exit_code():
+    """`-1` não serviria: é o que o sistema devolve para um processo morto por SIGHUP."""
+    assert applier.NOT_RUN not in range(-255, 256)
 
 
 def test_a_healthy_run_writes_an_empty_alarm_file_instead_of_keeping_the_old_one(

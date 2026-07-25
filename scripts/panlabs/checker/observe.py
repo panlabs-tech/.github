@@ -66,6 +66,7 @@ def _build_repo(raw: Mapping[str, Any]) -> RepoObserved:
         topics=frozenset(raw.get("topics") or ()),
         has_wiki=bool(raw.get("has_wiki", False)),
         license=raw.get("license"),
+        private=bool(raw.get("private", False)),
     )
 
 
@@ -97,6 +98,11 @@ def content_query(paths: Sequence[str]) -> str:
     defeito silencioso caberia: um apelido trocado devolveria o conteúdo do
     arquivo errado, e nenhum erro apareceria em lugar nenhum -- só um veredito de
     anatomia sobre o arquivo que ninguém leu.
+
+    `HEAD` é a mesma referência que a árvore usa: nesta API ele resolve para a
+    ponta da branch default, que é o que `_tree` pede pelo nome. Escrever a árvore
+    numa referência e o conteúdo em outra faria os dois descreverem commits
+    diferentes, e nada acusaria.
     """
     if not paths:
         return ""
@@ -172,6 +178,7 @@ def _fetch_repo(org: str, name: str, tipo: str | None, read_files: Sequence[str]
         "topics": sorted(meta.get("topics") or ()),
         "has_wiki": bool(meta.get("has_wiki")),
         "license": (meta.get("license") or {}).get("spdx_id"),
+        "private": bool(meta.get("private")),
     }
 
 

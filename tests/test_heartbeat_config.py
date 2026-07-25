@@ -13,7 +13,12 @@ from pathlib import Path
 import pytest
 
 from panlabs.checker.cli import EXIT_DRIFT, EXIT_ERROR
-from panlabs.heartbeat.config import DEFAULT_CONFIG_PATH, Desired, load_desired
+from panlabs.heartbeat.config import (
+    DEFAULT_CONFIG_PATH,
+    Desired,
+    DesiredStep,
+    load_desired,
+)
 from panlabs.heartbeat.model import BRANCH_DOWN, BRANCH_UP
 
 NEVER = ("--shutdown", "--terminate", "-t")
@@ -34,6 +39,16 @@ def shipped_step(shipped: Desired, name: str):
     found = [step for step in shipped.steps or () if step.name == name]
     assert found, f"o passo `{name}` não está declarado no dado entregue"
     return found[0]
+
+
+def command_of(step: DesiredStep) -> tuple[str, ...]:
+    """O comando de um passo, seja qual for o corpo que o declara.
+
+    Dois corpos rodam comando (`run` e `report`), e as propriedades que valem para
+    um valem para o outro: nunca desligar o WSL, e ser alcançável sem shell. Um
+    corpo novo que rode comando aparece aqui, num lugar só.
+    """
+    return step.run or (step.report.command if step.report else ())
 
 
 def config_with(tmp_path: Path, **overrides: object) -> Path:
@@ -98,8 +113,7 @@ def test_no_shipped_step_is_a_generic_age_sweep(shipped: Desired):
 
 def test_no_shipped_command_can_shut_the_wsl_down(shipped: Desired):
     for step in shipped.steps or ():
-        command = step.run or (step.report.command if step.report else ())
-        assert not set(command) & set(NEVER), step.name
+        assert not set(command_of(step)) & set(NEVER), step.name
 
 
 # --- o passo que relata: código de saída vira canal ---------------------------
@@ -166,7 +180,7 @@ def test_the_cheap_prunes_run_weekly_and_the_real_wipe_waits_a_month(shipped: De
 def test_every_shipped_executable_is_reachable_without_a_shell(shipped: Desired):
     """O passo roda em subprocesso sem rc, onde `~/.local/bin` não está no PATH."""
     for step in shipped.steps or ():
-        command = step.run or (step.report.command if step.report else ())
+        command = command_of(step)
         if command:
             assert command[0].startswith("/"), step.name
 
@@ -258,6 +272,17 @@ def test_a_report_step_with_no_code_mapped_is_refused(tmp_path: Path):
     )
 
     with pytest.raises(ValueError, match="codes"):
+        load_desired(path)
+
+
+def test_a_report_step_mapping_a_code_no_process_can_exit_with_is_refused(tmp_path: Path):
+    """É o que mantém o sentinela de "não completou" do applier inalcançável por dado."""
+    path = config_with(
+        tmp_path,
+        steps=[report_step(report={"command": ["/usr/bin/true"], "codes": {"-1000": "falha"}})],
+    )
+
+    with pytest.raises(ValueError, match=r"fora de 1\.\.255"):
         load_desired(path)
 
 

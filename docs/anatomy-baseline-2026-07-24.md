@@ -37,7 +37,7 @@ Ainda em 2026-07-24, a issue #14 convergiu esse mesmo ruleset para o gate comple
 
 ## A segunda matriz, 2026-07-25: o mecanismo enxergando o repo inteiro
 
-Gerada pela [issue #27](https://github.com/panlabs-tech/.github/issues/27) com `uv run panlabs-checker --dump-observed tests/fixtures/checker-fleet-2026-07-25.json`, contra o **mesmo catálogo-semente de cinco itens**. Tudo que mudou aqui é observação: a árvore recursiva, o conteúdo do conjunto declarado de arquivos e os metadados de plataforma. Read-only como a primeira, e o retrato está versionado em [`tests/fixtures/checker-fleet-2026-07-25.json`](../tests/fixtures/checker-fleet-2026-07-25.json).
+Gerada pela [issue #27](https://github.com/panlabs-tech/.github/issues/27) com `uv run panlabs-checker --dump-observed <arquivo>`, contra o **mesmo catálogo-semente de cinco itens**. Tudo que mudou aqui é observação: a árvore recursiva, o conteúdo do conjunto declarado de arquivos e os metadados de plataforma. Read-only como a primeira, e o retrato está versionado em [`tests/fixtures/checker-fleet-2026-07-25.json`](../tests/fixtures/checker-fleet-2026-07-25.json).
 
 | Repo | Item | Escopo | Motivo |
 | --- | --- | --- | --- |
@@ -57,8 +57,22 @@ Gerada pela [issue #27](https://github.com/panlabs-tech/.github/issues/27) com `
 
 **Três linhas novas, todas do mesmo eixo e da mesma causa.** As três aplicações da frota têm superfície Python em subpasta de monorepo, e a listagem da raiz não a via. Nenhuma delas declara versão de runtime na raiz. Não é deriva nova: é deriva que existia e ninguém media.
 
-**Uma linha que a observação nova conseguiu avaliar e aprovar.** A superfície Node do `tfbox` passou a ser detectada (`web/package.json`, `scripts/package.json`), e o item `node-lockfile-committed` foi avaliado ali pela primeira vez: ele **passa**, porque o repo versiona lockfile junto de cada manifesto. Antes o item não gerava linha por não ser avaliado, o que era indistinguível de aprovado.
+**Uma linha que a observação nova conseguiu avaliar e aprovar.** A superfície Node do `tfbox` passou a ser detectada (`web/package.json`, `scripts/package.json`), e o item `node-lockfile-committed` foi avaliado ali pela primeira vez: ele **passa**, porque o repo versiona `package-lock.json` na raiz. Antes o item não gerava linha por não ser avaliado, o que era indistinguível de aprovado.
+
+**O que os itens exigem continua igual ao de antes**, e o retrato explica por que mexer nisso seria decisão da #4 e não deste ticket. Os cinco repos com superfície Node usam **dois layouts diferentes**: `ethitorial`, `life-under-control` e `travelmanager` têm workspace de `pnpm`, com um único `pnpm-lock.yaml` na raiz servindo `apps/web/package.json`; o `tfbox` versiona lockfile na raiz **e** ao lado de cada manifesto. Exigir lockfile ao lado de cada manifesto reprovaria os três primeiros, e aceitar lockfile em qualquer lugar aprovaria um repo por causa de um lockfile perdido numa pasta que não é a do manifesto. O item continua pedindo o da raiz, que é o que todos os cinco têm hoje, e a escolha entre as duas regras é do catálogo cheio.
 
 **A frota inteira entrou no retrato com o que não mora no working tree.** Descrição, topics, wiki e licença estão no retrato de todos os oito repos, e nenhum item do catálogo-semente os cobra ainda: a #4 é quem decide o que cobrar. O `tfbox` é o único com wiki ligada, e quatro repos não têm licença detectada pela plataforma.
 
 **O conteúdo declarado veio junto.** Os cinco arquivos de `config/checker.json` foram lidos onde existem, e é com esse retrato, sem rede, que o catálogo cheio da #4 pode ser escrito e testado.
+
+### A fixture não carrega repo privado, e o guarda é o próprio dado
+
+A matriz acima é da frota **inteira**, incluindo `panlabs-tech/dotfiles`, que é privado. A fixture versionada não: **este repo é público**, e uma árvore recursiva mais conteúdo de arquivo é exatamente o retrato que não pode atravessar essa fronteira, porque nome de arquivo de repo privado é informação dele.
+
+Por isso `private` entrou no estado observado junto com descrição, topics, wiki e licença. Ele torna a curadoria reproduzível e o guarda mecânico: a fixture é o retrato cru com `.repos` filtrado por `private == false`, e um teste recusa uma fixture que traga repositório privado dentro. A alternativa seria alguém lembrar quais nomes são privados, que envelhece no primeiro repo novo.
+
+```bash
+uv run panlabs-checker --dump-observed /tmp/fleet-cru.json
+jq -S '{org, repos: [.repos[] | select(.private | not)]}' /tmp/fleet-cru.json \
+  > tests/fixtures/checker-fleet-2026-07-25.json
+```

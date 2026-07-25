@@ -139,34 +139,12 @@
       "has_wiki": false,
       "license": "MIT",
       "name": "panlabs-tech/.github",
+      "private": false,
       "tipo": "meta",
       "topics": [
         "github-actions",
         "python"
       ],
-      "truncated": false
-    },
-    {
-      "contents": {},
-      "description": "Dotfiles da máquina de desenvolvimento panlabs, gerenciados por chezmoi. Recupera uma distro nova do zero, sem pré-requisito nenhum.",
-      "files": [
-        ".chezmoiignore",
-        ".chezmoiscripts/run_onchange_after_10-heartbeat.sh.tmpl",
-        "README.md",
-        "dot_claude/settings.json",
-        "dot_config/mise/config.toml",
-        "dot_config/zsh/thiago-wsl.zsh",
-        "dot_gitconfig",
-        "dot_local/share/panlabs/heartbeat.ps1.tmpl",
-        "dot_zshrc"
-      ],
-      "has_license": false,
-      "has_readme": true,
-      "has_wiki": false,
-      "license": null,
-      "name": "panlabs-tech/dotfiles",
-      "tipo": null,
-      "topics": [],
       "truncated": false
     },
     {
@@ -519,6 +497,7 @@
       "has_wiki": false,
       "license": "MIT",
       "name": "panlabs-tech/ethitorial",
+      "private": false,
       "tipo": null,
       "topics": [
         "docker",
@@ -1240,6 +1219,7 @@
       "has_wiki": false,
       "license": null,
       "name": "panlabs-tech/life-under-control",
+      "private": false,
       "tipo": null,
       "topics": [
         "docker",
@@ -1430,6 +1410,7 @@
       "has_wiki": false,
       "license": null,
       "name": "panlabs-tech/panlabs",
+      "private": false,
       "tipo": null,
       "topics": [
         "docker",
@@ -1464,6 +1445,7 @@
       "has_wiki": false,
       "license": "MIT",
       "name": "panlabs-tech/skills",
+      "private": false,
       "tipo": "skills",
       "topics": [
         "claude-code"
@@ -1605,6 +1587,7 @@
       "has_wiki": true,
       "license": null,
       "name": "panlabs-tech/tfbox",
+      "private": false,
       "tipo": "modulo-infraestrutura",
       "topics": [
         "aws",
@@ -1969,6 +1952,7 @@
       "has_wiki": false,
       "license": null,
       "name": "panlabs-tech/travelmanager",
+      "private": false,
       "tipo": null,
       "topics": [
         "docker",
