@@ -23,7 +23,7 @@ import json
 import sys
 from pathlib import Path
 
-from panlabs.machine.applier import EFFECTS
+from panlabs.machine.applier import build_effects
 from panlabs.machine.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.machine.model import Observed
 from panlabs.machine.observe import (
@@ -167,10 +167,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.apply:
         return 0
 
-    return _apply(the_plan)
+    return _apply(the_plan, args.settings)
 
 
-def _apply(the_plan: Plan) -> int:
+def _apply(the_plan: Plan, settings: Path) -> int:
     if the_plan.held:
         print(
             f"\n{len(the_plan.held)} item(ns) do plano estão retidos e continuam com você:",
@@ -184,7 +184,7 @@ def _apply(the_plan: Plan) -> int:
 
     print(f"\nAplicando {len(the_plan.applicable)} item(ns)...", file=sys.stderr)
     try:
-        apply(the_plan, EFFECTS)
+        apply(the_plan, build_effects(settings=settings))
     except OSError as exc:
         print(f"erro ao aplicar: {exc}", file=sys.stderr)
         return 1

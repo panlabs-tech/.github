@@ -63,9 +63,11 @@ O que a lista compra é real e é modesto: ela impede que uma credencial entre n
 
 **Capacidade preservada:** a CLI da nuvem continua funcionando com o seu diretório de credencial negado. Segurança sem perda de capacidade, verificado.
 
+A lista viva desta máquina carrega, além dos alvos resolvidos, entradas herdadas que nomeiam o **caminho escrito** de `~/.aws` e `~/.azure`. O planner não as gerencia e não as remove: elas não fazem mal, e cobrem a leitura pela ferramenta no caminho com link. O que o invariante garante é o alvo resolvido, que é a metade sem a qual a negação vaza pelo shell. Uma máquina reconstruída do zero recebe só os alvos resolvidos.
+
 ## Equipamento de agente
 
-**Skills vivem em um lugar só: o global.** A cláusula operante é **zero redundância** — uma skill candidata a global **não existe em repo nenhum**, e a cópia global é a única. Isso dissolve por construção a inversão de precedência entre níveis, porque elimina colisão de nome.
+**Skills vivem em um lugar só: o global.** A cláusula operante é **zero redundância**: uma skill candidata a global **não existe em repo nenhum**, e a cópia global é a única. Isso dissolve por construção a inversão de precedência entre níveis, porque elimina colisão de nome.
 
 **A CLI de distribuição é o único mecanismo de instalação**, global ou por projeto. Marketplace nativo, vendoring proposital e travamento por identificador de commit saem de cena: frescor via CLI basta numa frota de uma máquina.
 
@@ -75,7 +77,7 @@ Skill autoral da org mora em [`panlabs-tech/skills`](https://github.com/panlabs-
 
 A barra de status **não baixa nada por render**. Um comando com `npx …@latest` resolve pacote na rede a cada renderização, e o planner o trata como divergente por si, independentemente de qual pacote seja.
 
-**Hooks portáveis** no global, com adesão por **arquivo marcador** no repo — o equivalente, para hooks, da ativação automática por descrição das skills. Sem o marcador, o hook global é inerte.
+**Hooks portáveis** no global, com adesão por **arquivo marcador** no repo, que é o equivalente, para hooks, da ativação automática por descrição das skills. Sem o marcador, o hook global é inerte.
 
 Hooks **mesclam** em vez de sobrepor. Ao promover um hook, o bloco local precisa ser apagado, senão dispara em dobro. Isso não é teoria: ver a seção de deriva.
 
@@ -97,7 +99,7 @@ A spec de Máquina #3 avisa que as suas listas já derivaram uma vez. Derivaram 
 - **A frota declara dois majors de Node, não um.** A spec justifica o gerenciador de runtime por "treze repositórios que declaram versão e todos querem a mesma". Medido: `.node-version` em 10 diretórios, com major 24 em sete e 22 em três. Contando repositórios distintos e não worktrees, são quatro: `ethitorial` e `travelmanager` em 24, `life-under-control` e `panlabs` em 22. A justificativa fica **mais** forte, não menos: é exatamente para isso que serve um gerenciador de runtime.
 - **O `mise` desliga arquivo de versão idiomático por default.** Então hoje todo repo recebe o Node global (24), igual a antes da migração. Ligar a resolução por repo é decisão separada e deliberada, porque pode invalidar módulo nativo já compilado, e não é escopo desta issue.
 - **O raio da credencial são dois lugares, e o terceiro é o próprio agente.** `~/.aws` tem 4 entradas e modo 777, num sistema de arquivos que não suporta metadados, então o modo é impossível de corrigir. `~/.ssh` tem 6 entradas e modo 700. `~/.azure` e `~/secrets` estão **vazios**. O token do próprio agente é um terceiro arquivo, de natureza diferente.
-- **O bloco local do hook promovido já havia sido apagado.** A promoção aconteceu em 2026-07-23, no repositório de origem, e o commit que a fez removeu o bloco. A única cópia que ainda dispara em dobro está num **worktree solto e desatualizado** (`life-under-control-mirante`), parado num commit anterior à promoção. Normalizar worktree solto é a [issue #21](https://github.com/panlabs-tech/.github/issues/21), não esta.
+- **O bloco local do hook promovido já havia sido apagado, no repositório que importa.** A promoção aconteceu em 2026-07-23 e o commit que a fez removeu o bloco: o working tree de `life-under-control` não tem mais `.claude/settings.json`. Mas **onze** cópias ainda carregam o bloco e disparam em dobro, e todas as onze são **worktree** parada em commit anterior à promoção: uma solta (`life-under-control-mirante`) e dez aninhadas em `life-under-control/.claude/worktrees/`. Nenhuma é o repositório em si. Normalizar e podar worktree é a [issue #21](https://github.com/panlabs-tech/.github/issues/21), não esta.
 - **O repositório de dotfiles nasceu privado, e isso tem uma consequência.** Ver abaixo.
 
 ## Uma decisão que continua com o operador

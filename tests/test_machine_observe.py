@@ -106,3 +106,24 @@ def test_a_credential_dir_behind_a_symlink_records_the_resolved_target(tmp_path:
     assert entry["resolved"] == str(real)
     assert entry["entries"] == 1
     assert build_observed(raw).credentials[0].is_linked
+
+
+def test_an_org_repo_nested_under_the_org_mirror_dir_is_scanned(tmp_path: Path):
+    """O layout que a issue #21 impõe põe todo repo da org um nível mais fundo.
+
+    Varrer só um nível deixaria a cláusula de zero redundância cega exatamente na
+    metade da frota que é da org, que é a metade que mais importa.
+    """
+    workspaces = tmp_path / "workspaces"
+    skill(workspaces / "panlabs-tech" / ".github" / ".claude" / "skills", "tdd")
+    skill(workspaces / "personal-repo" / ".claude" / "skills", "caveman")
+
+    raw = fetch_raw(
+        Desired(bin_dir=str(tmp_path / "bin")),
+        settings=tmp_path / "settings.json",
+        global_skills=(tmp_path / "none",),
+        workspaces=workspaces,
+    )
+
+    found = sorted((e["repo"], e["name"]) for e in raw["vendored_skills"])
+    assert found == [("panlabs-tech/.github", "tdd"), ("personal-repo", "caveman")]

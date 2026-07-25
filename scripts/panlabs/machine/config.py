@@ -15,7 +15,7 @@ leitura é deliberado: o dado é o mesmo em qualquer máquina, a expansão é lo
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -167,22 +167,29 @@ def _links(raw: Any) -> tuple[DesiredLink, ...] | None:
 
 
 def _retire(raw: Any) -> tuple[DesiredRetire, ...] | None:
-    if raw is None:
-        return None
-    out: list[DesiredRetire] = []
-    for entry in _entries(raw):
-        _require(entry, "path", "why", dimension="retire")
-        out.append(DesiredRetire(path=expand(entry["path"]), why=entry["why"]))
-    return tuple(out)
+    return _paths_with_reason(raw, DesiredRetire, dimension="retire")
 
 
 def _secrets(raw: Any) -> tuple[DesiredSecret, ...] | None:
+    return _paths_with_reason(raw, DesiredSecret, dimension="read_denylist")
+
+
+def _paths_with_reason[T](
+    raw: Any, build: Callable[..., T], *, dimension: str
+) -> tuple[T, ...] | None:
+    """Lê uma lista de caminho-mais-motivo.
+
+    Duas dimensões têm essa forma, e continuam sendo **dois tipos**: um diretório a
+    remover e um lugar de credencial a negar são conceitos diferentes, e fundi-los
+    porque os campos coincidem faria o planner aceitar um no lugar do outro. O que
+    dá para compartilhar é a leitura, e é só isso que está compartilhado aqui.
+    """
     if raw is None:
         return None
-    out: list[DesiredSecret] = []
+    out: list[T] = []
     for entry in _entries(raw):
-        _require(entry, "path", "why", dimension="read_denylist")
-        out.append(DesiredSecret(path=expand(entry["path"]), why=entry["why"]))
+        _require(entry, "path", "why", dimension=dimension)
+        out.append(build(path=expand(entry["path"]), why=entry["why"]))
     return tuple(out)
 
 

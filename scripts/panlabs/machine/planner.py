@@ -56,12 +56,24 @@ DISCARD_HOLD = (
     "não existir no global; apagar o arquivo no repo é o retrofit da spec de Repo #4"
 )
 
-MANUAL_ACTIONS = (DISCARD_SKILL, DROP_VENDORED_SKILL)
-"""Ações sem efeito registrado, porque a remoção de arquivo em repo é da spec #4.
+MANUAL_ACTIONS = (PROMOTE_SKILL, DISCARD_SKILL, DROP_VENDORED_SKILL)
+"""As ações que nenhum applier realiza, e o motivo de cada uma não ser daqui.
 
-O plano as mostra retidas, e nenhum applier as realiza. Registrar um efeito que
-falha na hora de agir seria pior do que dizer no plano que a ação não é daqui.
+Promover é da **CLI de distribuição**: ela é o único mecanismo de instalação de
+skill, e um efeito que copiasse diretório deixaria a skill global sem upstream de
+onde atualizar, que é exatamente o que a decisão de usar a CLI evita. O plano
+carrega o comando exato, e quem o roda é a CLI.
+
+Descartar e des-vendorizar são da spec de Repo #4, que é onde a spec de Máquina #3
+põe a remoção de arquivo versionado de dentro de um repositório.
+
+Um teste garante que estas três não têm efeito e que todas as outras têm.
 """
+
+PROMOTE_HOLD = (
+    "instalar skill é da CLI de distribuição, que é o único mecanismo; copiar "
+    "diretório deixaria a skill global sem upstream de onde atualizar"
+)
 
 
 def plan(observed: Observed, desired: Desired) -> Plan:
@@ -272,7 +284,14 @@ def _skill_items(observed: Observed, desired: Desired) -> list[PlanItem]:
                 action=PROMOTE_SKILL,
                 target=move.name,
                 reason=f"{move.why}; sobe de {source.repo} para o global",
-                payload={"name": move.name, "from": source.path},
+                payload={
+                    "name": move.name,
+                    "from": source.path,
+                    "command": (
+                        f"npx skills add panlabs-tech/skills --global --skill {move.name} --yes"
+                    ),
+                },
+                hold=PROMOTE_HOLD,
             )
         )
 

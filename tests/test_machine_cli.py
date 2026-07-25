@@ -10,18 +10,19 @@ from pathlib import Path
 
 import pytest
 
-from panlabs.machine import applier
+from panlabs.machine import applier, planner
 from panlabs.machine.cli import main
+from panlabs.plan import PlanItem
 
 
 @pytest.fixture
 def forbid_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Nenhum efeito pode rodar sem `--apply`. Um só já seria um bug grave."""
 
-    def explode(_item: object) -> None:
+    def explode(*_args: object, **_kwargs: object) -> object:
         raise AssertionError("o script de máquina agiu sem --apply")
 
-    monkeypatch.setattr(applier, "EFFECTS", dict.fromkeys(applier.EFFECTS, explode))
+    monkeypatch.setattr(applier, "build_effects", explode)
 
 
 def snapshot(tmp_path: Path, **overrides: object) -> Path:
@@ -144,3 +145,71 @@ def test_the_summary_reports_the_real_radius_and_not_the_declared_list(
     main(["--config", str(config(tmp_path)), "--observed", str(observed)])
 
     assert "1 lugar(es) de credencial com conteúdo hoje" in capsys.readouterr().out
+
+
+# --- a fronteira entre o que tem efeito e o que é manual ----------------------
+
+
+def test_every_action_the_planner_emits_is_either_manual_or_has_an_effect():
+    """A tabela de despacho não pode divergir do vocabulário de ações.
+
+    Uma ação nova sem efeito e fora de MANUAL_ACTIONS estouraria com KeyError na
+    hora de aplicar, e uma ação manual **com** efeito registrado realizaria o ato
+    que a fronteira entre as specs proíbe aqui. Este teste fecha os dois lados.
+    """
+    effects = applier.build_effects(settings=Path("/nowhere/settings.json"))
+    emitted = {
+        planner.LINK_NAME,
+        planner.RETIRE_DIR,
+        planner.DENY_READ,
+        planner.PIN_STATUSLINE,
+        planner.PROMOTE_SKILL,
+        planner.DISCARD_SKILL,
+        planner.DROP_VENDORED_SKILL,
+    }
+
+    assert set(effects) == emitted - set(planner.MANUAL_ACTIONS)
+
+
+def test_installing_a_skill_has_no_effect_because_the_cli_is_the_only_mechanism():
+    effects = applier.build_effects(settings=Path("/nowhere/settings.json"))
+
+    assert planner.PROMOTE_SKILL not in effects
+
+
+def test_the_denial_is_written_to_the_settings_file_it_was_given(tmp_path: Path):
+    """Observar um arquivo e escrever em outro seria o applier decidindo o alvo."""
+    settings = tmp_path / "elsewhere.json"
+    settings.write_text(json.dumps({"model": "keep-me"}), encoding="utf-8")
+
+    effects = applier.build_effects(settings=settings)
+    effects[planner.DENY_READ](
+        PlanItem(
+            action=planner.DENY_READ,
+            target="/mnt/c/Users/op/.aws",
+            reason="chave de 2022",
+            payload={"entry": "Read(//mnt/c/Users/op/.aws/**)"},
+        )
+    )
+
+    written = json.loads(settings.read_text(encoding="utf-8"))
+    assert written["permissions"]["deny"] == ["Read(//mnt/c/Users/op/.aws/**)"]
+    # Ele é dono de duas chaves, não do arquivo.
+    assert written["model"] == "keep-me"
+
+
+def test_denying_the_same_path_twice_does_not_duplicate_the_entry(tmp_path: Path):
+    settings = tmp_path / "s.json"
+    item = PlanItem(
+        action=planner.DENY_READ,
+        target="/x",
+        reason="r",
+        payload={"entry": "Read(//x/**)"},
+    )
+
+    effects = applier.build_effects(settings=settings)
+    effects[planner.DENY_READ](item)
+    effects[planner.DENY_READ](item)
+
+    written = json.loads(settings.read_text(encoding="utf-8"))
+    assert written["permissions"]["deny"] == ["Read(//x/**)"]

@@ -154,6 +154,11 @@ def _names_in(root: Path) -> Iterable[str]:
 def _scan_vendored(workspaces: Path) -> list[dict[str, Any]]:
     """Toda skill que mora dentro de um repo, derivada do disco.
 
+    Dois níveis, e o segundo não é zelo: o layout que a issue #21 impõe põe **todo
+    repo da org** sob um diretório que espelha o nome da org, um nível mais fundo
+    que os repos pessoais. Varrer só um nível deixaria a cláusula de zero
+    redundância cega justamente na metade da frota que é da org.
+
     O repo meta da org tem nome começando por ponto, então um glob ingênuo o
     perderia para sempre. `iterdir` não filtra oculto, e é por isso que ele está
     aqui em vez de um padrão com asterisco.
@@ -162,13 +167,54 @@ def _scan_vendored(workspaces: Path) -> list[dict[str, Any]]:
         return []
 
     found: list[dict[str, Any]] = []
-    for repo in sorted(workspaces.iterdir()):
-        if not repo.is_dir():
-            continue
+    for repo in _candidate_repos(workspaces):
         for vendor in VENDOR_DIRS:
             for skill in sorted(_names_in(repo / vendor)):
-                found.append({"repo": repo.name, "name": skill, "path": str(repo / vendor / skill)})
+                found.append(
+                    {
+                        "repo": str(repo.relative_to(workspaces)),
+                        "name": skill,
+                        "path": str(repo / vendor / skill),
+                    }
+                )
     return found
+
+
+SKIP_DIRS = frozenset({".git", "node_modules", ".venv", "__pycache__"})
+"""Diretórios que a varredura nunca entra, porque não são fonte versionada.
+
+Um artefato reproduzível pode carregar um diretório de skill de dentro de um
+pacote instalado, e contá-lo inflaria a redundância com algo que nem é do repo.
+"""
+
+
+def _candidate_repos(workspaces: Path) -> list[Path]:
+    """Os diretórios que podem carregar skill: os filhos, e os netos deles.
+
+    Um diretório é reportado como repo **e** varrido por dentro, sem escolher entre
+    as duas coisas: adivinhar qual dos dois um diretório é exigiria decidir o que é
+    repo e o que é agrupador, e essa decisão não é da observação.
+
+    **Dois níveis, e o limite é deliberado.** Dois cobrem os dois layouts que
+    existem: repo pessoal no primeiro nível, repo da org sob o diretório que
+    espelha a org, no segundo. Descer mais alcançaria worktree aninhada dentro de um
+    repo, e a cópia que ela carrega é **o mesmo arquivo versionado** do repo pai,
+    já contado uma vez ali. Contá-la de novo faria a redundância parecer maior do
+    que ela é, e podar worktree é da issue #21.
+    """
+    candidates: list[Path] = []
+    for child in _children(workspaces):
+        candidates.append(child)
+        candidates.extend(_children(child))
+    return candidates
+
+
+def _children(root: Path) -> list[Path]:
+    return [
+        entry
+        for entry in sorted(root.iterdir())
+        if entry.is_dir() and not entry.is_symlink() and entry.name not in SKIP_DIRS
+    ]
 
 
 def build_observed(raw: Mapping[str, Any]) -> Observed:
@@ -211,4 +257,29 @@ def build_observed(raw: Mapping[str, Any]) -> Observed:
 
 
 def observed_to_dict(observed: Observed) -> dict[str, Any]:
-    return observed.to_dict()
+    """O retrato observado, de volta a JSON legível. Igual aos subpacotes irmãos."""
+    return {
+        "links": [
+            {"name": x.name, "points_to": x.points_to, "resolved": x.resolved}
+            for x in observed.links
+        ],
+        "retire": [
+            {"path": x.path, "present": x.present, "bytes": x.bytes} for x in observed.retire
+        ],
+        "credentials": [
+            {
+                "path": x.path,
+                "present": x.present,
+                "resolved": x.resolved,
+                "is_dir": x.is_dir,
+                "entries": x.entries,
+            }
+            for x in observed.credentials
+        ],
+        "denylist": list(observed.denylist),
+        "statusline": observed.statusline,
+        "global_skills": list(observed.global_skills),
+        "vendored_skills": [
+            {"repo": x.repo, "name": x.name, "path": x.path} for x in observed.vendored_skills
+        ],
+    }

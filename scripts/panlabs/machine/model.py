@@ -12,7 +12,6 @@ comando de terminal equivalente passar, porque o shell fala com o alvo. Por isso
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 __all__ = [
     "CredentialPath",
@@ -108,30 +107,3 @@ class Observed:
             if item.name == name:
                 return item
         return Link(name=name)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "links": [
-                {"name": x.name, "points_to": x.points_to, "resolved": x.resolved}
-                for x in self.links
-            ],
-            "retire": [
-                {"path": x.path, "present": x.present, "bytes": x.bytes} for x in self.retire
-            ],
-            "credentials": [
-                {
-                    "path": x.path,
-                    "present": x.present,
-                    "resolved": x.resolved,
-                    "is_dir": x.is_dir,
-                    "entries": x.entries,
-                }
-                for x in self.credentials
-            ],
-            "denylist": list(self.denylist),
-            "statusline": self.statusline,
-            "global_skills": list(self.global_skills),
-            "vendored_skills": [
-                {"repo": x.repo, "name": x.name, "path": x.path} for x in self.vendored_skills
-            ],
-        }
