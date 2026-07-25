@@ -47,6 +47,10 @@ uv run panlabs-org --apply               # aplica  (exige `admin:org` no token)
 
 uv run panlabs-checker                   # a matriz de deriva da org viva (read-only)
 uv run panlabs-checker --json            # a mesma matriz, serializada
+
+uv run panlabs-machine                   # o plano do equipamento global desta máquina
+uv run panlabs-machine --json            # o mesmo plano, serializado
+uv run panlabs-machine --apply           # aplica  (não usa token nenhum)
 ```
 
 **Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva: aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado. O checker não tem `--apply`: ele não tem efeito que mute nada, então a flag não existe.
@@ -60,6 +64,8 @@ A configuração desejada cobre duas superfícies, porque são dois recursos na 
 `panlabs-org` cobre as dimensões que não são proteção de branch: a política de Actions que cria e aprova PR (a que sustenta a esteira), secret scanning, push protection, Dependabot, os defaults de segurança para repo novo, 2FA, descrição da org e dos repos, topics, pins e wiki. Rodá-lo **sem aplicar é a verificação** desses invariantes: a política que quebrou a esteira em julho de 2026 passou oito dias caída porque não existia nada olhando.
 
 Duas dessas dimensões o GitHub não expõe para escrita: a exigência de 2FA (`PATCH /orgs` não a aceita) e os repos fixados no perfil (não há mutação em REST nem em GraphQL). Elas aparecem no plano como itens **manuais**, com o motivo dizendo onde resolver, e o `--apply` não finge aplicá-las.
+
+`panlabs-machine` é o único que não fala com a org: o alvo dele é o **global desta máquina**, e ele não usa token nenhum. Ele cobre os nomes que precisam ser alcançáveis em subprocesso, os diretórios cuja remoção está decidida, a negação de leitura sobre credencial e a cláusula de zero redundância das skills. Duas decisões dele valem a leitura: a negação vale sempre sobre o **alvo resolvido**, porque negar um caminho com link deixa o comando de terminal equivalente passar; e a remoção de um diretório fica **retida** enquanto algo que precisa ser alcançável ainda resolver lá dentro, que é o que impedia a máquina de ficar sem `node` no meio da migração. Ver [`docs/maquina.md`](docs/maquina.md).
 
 Operações que mutam configuração de organização exigem token com escopo `admin:org`. Quem eleva o escopo é o operador, com `gh auth refresh -h github.com -s admin:org`. Metade das dimensões de `panlabs-org` também **se lê** com esse escopo: sem ele o GitHub omite os campos em vez de negar a resposta, e por isso um campo omitido vira erro alto, nunca "está desligado".
 
