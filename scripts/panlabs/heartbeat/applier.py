@@ -68,10 +68,10 @@ def run_command(command: Sequence[str]) -> tuple[int, str]:
 class Runner:
     """Os efeitos, mais a lembrança do que rodou e do que falhou.
 
-    Ele lembra porque precisa: a marca de um passo só é gravada se ele **deu
-    certo**, senão um passo que falha em silêncio ganharia mais uma semana de
-    folga a cada tentativa; e o código de saída do processo precisa dizer se houve
-    falha, porque quem chama do lado do host lê isso.
+    Ele lembra porque precisa: a marca de um passo só é gravada se ele deu certo
+    **por inteiro**, senão um passo que falha em silêncio ganharia mais uma semana
+    de folga a cada tentativa; e o código de saída do processo precisa dizer se
+    houve falha, porque quem chama do lado do host lê isso.
     """
 
     state_dir: Path
@@ -81,6 +81,17 @@ class Runner:
     stamped: set[str] = field(default_factory=set)
     alarms: list[Alarm] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)
+
+    @property
+    def landed(self) -> set[str]:
+        """Os passos que podem receber marca: os que deram certo **por inteiro**.
+
+        Um passo vira vários itens quando poda um cache: quatro revisões velhas de
+        browser são quatro remoções do mesmo passo. Se uma falha e três dão certo,
+        marcar o passo daria à que falhou mais uma semana de folga, e ela voltaria
+        a falhar calada. Um passo só está feito quando nenhuma parte dele falhou.
+        """
+        return self.stamped - set(self.failed)
 
     @property
     def effects(self) -> dict[str, Effect]:
@@ -101,7 +112,7 @@ class Runner:
         """
         marks = read_marks(self.state_dir)
         steps: dict[str, Any] = dict(marks.get("steps") or {})
-        steps.update({step: self.now.isoformat() for step in sorted(self.stamped)})
+        steps.update({step: self.now.isoformat() for step in sorted(self.landed)})
 
         self._write(
             MARKS_FILE, {"last_run": self.now.isoformat(), "steps": dict(sorted(steps.items()))}

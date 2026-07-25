@@ -81,6 +81,18 @@ Ela usa o **único caminho disponível nesta edição do Windows**: a ferramenta
 
 **O resultado real vem da poda.** O ramo de compactação fica porque é oportunista e de custo praticamente zero. Se algum dia a folga do disco for contada como "o agendador me devolve X GB por mês", esse X vem da poda.
 
+### O disco que ela compacta é o disco que ela verificou
+
+Esta máquina tem **duas** distros instaladas, e cada uma tem o seu próprio disco virtual. O host verifica o estado da distro default e compacta o disco **daquela** distro, resolvido pelo registro, que é a única fonte que amarra nome de distro a caminho de arquivo.
+
+Escolher "o maior disco do sistema" pareceria equivalente e não é: os dois arquivos são diferentes, e o maior pode ser o de uma distro que está de pé. O disco do Docker chegou a 40 GB em julho de 2026, então esse "maior" já foi o outro. Compactar um disco vivo é o único desastre que este desenho tem como causar, e uma heurística que só acerta por coincidência não é proteção.
+
+### Capacidade ausente não é falha
+
+Sem elevação, a compactação não roda. Isso é **registrado, não alarmado**, e a diferença é deliberada: a tarefa criada sem elevação nunca vai compactar, e alarmar todo dia por isso treinaria o operador a ignorar o canal de falha. É exatamente o custo pelo qual `docker builder prune` ficou de fora da lista de passos.
+
+O log diz o que falta e o comando que resolve. Alarme é para o que mudou, não para o que sempre foi assim.
+
 ### A ordem permanente
 
 O ramo parado tem uma propriedade incômoda e inescapável: **ele só é executável exatamente quando o planner é inalcançável.** Entrar no WSL para planejar seria ligá-lo, que é a única coisa que este desenho promete nunca fazer.

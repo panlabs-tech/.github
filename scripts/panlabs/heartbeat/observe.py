@@ -62,8 +62,11 @@ WSL_QUERY = ("wsl.exe", "--list", "--running", "--quiet")
 
 Nenhuma outra forma serve: `--list` sozinho não diz quem está de pé, e qualquer
 comando com `-d` ou `--exec` **subiria** a distro, que é exatamente o ato que
-transformaria uma consulta num boot. `--shutdown` e `--terminate` não aparecem em
-lugar nenhum deste repo, e um teste guarda essa ausência.
+transformaria uma consulta num boot.
+
+Dois testes guardam as duas metades em que desligar poderia entrar: um sobre esta
+consulta, e um sobre os comandos da configuração entregue. Nenhum dos dois pode
+conter `--shutdown` nem `--terminate`.
 """
 
 HOST_DISK_QUERY = (

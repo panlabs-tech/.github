@@ -233,6 +233,44 @@ def test_a_step_that_failed_does_not_stamp_its_mark(tmp_path: Path):
     assert marks["steps"] == {}
 
 
+def test_a_step_that_only_half_landed_does_not_stamp_its_mark(tmp_path: Path):
+    """Um passo vira vários itens quando poda um cache versionado.
+
+    Quatro revisões velhas de browser são quatro remoções do **mesmo** passo. Se
+    três saem e uma falha, marcar o passo daria à que falhou mais uma semana de
+    folga, e ela voltaria a falhar calada na semana seguinte.
+    """
+    doomed = tmp_path / "chromium-1161"
+    doomed.mkdir()
+    runner = build_runner(state_dir=tmp_path / "state", now=NOW)
+
+    apply(
+        Plan(
+            (
+                item(
+                    planner.DROP_DIR,
+                    str(doomed),
+                    step="playwright",
+                    path=str(doomed),
+                    alarm="falha",
+                ),
+                item(
+                    planner.DROP_DIR,
+                    "/nunca/existiu",
+                    step="playwright",
+                    path="/nunca/existiu",
+                    alarm="falha",
+                ),
+            )
+        ),
+        runner.effects,
+    )
+    runner.commit()
+
+    marks = json.loads((tmp_path / "state" / "marks.json").read_text(encoding="utf-8"))
+    assert marks["steps"] == {}
+
+
 def test_a_failing_step_alarms_on_its_own_channel_and_not_on_the_disk_one(tmp_path: Path):
     """Falha de rede num passo não pode se disfarçar de alarme de disco."""
     runner = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (1, "token expirado"))

@@ -7,7 +7,9 @@ Este módulo entrega o esqueleto do dado e a sua leitura, nunca os valores.
 roda, a cadência que é dele, o canal de alarme que é dele, e o corpo do que faz.
 Plugar o checker de conformidade da spec de Repo #4 é acrescentar uma entrada
 nesta lista e um canal na outra: nenhuma linha de código muda, que é exatamente o
-que "sem reescrita" quer dizer.
+que "sem reescrita" quer dizer. Isso vale para passo cujo **corpo já existe**, que
+é o caso dele: ele roda um comando. Um corpo novo é mudança de código, e é assim
+mesmo, porque corpo novo é capacidade nova e não configuração.
 
 **Todo canal de alarme é declarado.** Um passo que nomeasse um canal inexistente
 falharia calado no lugar mais caro: o alarme sairia no canal errado, e o desenho

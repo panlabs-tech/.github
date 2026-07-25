@@ -100,6 +100,26 @@ def _summarize(observed: Observed, desired: Desired) -> str:
     )
 
 
+def _standing(observed: Observed, desired: Desired) -> str:
+    """Mostra a ordem que o ramo parado vai receber, antes de ela ser emitida.
+
+    Ela não entra no plano vivo, porque não é deste ramo. Mas ela é o item mais
+    caro que este mecanismo produz, e ela é realizada por uma ferramenta elevada
+    do host num momento em que ninguém está olhando. Um plano que a escondesse
+    deixaria justamente o ato mais arriscado fora da única rodada que existe para
+    ser lida antes de aplicar.
+    """
+    order = standing_order(observed, desired)
+    if not order:
+        return ""
+    names = ", ".join(item.target for item in order)
+    return (
+        f"\nOrdem permanente para o ramo parado: {names}.\n"
+        "O host a realiza no primeiro disparo que encontrar o WSL desligado, "
+        "uma vez, e o planner a reemite no disparo seguinte."
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -134,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(observed_to_dict(observed), indent=2, ensure_ascii=False))
             print()
         print(the_plan.render())
+        print(_standing(observed, desired))
         print(why_empty(the_plan, desired.undecided, args.config, subject="a máquina"))
 
     if not args.apply:

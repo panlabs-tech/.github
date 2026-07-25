@@ -132,6 +132,7 @@ def test_with_the_wsl_running_the_plan_prunes_and_does_not_compact():
     the_plan = planner.plan(state, desired())
 
     assert targets_for(the_plan, planner.RUN_STEP) == ["npm"]
+    assert items_for(the_plan, planner.RUN_ON_HOST) == []
 
 
 def test_with_the_wsl_stopped_the_plan_compacts_and_does_not_prune():
