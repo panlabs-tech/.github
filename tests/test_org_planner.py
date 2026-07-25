@@ -262,6 +262,34 @@ def test_a_single_broken_repo_dimension_yields_exactly_one_item_naming_it(
     assert reason_names in plan.items[0].reason
 
 
+def test_the_dimensions_without_an_api_are_planned_as_held_not_as_appliable():
+    """Sem chamada que as realize, elas nascem retidas, com o motivo escrito."""
+    want = desired()
+    raw = conforming_raw(want, "recem-nascido")
+    raw["org"]["two_factor_requirement_enabled"] = False
+    raw["pinned_repos"] = []
+    raw["repos"][0]["description"] = None
+    raw["repos"][0]["topics"] = []
+
+    plan = planner.plan(build_observed(raw), want)
+
+    assert {item.action for item in plan.held} == planner.ALWAYS_HELD
+    assert plan.applicable == ()
+    assert all(item.hold for item in plan.held)
+
+
+def test_a_held_item_carries_no_payload_because_no_effect_will_read_it():
+    want = desired()
+    raw = conforming_raw(want, "alfa")
+    raw["pinned_repos"] = []
+
+    item = planner.plan(build_observed(raw), want).items[0]
+
+    assert item.action == planner.SET_PINNED_REPOS
+    assert item.payload == {}
+    assert "GraphQL" in item.hold
+
+
 # --- P0: a esteira vem primeiro ----------------------------------------------
 
 

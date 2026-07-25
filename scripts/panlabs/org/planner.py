@@ -15,11 +15,17 @@ A ordem é deliberada em três níveis:
    protection depois de secret scanning, security updates depois dos alerts.
 3. Os repos saem em ordem de nome, para que duas leituras produzam o mesmo plano.
 
-Duas dimensões não têm chamada de API que as aplique, e são planejadas como
-**manuais**: a exigência de 2FA (que `PATCH /orgs` não aceita) e os repos
-fixados no perfil (que o GitHub não expõe em REST nem em GraphQL). Elas ficam no
-plano porque uma divergência que ninguém automatiza continua sendo divergência,
-e some do plano quando o operador a resolver na web.
+Duas dimensões não têm chamada de API que as aplique, e nascem **retidas** pelo
+`hold` do seam: a exigência de 2FA (que `PATCH /orgs` não aceita) e os repos
+fixados no perfil (que o GitHub não expõe em REST nem em GraphQL). Retidas
+também nascem as duas que dependem de dado que ninguém declarou: a descrição e
+os topics de um repo que não está em `config/org.json`.
+
+Retido é diferente de ausente: o item aparece na leitura, com o motivo da
+divergência e o motivo da retenção, e o `apply` não o realiza. Some do plano
+quando o operador resolver, na web ou no dado. Esconder essas quatro faria o
+plano mentir sobre a deriva; inventar um efeito para elas faria o `apply` falhar
+na hora de agir.
 """
 
 from __future__ import annotations
@@ -34,9 +40,9 @@ from panlabs.org.model import ActionsPolicy, Observed, OrgState, RepoState
 from panlabs.plan import Plan, PlanItem
 
 __all__ = [
+    "ALWAYS_HELD",
     "DECLARE_REPO_DESCRIPTION",
     "DECLARE_REPO_TOPICS",
-    "MANUAL_ACTIONS",
     "SET_ACTIONS_PR_POLICY",
     "SET_DEPENDABOT_ALERTS",
     "SET_DEPENDABOT_SECURITY_UPDATES",
@@ -68,7 +74,24 @@ SET_REPO_TOPICS = "set-repo-topics"
 DECLARE_REPO_TOPICS = "declare-repo-topics"
 SET_WIKI = "set-wiki"
 
-MANUAL_ACTIONS = frozenset(
+HOLD_TWO_FACTOR = (
+    "`PATCH /orgs` não aceita two_factor_requirement_enabled; a exigência de 2FA "
+    "só se liga pela web, em Settings > Authentication security"
+)
+HOLD_PINS = (
+    "o GitHub não expõe mutação de pinned items, nem em REST nem em GraphQL; "
+    "os pins só se mudam pela web, no perfil da org"
+)
+HOLD_UNDECLARED_DESCRIPTION = (
+    "não há texto declarado em config/org.json, e inventar a descrição de um repo "
+    "não é trabalho de script"
+)
+HOLD_UNDECLARED_TOPICS = (
+    "não há eixo de stack declarado em config/org.json, e escolher a stack de um "
+    "repo não é trabalho de script"
+)
+
+ALWAYS_HELD = frozenset(
     {
         SET_TWO_FACTOR_REQUIREMENT,
         SET_PINNED_REPOS,
@@ -76,9 +99,12 @@ MANUAL_ACTIONS = frozenset(
         DECLARE_REPO_TOPICS,
     }
 )
-"""As ações que nenhum efeito realiza: ou a API não as expõe, ou falta dado declarado."""
+"""As ações que nascem retidas em toda circunstância, e por isso não têm efeito.
 
-WEB_ONLY = "só pela web: a API do GitHub não expõe essa configuração"
+Reter aqui não é "hoje não dá", como no retrofit de CI do ruleset: é "não existe
+chamada que faça isso". A distinção fica no texto do `hold` de cada item; o que
+o seam garante é o mesmo nos dois casos, o `apply` não as executa.
+"""
 
 
 def plan(observed: Observed, desired: Desired) -> Plan:
@@ -165,11 +191,9 @@ def _plan_two_factor(org: OrgState, desired: Desired) -> list[PlanItem]:
                 "a exigência de 2FA na org",
                 org.two_factor_required,
                 want,
-                "é ela que impede que a conta que administra tudo isso caia por senha. "
-                f"{WEB_ONLY} (Settings > Authentication security): "
-                "PATCH /orgs não aceita two_factor_requirement_enabled",
+                "é ela que impede que a conta que administra tudo isso caia por senha",
             ),
-            payload={},
+            hold=HOLD_TWO_FACTOR,
         )
     ]
 
@@ -204,10 +228,9 @@ def _plan_pins(org: OrgState, desired: Desired) -> list[PlanItem]:
             target=org.login,
             reason=(
                 f"os repos fixados no perfil são {_show(list(org.pinned_repos))}, e os desejados "
-                f"são {_show(list(want))}, nessa ordem: produtos antes de ferramental. "
-                f"{WEB_ONLY} em REST nem em GraphQL"
+                f"são {_show(list(want))}, nessa ordem: produtos antes de ferramental"
             ),
-            payload={},
+            hold=HOLD_PINS,
         )
     ]
 
@@ -327,10 +350,10 @@ def _plan_repo_description(repo: RepoState, desired: Desired) -> list[PlanItem]:
                 action=DECLARE_REPO_DESCRIPTION,
                 target=repo.name,
                 reason=(
-                    "o repo não tem descrição na org e não tem texto declarado em "
-                    "config/org.json; a listagem da org fica ilegível sem abrir o repo"
+                    "o repo não tem descrição na org; a listagem da org fica ilegível "
+                    "sem abrir repo por repo"
                 ),
-                payload={},
+                hold=HOLD_UNDECLARED_DESCRIPTION,
             )
         ]
 
@@ -365,10 +388,9 @@ def _plan_repo_topics(repo: RepoState, desired: Desired) -> list[PlanItem]:
                 action=DECLARE_REPO_TOPICS,
                 target=repo.name,
                 reason=(
-                    "o repo não tem topics e não tem eixo de stack declarado em "
-                    "config/org.json; sem eles o agente não filtra a frota por tecnologia"
+                    "o repo não tem topics; sem eles o agente não filtra a frota por tecnologia"
                 ),
-                payload={},
+                hold=HOLD_UNDECLARED_TOPICS,
             )
         ]
 

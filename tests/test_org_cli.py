@@ -178,7 +178,7 @@ def test_json_output_is_the_serialized_plan_and_nothing_else(
     payload = json.loads(capsys.readouterr().out)
 
     assert len(payload["items"]) == 44
-    assert {"action", "target", "reason", "payload"} == set(payload["items"][0])
+    assert {"action", "target", "reason", "payload", "hold"} == set(payload["items"][0])
 
 
 def test_the_first_item_of_the_json_plan_is_the_org_itself(
@@ -191,7 +191,7 @@ def test_the_first_item_of_the_json_plan_is_the_org_itself(
     assert payload["items"][0]["target"] == "panlabs-tech"
 
 
-def test_every_appliable_action_the_planner_can_emit_has_an_effect_registered():
+def test_every_action_that_can_reach_the_applier_has_an_effect_registered():
     """Uma ação sem efeito só falharia na hora de aplicar, tarde demais."""
     emitted = {
         planner.SET_ACTIONS_PR_POLICY,
@@ -210,9 +210,22 @@ def test_every_appliable_action_the_planner_can_emit_has_an_effect_registered():
         planner.SET_WIKI,
     }
 
-    assert set(EFFECTS) == emitted - planner.MANUAL_ACTIONS
+    assert set(EFFECTS) == emitted - planner.ALWAYS_HELD
 
 
-def test_no_manual_action_has_an_effect_pretending_to_apply_it():
+def test_no_always_held_action_has_an_effect_pretending_to_apply_it():
     """O que a API não expõe não ganha um efeito que falha na hora de agir."""
-    assert set(EFFECTS) & planner.MANUAL_ACTIONS == set()
+    assert set(EFFECTS) & planner.ALWAYS_HELD == set()
+
+
+def test_the_held_items_are_shown_with_the_reason_they_will_not_be_applied(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """Retido aparece na leitura: sumir com ele faria o plano mentir sobre a deriva."""
+    main(["--observed", str(FLEET), "--config", str(DESIRED)])
+
+    out = capsys.readouterr().out
+
+    assert "retido set-two-factor-requirement" in out
+    assert "PATCH /orgs` não aceita two_factor_requirement_enabled" in out
+    assert "retido(s): planejado(s) e não aplicado(s)." in out

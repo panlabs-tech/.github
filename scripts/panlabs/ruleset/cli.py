@@ -66,9 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         metavar="ORG/REPO",
         help=(
-            "restringe o plano a este repo (repetível). Usar quando o `ruleset` "
-            "desejado só é seguro para parte da frota -- por exemplo, um ruleset com "
-            "nomes fixos de check só pode alcançar um repo depois do retrofit dele."
+            "restringe o plano a este repo (repetível) e afirma que a CI dele já "
+            "publica os nomes fixos de check, levantando o portão que retém os "
+            "repos ainda não retrofitados. Sem esta flag, o plano cobre a org "
+            "inteira e aplica só a quem já fala o contrato."
         ),
     )
     parser.add_argument("--json", action="store_true", help="imprime o plano serializado")
@@ -95,12 +96,19 @@ def _restrict(observed: Observed, only: list[str]) -> tuple[Observed, tuple[Repo
 
 
 def _report_only(excluded: tuple[RepoState, ...]) -> None:
+    """Quem ficou de fora do recorte, e não da aplicação.
+
+    São coisas diferentes desde que o portão existe: sem `--only`, um repo não
+    retrofitado continua no plano, retido e com o motivo à vista. Aqui ele nem
+    foi olhado, e dizer o contrário faria o operador ler uma varredura da org
+    onde houve um recorte.
+    """
     if not excluded:
         return
     names = ", ".join(repo.name for repo in excluded)
     print(
-        f"--only restringe o plano; {len(excluded)} repo(s) da org ficam de fora desta "
-        f"rodada, aguardando retrofit antes de poder receber este ruleset: {names}.",
+        f"--only restringe o plano; {len(excluded)} repo(s) da org nem entram nesta "
+        f"leitura, e portanto não são avaliados: {names}.",
         file=sys.stderr,
     )
 
@@ -136,11 +144,19 @@ def main(argv: list[str] | None = None) -> int:
     dump_raw(args.dump_observed, raw)
 
     if args.only:
+        unknown = sorted(set(args.only) - {repo.name for repo in observed.repos})
+        if unknown:
+            # Um nome errado sairia como plano vazio, que se lê como "já converge".
+            print(
+                f"--only nomeia repo(s) que não estão na org observada: {', '.join(unknown)}.",
+                file=sys.stderr,
+            )
+            return 1
         observed, excluded = _restrict(observed, args.only)
         _report_only(excluded)
 
     report_undecided(desired.undecided, args.config)
-    the_plan = plan(observed, desired)
+    the_plan = plan(observed, desired, retrofitted=args.only or ())
 
     if args.json:
         print(the_plan.to_json())
@@ -160,9 +176,17 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _apply(the_plan: Plan) -> int:
-    if not the_plan:
+    if not the_plan.applicable:
+        if the_plan.held:
+            print(
+                f"\nNada a aplicar: os {len(the_plan.held)} item(ns) do plano estão retidos, "
+                "aguardando o retrofit de CI dos repos que eles tocam.",
+                file=sys.stderr,
+            )
         return 0
-    print(f"\nAplicando {len(the_plan)} item(ns)...", file=sys.stderr)
+
+    withheld = f", {len(the_plan.held)} retido(s) de fora" if the_plan.held else ""
+    print(f"\nAplicando {len(the_plan.applicable)} item(ns){withheld}...", file=sys.stderr)
     try:
         apply(the_plan, EFFECTS)
     except gh.GhError as exc:

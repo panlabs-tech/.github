@@ -27,8 +27,8 @@ from panlabs.org.applier import EFFECTS
 from panlabs.org.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.org.model import Observed
 from panlabs.org.observe import build_observed, fetch_raw, observed_to_dict
-from panlabs.org.planner import MANUAL_ACTIONS, plan
-from panlabs.plan import Plan, PlanItem, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.org.planner import plan
+from panlabs.plan import Plan, apply, dump_raw, load_raw, report_undecided, why_empty
 
 DEFAULT_ORG = "panlabs-tech"
 
@@ -79,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="APLICA o plano, menos os itens que só existem na web. Sem esta flag nada é alterado.",
+        help="APLICA o plano, menos os itens retidos. Sem esta flag nada é alterado.",
     )
     return parser
 
@@ -143,30 +143,23 @@ def main(argv: list[str] | None = None) -> int:
 def _apply(the_plan: Plan) -> int:
     """Aplica o que tem efeito, e devolve o resto ao operador em vez de fingir.
 
-    A separação é do plano, não do applier: uma ação manual simplesmente não tem
-    efeito registrado, e o `apply` do seam continua sendo uma tabela de despacho
-    sem decisão nenhuma.
+    A separação é do plano, não do applier: um item retido carrega o motivo da
+    retenção escrito pelo planner, e o `apply` do seam simplesmente não o executa.
     """
-    appliable: list[PlanItem] = []
-    manual: list[PlanItem] = []
-    for item in the_plan:
-        (manual if item.action in MANUAL_ACTIONS else appliable).append(item)
-
-    if manual:
+    if the_plan.held:
         print(
-            f"\n{len(manual)} item(ns) do plano não têm chamada de API que os aplique, "
-            "e continuam com você:",
+            f"\n{len(the_plan.held)} item(ns) do plano estão retidos e continuam com você:",
             file=sys.stderr,
         )
-        for item in manual:
-            print(f"  {item.action}  {item.target}: {item.reason}", file=sys.stderr)
+        for item in the_plan.held:
+            print(f"  {item.action}  {item.target}: {item.hold}", file=sys.stderr)
 
-    if not appliable:
+    if not the_plan.applicable:
         return 0
 
-    print(f"\nAplicando {len(appliable)} item(ns)...", file=sys.stderr)
+    print(f"\nAplicando {len(the_plan.applicable)} item(ns)...", file=sys.stderr)
     try:
-        apply(Plan(tuple(appliable)), EFFECTS)
+        apply(the_plan, EFFECTS)
     except gh.GhError as exc:
         print(f"erro ao aplicar: {exc}", file=sys.stderr)
         return 1

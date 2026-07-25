@@ -22,6 +22,8 @@ Parte do padrão é **imposta pela plataforma**: rulesets e required checks, que
 
 **Nenhum alvo é hardcoded.** A lista de repos vem sempre da org viva, nunca de uma constante. Assim a regra não pode divergir da realidade, e repo novo entra sozinho.
 
+**Um item pode ser planejado e retido.** Quando aplicar uma convergência hoje quebraria o repo que ela deveria proteger, o item entra no plano marcado como *retido*: aparece na leitura, com o motivo, e o `apply` não o executa. Sumir com ele faria o plano mentir sobre a deriva; aplicá-lo faria o script quebrar o que veio consertar.
+
 **Conformidade é binária.** Não existe nível "recomendado": numa org de um mantenedor, recomendação é licença para deriva, e o consumidor do padrão é um agente.
 
 **A configuração desejada é dado, não código.** Ela mora em `config/`, separada do mecanismo que a aplica. Um valor `null` ali significa *ainda não decidido*, e o planner não planeja nada para uma dimensão não decidida, o que é diferente de decidida-como-vazia.
@@ -48,7 +50,11 @@ uv run panlabs-checker --json            # a mesma matriz, serializada
 
 **Rodar sem argumento nunca muda nada.** Aplicar exige `--apply`, explícito, e só contra a org viva: aplicar a partir de um retrato salvo agiria sobre um estado que já pode ter mudado. O checker não tem `--apply`: ele não tem efeito que mute nada, então a flag não existe.
 
-`--only` restringe o plano do ruleset a um subconjunto explícito da frota. Existe porque um ruleset com nomes fixos de check só é seguro num repo depois do retrofit dele: aplicar contra a org inteira penduraria o PR de todo repo que a CI compartilhada ainda não alcançou. Ver `config/ruleset-dotgithub-required-checks.json`.
+**Rodar contra a org inteira é seguro por construção.** O ruleset desejado exige nomes fixos de status check, e um repo cuja CI ainda não publica esses nomes penduraria todo PR esperando um status que nunca sai. Por isso o planner **retém** esses repos: a divergência deles aparece no plano, com o motivo, e a aplicação é adiada até o retrofit de CI de cada um. O critério é o nome de check que o repo já exige hoje, que é o melhor proxy do que a CI dele publica.
+
+`--only` restringe o plano a um subconjunto explícito da frota **e** afirma que a CI dos repos nomeados já publica os nomes fixos, levantando o portão para eles. É assim que um repo entra no gate logo depois do retrofit, sem esperar a próxima rodada da frota.
+
+A configuração desejada cobre duas superfícies, porque são dois recursos na API e uma decisão só: o **ruleset** da branch default e a **configuração do repositório** (método de merge, deleção de branch no merge, auto-merge). Exigir commit assinado sem restringir o merge a squash quebraria o merge autônomo na hora, já que o commit local do agente não é assinado e quem assina o commit final é o GitHub, no squash via API. As duas metades aterrissam juntas, nesta ordem, e nunca uma sem a outra.
 
 `panlabs-org` cobre as dimensões que não são proteção de branch: a política de Actions que cria e aprova PR (a que sustenta a esteira), secret scanning, push protection, Dependabot, os defaults de segurança para repo novo, 2FA, descrição da org e dos repos, topics, pins e wiki. Rodá-lo **sem aplicar é a verificação** desses invariantes: a política que quebrou a esteira em julho de 2026 passou oito dias caída porque não existia nada olhando.
 

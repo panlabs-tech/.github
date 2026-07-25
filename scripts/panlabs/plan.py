@@ -14,6 +14,11 @@ sem dizer o que está divergente não é revisável, e portanto não é um plano
 O `payload` de um item é o dado que o efeito precisa para agir, tipicamente o
 corpo exato de uma chamada de API. Ele existe para que o applier não precise
 decidir nada: o planner já calculou o que enviar.
+
+O `hold` de um item é o oposto do payload: o motivo pelo qual ele **não** vai ser
+realizado agora. Um item retido continua no plano, para ser lido, e o `apply` não
+o executa. Isso existe porque "some do plano" e "não é seguro aplicar hoje" são
+coisas diferentes, e esconder a segunda faria o plano mentir sobre a deriva.
 """
 
 from __future__ import annotations
@@ -39,12 +44,18 @@ __all__ = [
 
 @dataclass(frozen=True)
 class PlanItem:
-    """Uma ação pendente sobre um alvo, com o motivo que a justifica."""
+    """Uma ação pendente sobre um alvo, com o motivo que a justifica.
+
+    Com `hold` preenchido, a ação está planejada e **retida**: o plano a mostra,
+    o `apply` não a realiza, e o texto do `hold` diz por quê. Reter é decisão do
+    planner como qualquer outra, e por isso vem com motivo escrito, igual à ação.
+    """
 
     action: str
     target: str
     reason: str
     payload: Mapping[str, Any] = field(default_factory=dict)
+    hold: str = ""
 
     def __post_init__(self) -> None:
         if not self.action:
@@ -60,6 +71,7 @@ class PlanItem:
             "target": self.target,
             "reason": self.reason,
             "payload": dict(self.payload),
+            "hold": self.hold,
         }
 
 
@@ -83,6 +95,16 @@ class Plan:
     def __iter__(self) -> Iterator[PlanItem]:
         return iter(self.items)
 
+    @property
+    def applicable(self) -> tuple[PlanItem, ...]:
+        """Os itens que o `apply` realiza: tudo que não está retido."""
+        return tuple(item for item in self.items if not item.hold)
+
+    @property
+    def held(self) -> tuple[PlanItem, ...]:
+        """Os itens retidos: planejados, mostrados, e deliberadamente não aplicados."""
+        return tuple(item for item in self.items if item.hold)
+
     def to_dict(self) -> dict[str, Any]:
         return {"items": [item.to_dict() for item in self.items]}
 
@@ -104,15 +126,22 @@ class Plan:
             by_target.setdefault(item.target, []).append(item)
 
         width = max(len(item.action) for item in self.items)
+        mark = "retido " if self.held else ""
+        blank = " " * len(mark)
         lines: list[str] = []
         for target, items in by_target.items():
             lines.append(target)
             for item in items:
-                lines.append(f"  {item.action.ljust(width)}  {item.reason}")
+                prefix = mark if item.hold else blank
+                lines.append(f"  {prefix}{item.action.ljust(width)}  {item.reason}")
+            for why in sorted({item.hold for item in items if item.hold}):
+                lines.append(f"  retido porque {why}")
             lines.append("")
 
         plural = "itens" if len(self.items) > 1 else "item"
         lines.append(f"{len(self.items)} {plural} em {len(by_target)} alvo(s).")
+        if self.held:
+            lines.append(f"{len(self.held)} retido(s): planejado(s) e não aplicado(s).")
         return "\n".join(lines)
 
 
@@ -182,6 +211,9 @@ def apply(plan: Plan, effects: Mapping[str, Effect]) -> None:
     de despacho, e a escolha de qual ação cabe a cada alvo já foi feita pelo
     planner. Uma ação sem efeito registrado é erro de programação, não um caso a
     tratar: por isso a busca falha em vez de ser ignorada.
+
+    Item retido também não é decisão daqui: o planner já decidiu retê-lo e
+    escreveu o motivo no item. Ao `apply` resta não agir.
     """
-    for item in plan:
+    for item in plan.applicable:
         effects[item.action](item)
