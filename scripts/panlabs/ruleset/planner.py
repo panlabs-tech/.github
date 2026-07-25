@@ -8,12 +8,16 @@ de estado para plano, e nada acima dela além da chamada real de API.
 
 Uma dimensão ainda não decidida (`None`) não gera item nenhum. O script existe
 antes dos valores que ele vai aplicar, e não pode inventá-los.
+
+Um repo cuja CI ainda não publica os nomes fixos de check entra no plano **retido**:
+a divergência é mostrada, e não é aplicada. Reter é decisão, e por isso mora aqui.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
 from panlabs.plan import Plan, PlanItem
@@ -24,6 +28,7 @@ __all__ = [
     "CREATE_RULESET",
     "DELETE_CLASSIC_PROTECTION",
     "DELETE_RULESET",
+    "UPDATE_REPO_SETTINGS",
     "UPDATE_RULESET",
     "diff_ruleset",
     "plan",
@@ -33,23 +38,42 @@ CREATE_RULESET = "create-ruleset"
 UPDATE_RULESET = "update-ruleset"
 DELETE_RULESET = "delete-ruleset"
 DELETE_CLASSIC_PROTECTION = "delete-classic-protection"
+UPDATE_REPO_SETTINGS = "update-repo-settings"
 
 
-def plan(observed: Observed, desired: Desired) -> Plan:
-    """O plano de convergência da frota inteira, em ordem estável de repo."""
+def plan(observed: Observed, desired: Desired, *, retrofitted: Collection[str] = ()) -> Plan:
+    """O plano de convergência da frota inteira, em ordem estável de repo.
+
+    `retrofitted` nomeia os repos cuja CI o operador afirma já publicar os nomes
+    fixos de check, e é o que `--only` significa: nomear um repo é assumir essa
+    responsabilidade por ele. Para os nomeados, o portão de checks não vale.
+    """
     items: list[PlanItem] = []
     for repo in observed.sorted_repos():
-        items.extend(_plan_repo(repo, desired))
+        items.extend(_plan_repo(repo, desired, hold=_hold(repo, desired, retrofitted)))
     return Plan(tuple(items))
 
 
-def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
+def _plan_repo(repo: RepoState, desired: Desired, *, hold: str) -> list[PlanItem]:
     """Tudo que falta neste repo: uma única leitura por branch, nunca duas.
 
-    A ordem é deliberada: primeiro o ruleset converge, depois a proteção clássica
-    é aposentada. Assim a branch nunca fica desprotegida entre um passo e outro.
+    A ordem é deliberada e vale como sequência de aplicação. Primeiro a
+    configuração do repositório, porque é ela que restringe o merge a squash:
+    subir a exigência de assinatura antes disso deixaria o commit local do agente,
+    que não é assinado, aterrissar na branch por merge ou rebase e reprovar a
+    regra recém-criada. Depois o ruleset. Por último a proteção clássica é
+    aposentada, para que a branch nunca fique desprotegida entre um passo e outro.
+
+    O `hold` é do repo inteiro, não de um item: metade da convergência é pior que
+    nenhuma. Aposentar a clássica sem subir o ruleset deixaria a branch nua, e
+    restringir o merge sem exigir assinatura mudaria o fluxo sem entregar a garantia.
+    Nem mesmo o auto-merge escapa disso: ele só faz efeito quando existe um required
+    check segurando o PR, então ligá-lo num repo cujo ruleset ficou para depois não
+    entregaria nada, só mexeria na configuração de um repo que ninguém convergiu.
     """
     items: list[PlanItem] = []
+    if desired.repo_settings is not None:
+        items.extend(_plan_settings(repo, desired.repo_settings))
     if desired.ruleset is not None:
         items.extend(_plan_ruleset(repo, desired.ruleset))
     if desired.retire_classic_protection and repo.classic_protection is not None:
@@ -65,7 +89,51 @@ def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
                 payload={"branch": repo.default_branch},
             )
         )
-    return items
+    return [replace(item, hold=hold) for item in items] if hold else items
+
+
+def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> str:
+    """Por que este repo não pode receber o contrato de checks hoje, se não puder.
+
+    O critério é o nome de check que o repo já exige: é o melhor proxy do que a
+    CI dele publica. Se ele já exige exatamente o contrato, aplicar não muda o que
+    um PR espera. Se exige outra coisa, ou nada, o contrato fixo penduraria todo
+    PR do repo esperando um status que nunca sai com esse nome.
+    """
+    contract = desired.check_contract
+    if not contract or repo.name in retrofitted:
+        return ""
+
+    observed_checks = repo.required_check_contexts()
+    if observed_checks == contract:
+        return ""
+
+    return (
+        f"os checks exigidos hoje em {repo.default_branch} são "
+        f"{', '.join(observed_checks) if observed_checks else 'nenhum'}, e o contrato fixo é "
+        f"{', '.join(contract)}: aplicar agora penduraria todo PR deste repo esperando um "
+        "check que a CI dele não publica com esse nome. Adiado até o retrofit de CI do repo; "
+        f"depois dele, `--only {repo.name}` aplica"
+    )
+
+
+def _plan_settings(repo: RepoState, desired_settings: Mapping[str, Any]) -> list[PlanItem]:
+    """O que falta na configuração do próprio repositório, que nenhum ruleset alcança."""
+    divergences = _compare("", desired_settings, dict(repo.settings))
+    if not divergences:
+        return []
+
+    return [
+        PlanItem(
+            action=UPDATE_REPO_SETTINGS,
+            target=repo.name,
+            reason=(
+                f"configuração do repositório diverge do desejado em {len(divergences)} "
+                "ponto(s): " + "; ".join(divergences)
+            ),
+            payload={"settings": dict(desired_settings)},
+        )
+    ]
 
 
 def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[PlanItem]:

@@ -16,7 +16,13 @@ from collections.abc import Mapping
 from typing import Any
 
 from panlabs import gh
-from panlabs.ruleset.model import ClassicProtection, Observed, RepoState, RulesetState
+from panlabs.ruleset.model import (
+    REPO_SETTINGS_KEYS,
+    ClassicProtection,
+    Observed,
+    RepoState,
+    RulesetState,
+)
 
 __all__ = ["build_observed", "fetch_raw", "observed_to_dict"]
 
@@ -33,6 +39,7 @@ def _build_repo(raw: Mapping[str, Any]) -> RepoState:
         default_branch=raw["default_branch"],
         rulesets=tuple(_build_ruleset(r) for r in raw.get("rulesets") or ()),
         classic_protection=_build_classic(raw.get("classic_protection")),
+        settings=dict(raw.get("settings") or {}),
     )
 
 
@@ -79,12 +86,16 @@ def fetch_raw(org: str) -> dict[str, Any]:
     repos: list[dict[str, Any]] = []
     for name in gh.repo_names(org):
         full_name = f"{org}/{name}"
-        default_branch = gh.api(f"repos/{full_name}")["default_branch"]
+        repo = gh.api(f"repos/{full_name}")
+        default_branch = repo["default_branch"]
         listing = gh.api(f"repos/{full_name}/rulesets") or []
         repos.append(
             {
                 "name": full_name,
                 "default_branch": default_branch,
+                # A mesma resposta que deu a branch default já carrega as dimensões
+                # de repositório: observá-las não custa nenhuma chamada a mais.
+                "settings": {k: repo[k] for k in REPO_SETTINGS_KEYS if k in repo},
                 "rulesets": [gh.api(f"repos/{full_name}/rulesets/{r['id']}") for r in listing],
                 "classic_protection": _fetch_classic(full_name, default_branch),
             }
@@ -107,6 +118,8 @@ def observed_to_dict(observed: Observed) -> dict[str, Any]:
             {
                 "name": repo.name,
                 "default_branch": repo.default_branch,
+                "settings": dict(repo.settings),
+                "required_check_contexts": list(repo.required_check_contexts()),
                 "rulesets": [
                     {
                         "id": rs.id,
