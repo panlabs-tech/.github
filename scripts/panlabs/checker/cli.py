@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
+from panlabs.checker.desired import DEFAULT_ANATOMY_PATH, Desired, load_desired
 from panlabs.checker.observe import build_observed, fetch_raw
 from panlabs.checker.planner import ERROR_VERDICT, plan
 from panlabs.plan import Plan, dump_raw, load_raw
@@ -72,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
+        desired = load_desired()
         raw = load_raw(args.observed, lambda: fetch_raw(args.org))
     except (OSError, ValueError, gh.GhError) as exc:
         print(f"erro: {exc}", file=sys.stderr)
@@ -80,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     observed = build_observed(raw)
     dump_raw(args.dump_observed, raw)
 
-    the_matrix = plan(observed)
+    the_matrix = plan(observed, desired)
 
     if args.json:
         print(the_matrix.to_json())
@@ -88,9 +90,27 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Org {observed.org}: {len(observed.repos)} repo(s) avaliado(s).\n")
         print(the_matrix.render())
         if not the_matrix:
-            print("Nenhuma deriva ou erro no catálogo-semente avaliado.")
+            print("Nenhuma deriva ou erro nos itens avaliados.")
+        _report_undecided(desired)
 
     return _exit_code(the_matrix)
+
+
+def _report_undecided(desired: Desired) -> None:
+    """Diz quais itens não foram avaliados por falta de valor decidido.
+
+    Sem esta linha, a matriz mentiria por omissão do mesmo jeito que um plano vazio
+    mentiria: "não apareceu" e "não foi perguntado" são coisas diferentes, e é a
+    segunda que precisa de quem a diga.
+    """
+    if not desired.undecided:
+        return
+    print(
+        f"\nNão avaliado por falta de decisão em {DEFAULT_ANATOMY_PATH.name}: "
+        f"{', '.join(desired.undecided)}. "
+        "Um valor null ali não é conformidade, é ausência de pergunta.",
+        file=sys.stderr,
+    )
 
 
 def _exit_code(the_matrix: Plan) -> int:

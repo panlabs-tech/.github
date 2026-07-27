@@ -1,13 +1,24 @@
 {
-  "_": "A configuração de observação do checker de conformidade, decidida pela spec de Repo #4 (issue #27). O tipo de cada repositório mora ao lado, em `repo-types.json`, porque é classificação do operador e não parâmetro de leitura. `null` numa dimensão significa ainda não decidido, e nada é observado para ela.",
+  "_": "A configuração de observação do checker de conformidade, decidida pela spec de Repo #4 (issue #27). O tipo de cada repositório mora ao lado, em `repo-types.json`, porque é classificação do operador e não parâmetro de leitura. O que a anatomia cobra e ainda depende de decisão de valor mora em `anatomy.json`. `null` numa dimensão significa ainda não decidido, e nada é observado para ela.",
 
-  "_read_files": "Os arquivos cujo CONTEÚDO é lido, em caminho relativo à raiz do repositório. O conjunto é dado, e é declarado por três motivos. Primeiro, porque item de slot não se verifica por presença de arquivo: vocabulário de label declarado dentro de um documento, referência à CI compartilhada dentro de um workflow e ferramenta declarada dentro de um manifesto são todos conteúdo. Segundo, porque varredura cega pagaria uma chamada por arquivo, e o conjunto declarado cabe numa consulta GraphQL por repositório, com um apelido por arquivo. Terceiro, porque o retrato observado é fixture: é com o conteúdo já capturado aqui que o catálogo cheio da #4 vai ser escrito, sem rede.",
+  "_read_files": "Os arquivos cujo CONTEÚDO é lido, em caminho relativo à raiz do repositório. O conjunto é dado, e é declarado por três motivos. Primeiro, porque item de slot não se verifica por presença de arquivo: vocabulário de label declarado dentro de um documento, referência à CI compartilhada dentro de um workflow e ferramenta declarada dentro de um manifesto são todos conteúdo. Segundo, porque varredura cega pagaria uma chamada por arquivo, e o conjunto declarado cabe numa consulta GraphQL por repositório, com um apelido por arquivo. Terceiro, porque o retrato observado é fixture: é com o conteúdo já capturado aqui que o catálogo cheio da #4 foi escrito, sem rede.",
   "_read_files_ausente": "Um arquivo declarado que o repositório não tem simplesmente não aparece no conteúdo observado. Ausente e vazio são estados diferentes, e é o item do catálogo que decide o que cada um significa; a observação não julga nenhum dos dois.",
+  "_read_files_manifesto": "Os manifestos aparecem em mais de um caminho porque a frota tem mais de um layout, e um manifesto em caminho não declarado deixaria o item da ferramenta daquela superfície sem conteúdo para ler -- isto é, sem ser medido, que é pior que reprovar. `apps/api` e `apps/web` são o layout de monorepo das aplicações; `web` e `scripts` são o do módulo de infraestrutura, que não é do tipo aplicação e por isso não é alcançado pela regra de layout. Layout novo na frota é uma linha a mais aqui, nunca uma mudança de código.",
+  "_read_files_guarda": "Um teste amarra este conjunto ao catálogo: todo caminho que um item de anatomia lê precisa estar declarado aqui. Sem essa amarra, um item leria conteúdo que a observação nunca busca, e o veredito sairia do vazio em vez de do repositório.",
   "read_files": [
     "AGENTS.md",
     "CLAUDE.md",
     ".python-version",
+    ".node-version",
     ".github/workflows/pr-checks.yml",
-    "docs/agents/triage-labels.md"
+    "docs/agents/triage-labels.md",
+    "lefthook.yml",
+    ".pre-commit-config.yaml",
+    "pyproject.toml",
+    "apps/api/pyproject.toml",
+    "package.json",
+    "apps/web/package.json",
+    "web/package.json",
+    "scripts/package.json"
   ]
 }

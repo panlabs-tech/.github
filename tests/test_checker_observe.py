@@ -20,11 +20,12 @@ from typing import Any
 import pytest
 
 from panlabs import gh
+from panlabs.checker.config import load_read_files
 from panlabs.checker.model import Observed
 from panlabs.checker.observe import build_observed, content_query, contents_from
 
 FIXTURES = Path(__file__).parent / "fixtures"
-FLEET = FIXTURES / "checker-fleet-2026-07-25.json"
+FLEET = FIXTURES / "checker-fleet-2026-07-27.json"
 
 
 def repo(name: str, **fields: Any) -> dict[str, Any]:
@@ -251,3 +252,20 @@ def test_the_versioned_snapshot_carries_no_private_repo_into_this_public_one():
     state = build_observed(json.loads(FLEET.read_text(encoding="utf-8")))
 
     assert [entry.name for entry in state.repos if entry.private] == []
+
+
+def test_the_versioned_snapshot_was_captured_with_the_declaration_that_is_in_force():
+    """Retrato capturado antes de um caminho entrar em `read_files` mente por omissão.
+
+    O arquivo aparece na árvore, o conteúdo dele não veio junto, e o item que lê
+    esse conteúdo reprova um repositório que está certo. Não é defeito do
+    catálogo nem da observação: é uma fixture velha sendo lida como se fosse
+    retrato de hoje, e por isso o guarda compara os dois lados do mesmo retrato.
+    """
+    state = build_observed(json.loads(FLEET.read_text(encoding="utf-8")))
+
+    for path in load_read_files():
+        na_arvore = {entry.name for entry in state.repos if path in entry.files}
+        com_conteudo = {entry.name for entry in state.repos if entry.content(path) is not None}
+
+        assert na_arvore <= com_conteudo, f"{path} está na árvore e não veio no conteúdo"

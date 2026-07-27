@@ -2,25 +2,100 @@
   "org": "panlabs-tech",
   "repos": [
     {
+      "contents": {
+        ".github/workflows/pr-checks.yml": "name: pr-checks\n\njobs:\n  checks-python:\n    uses: panlabs-tech/.github/.github/workflows/checks-python.yml@v1\n  checks:\n    needs: [checks-python]\n  security-scan:\n    uses: panlabs-tech/.github/.github/workflows/security.yml@v1\n  security:\n    needs: [security-scan]\n",
+        ".python-version": "3.12\n",
+        "AGENTS.md": "# Orientacao generica, a fonte-da-verdade.\n",
+        "CLAUDE.md": "@AGENTS.md\n\n## Especifico do agente primario\n",
+        "docs/agents/triage-labels.md": "# Triage labels\n\n| Papel na skill | Label neste tracker |\n| `needs-triage` | `needs-triage` |\n| `needs-info` | `needs-info` |\n| `ready-for-agent` | `ready-for-agent` |\n| `ready-for-human` | `ready-for-human` |\n| `wontfix` | `wontfix` |\n",
+        "lefthook.yml": "pre-commit:\n  commands:\n    gitleaks:\n      run: gitleaks protect --staged\ncommit-msg:\n  commands:\n    commitlint:\n      run: npx commitlint --edit\n",
+        "pyproject.toml": "[tool.ruff]\nline-length = 100\n"
+      },
+      "description": "um repositorio da frota",
+      "files": [
+        ".github/workflows/pr-checks.yml",
+        ".python-version",
+        "AGENTS.md",
+        "ANATOMY.md",
+        "CLAUDE.md",
+        "docs/agents/domain.md",
+        "docs/agents/issue-tracker.md",
+        "docs/agents/triage-labels.md",
+        "docs/agents/workflow.md",
+        "lefthook.yml",
+        "pyproject.toml"
+      ],
+      "has_license": true,
+      "has_readme": true,
+      "has_wiki": false,
+      "license": "MIT",
       "name": "panlabs-tech/.github",
+      "private": false,
       "tipo": "meta",
-      "files": ["README.md", "LICENSE", "ANATOMY.md", "pyproject.toml", ".python-version"],
-      "has_readme": true,
-      "has_license": true
+      "topics": [
+        "python"
+      ]
     },
     {
+      "contents": {
+        ".github/workflows/pr-checks.yml": "name: pr-checks\n\njobs:\n  checks:\n    needs: []\n  security-scan:\n    uses: panlabs-tech/.github/.github/workflows/security.yml@v1\n  security:\n    needs: [security-scan]\n",
+        "AGENTS.md": "# Orientacao generica, a fonte-da-verdade.\n",
+        "CLAUDE.md": "@AGENTS.md\n\n## Especifico do agente primario\n",
+        "docs/agents/triage-labels.md": "# Triage labels\n\n| Papel na skill | Label neste tracker |\n| `needs-triage` | `needs-triage` |\n| `needs-info` | `needs-info` |\n| `ready-for-agent` | `ready-for-agent` |\n| `ready-for-human` | `ready-for-human` |\n| `wontfix` | `wontfix` |\n",
+        "lefthook.yml": "pre-commit:\n  commands:\n    gitleaks:\n      run: gitleaks protect --staged\ncommit-msg:\n  commands:\n    commitlint:\n      run: npx commitlint --edit\n"
+      },
+      "description": "um repositorio da frota",
+      "files": [
+        ".github/workflows/pr-checks.yml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/agents/domain.md",
+        "docs/agents/issue-tracker.md",
+        "docs/agents/triage-labels.md",
+        "docs/agents/workflow.md",
+        "lefthook.yml"
+      ],
+      "has_license": true,
+      "has_readme": true,
+      "has_wiki": false,
+      "license": "MIT",
       "name": "panlabs-tech/skills",
+      "private": false,
       "tipo": "skills",
-      "files": ["README.md", "LICENSE"],
-      "has_readme": true,
-      "has_license": true
+      "topics": [
+        "python"
+      ]
     },
     {
-      "name": "panlabs-tech/tfbox",
-      "tipo": "modulo-infraestrutura",
-      "files": ["main.tf", "LICENSE"],
+      "contents": {
+        ".github/workflows/pr-checks.yml": "name: pr-checks\n\njobs:\n  checks:\n    needs: []\n  security-scan:\n    uses: panlabs-tech/.github/.github/workflows/security.yml@v1\n  security:\n    needs: [security-scan]\n",
+        "AGENTS.md": "# Orientacao generica, a fonte-da-verdade.\n",
+        "CLAUDE.md": "@AGENTS.md\n\n## Especifico do agente primario\n",
+        "docs/agents/triage-labels.md": "# Triage labels\n\n| Papel na skill | Label neste tracker |\n| `needs-triage` | `needs-triage` |\n| `needs-info` | `needs-info` |\n| `ready-for-agent` | `ready-for-agent` |\n| `ready-for-human` | `ready-for-human` |\n| `wontfix` | `wontfix` |\n",
+        "lefthook.yml": "pre-commit:\n  commands:\n    gitleaks:\n      run: gitleaks protect --staged\ncommit-msg:\n  commands:\n    commitlint:\n      run: npx commitlint --edit\n"
+      },
+      "description": "um repositorio da frota",
+      "files": [
+        ".github/workflows/pr-checks.yml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/agents/domain.md",
+        "docs/agents/issue-tracker.md",
+        "docs/agents/triage-labels.md",
+        "docs/agents/workflow.md",
+        "lefthook.yml",
+        "main.tf"
+      ],
+      "has_license": true,
       "has_readme": false,
-      "has_license": true
+      "has_wiki": false,
+      "license": "MIT",
+      "name": "panlabs-tech/tfbox",
+      "private": false,
+      "tipo": "modulo-infraestrutura",
+      "topics": [
+        "python"
+      ]
     }
   ]
 }

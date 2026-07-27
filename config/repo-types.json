@@ -1,11 +1,13 @@
 {
-  "_nota": "O tipo de cada repositório é dado declarado, não inferido: tipos são nomeados e finitos (ver ANATOMY.md), e classificar um repositório é escolha de quem o cria, não cálculo do checker. Um repositório ausente daqui, ou com valor null, ainda não foi classificado -- os itens de escopo tipo não o alcançam, e isso não é deriva. Só os tipos já confirmados em texto publicado (issue #4) estão preenchidos; os demais aguardam decisão explícita do operador.",
+  "_nota": "O tipo de cada repositório é dado declarado, não inferido: tipos são nomeados e finitos (ver ANATOMY.md), e classificar um repositório é escolha de quem o cria, não cálculo do checker. Um repositório ausente daqui, ou com valor null, ainda não foi classificado -- os itens de escopo tipo não o alcançam, e isso não é deriva.",
+  "_classificacao": "A classificação segue texto publicado, nunca palpite. A spec de Repo #4 chama `ethitorial`, `life-under-control` e `travelmanager` de as três aplicações da frota, e trata a vitrine (`panlabs`) dentro da própria seção `Variante por tipo -- aplicação`, onde ela aparece como o caso que retrofita layout e gerenciador de pacotes, e como a aplicação que legitimamente não tem dependência local com estado. `dotfiles` entrou pela spec de Máquina #3, que criou o tipo homônimo para ele. Discordar de uma destas linhas é editar uma linha de dado, não código.",
 
   "panlabs-tech/.github": "meta",
   "panlabs-tech/tfbox": "modulo-infraestrutura",
   "panlabs-tech/skills": "skills",
-  "panlabs-tech/panlabs": null,
-  "panlabs-tech/life-under-control": null,
-  "panlabs-tech/travelmanager": null,
-  "panlabs-tech/ethitorial": null
+  "panlabs-tech/dotfiles": "dotfiles",
+  "panlabs-tech/panlabs": "aplicacao",
+  "panlabs-tech/life-under-control": "aplicacao",
+  "panlabs-tech/travelmanager": "aplicacao",
+  "panlabs-tech/ethitorial": "aplicacao"
 }

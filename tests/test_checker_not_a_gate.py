@@ -24,7 +24,7 @@ from panlabs.heartbeat.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.heartbeat.model import BRANCH_UP
 from shipped import WORKFLOWS_DIR
 
-FLEET = Path(__file__).parent / "fixtures" / "checker-fleet-2026-07-25.json"
+FLEET = Path(__file__).parent / "fixtures" / "checker-fleet-2026-07-27.json"
 
 CHECKER = "panlabs-checker"
 STEP = "anatomy-checker"
