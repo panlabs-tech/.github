@@ -1,0 +1,59 @@
+# O portão 1, local, antes do commit. O portão 2 é a CI, no PR
+# (`.github/workflows/pr-checks.yml`), e ele continua sendo o gate real: o que
+# este arquivo faz é pegar barato o erro barato, não substituir aquele.
+#
+# A anatomia cobra três coisas aqui, e o checker as verifica lendo este arquivo
+# (declarado em `config/checker.json`, porque item de conteúdo não se verifica por
+# presença de arquivo):
+#
+#   1. que o portão exista                     -> `local-commit-gate-exists`
+#   2. padrão de mensagem de commit            -> `commit-message-standard-declared`
+#   3. verificação de segredos antes do commit -> `secret-scan-before-commit`
+#
+# O terceiro cobra **`gitleaks` e não outro scanner**, e o motivo não é gosto: o
+# portão de CI compartilhado roda gitleaks, e um portão local que rodasse outro
+# faria "passou no local" e "passou na CI" significarem coisas diferentes.
+#
+# Este repo tem superfície Python e só ela. O item de ferramenta da superfície
+# (`python-toolchain-declared`) lê o manifesto, e não este arquivo; rodar `ruff`
+# aqui é o que faz o portão local pegar barato o que a CI pegaria caro.
+#
+# **As ferramentas são equipamento da máquina, não do repo.** `lefthook`,
+# `gitleaks` e o runtime que serve o `npx` são provisionados globalmente
+# (`docs/maquina.md`); este arquivo é a *declaração* de que este repo adere ao
+# portão, e é ela que é versionada. Um repo aberto numa máquina sem equipamento
+# provisionado perde capacidade **por design**, e não por omissão.
+
+pre-commit:
+  parallel: true
+  commands:
+    # Formatação e verificação da superfície Python. `--check` e não a escrita:
+    # um hook que reescreve arquivo no meio do commit deixa o índice diferente
+    # do que o autor leu, e o que ele revisou não é o que aterrissa.
+    format:
+      glob: "*.py"
+      run: uv run ruff format --check {staged_files}
+    lint:
+      glob: "*.py"
+      run: uv run ruff check {staged_files}
+
+    # O scan de segredos roda sobre o **staged**, que é o único momento em que
+    # barrar ainda é barato: depois do commit o segredo já está no histórico
+    # local, e tirá-lo de lá é reescrita de história, não conserto.
+    # Binário direto, a mesma versão que a CI compartilhada pina, e não a action
+    # wrapper: aquela passou a exigir licença paga em repo de organização.
+    gitleaks:
+      run: gitleaks git --staged --no-banner --redact
+
+commit-msg:
+  commands:
+    # Conventional Commits, subject minúsculo (AGENTS.md). Via `npx` porque este
+    # repo não tem superfície Node e não vai ganhar uma só para hospedar um hook:
+    # um `package.json` aqui faria o checker passar a cobrar deste repo a
+    # toolchain inteira de uma superfície que ele não tem.
+    commitlint:
+      run: >-
+        npx --yes
+        --package @commitlint/cli@20.1.0
+        --package @commitlint/config-conventional@20.0.0
+        commitlint --edit {1}
