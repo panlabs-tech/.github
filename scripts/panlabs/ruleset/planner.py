@@ -11,6 +11,13 @@ antes dos valores que ele vai aplicar, e não pode inventá-los.
 
 Um repo cuja CI ainda não publica os nomes fixos de check entra no plano **retido**:
 a divergência é mostrada, e não é aplicada. Reter é decisão, e por isso mora aqui.
+
+Um repo cuja proteção a plataforma **recusou a mostrar** também entra retido, e
+por um motivo diferente. Lá o observador viu tudo e o repo é que não está pronto;
+aqui não há observação nenhuma sobre a qual decidir. Por isso o item que ele
+produz não é uma convergência adiada, e sim `observe-protection`: o pendente é a
+leitura, não a aplicação. Nenhum `create-ruleset` sai daqui, porque mandar criar
+um ruleset que já pode existir é uma afirmação sobre a branch que ninguém mediu.
 """
 
 from __future__ import annotations
@@ -28,6 +35,7 @@ __all__ = [
     "CREATE_RULESET",
     "DELETE_CLASSIC_PROTECTION",
     "DELETE_RULESET",
+    "OBSERVE_PROTECTION",
     "UPDATE_REPO_SETTINGS",
     "UPDATE_RULESET",
     "diff_ruleset",
@@ -39,6 +47,16 @@ UPDATE_RULESET = "update-ruleset"
 DELETE_RULESET = "delete-ruleset"
 DELETE_CLASSIC_PROTECTION = "delete-classic-protection"
 UPDATE_REPO_SETTINGS = "update-repo-settings"
+
+OBSERVE_PROTECTION = "observe-protection"
+"""O que falta neste repo é a **leitura**, e não a aplicação.
+
+As outras ações nomeiam o que o applier faria. Esta nomeia o que ninguém
+conseguiu fazer, e por isso nasce sempre retida e não tem efeito registrado:
+não existe chamada de API que torne um repositório observável. Reusar
+`create-ruleset` aqui teria sido mais barato e teria mentido, porque afirmaria
+que nenhum ruleset governa a branch, que é exatamente o que ninguém mediu.
+"""
 
 
 def plan(observed: Observed, desired: Desired, *, retrofitted: Collection[str] = ()) -> Plan:
@@ -74,22 +92,52 @@ def _plan_repo(repo: RepoState, desired: Desired, *, hold: str) -> list[PlanItem
     items: list[PlanItem] = []
     if desired.repo_settings is not None:
         items.extend(_plan_settings(repo, desired.repo_settings))
+    items.extend(_plan_protection(repo, desired))
+    return [replace(item, hold=hold) for item in items] if hold else items
+
+
+def _plan_protection(repo: RepoState, desired: Desired) -> list[PlanItem]:
+    """A proteção da branch default, ou o registro de que ela não foi observada.
+
+    As duas leituras que a produzem falham juntas, e sem nenhuma delas não há como
+    escolher entre criar, atualizar e não fazer nada. O item que sai daqui então
+    não escolhe: ele diz o que faltou ler, e o `hold` diz o que a plataforma
+    respondeu quando alguém tentou.
+    """
+    refused = repo.unobservable()
+    if refused:
+        return [
+            PlanItem(
+                action=OBSERVE_PROTECTION,
+                target=repo.name,
+                reason=(
+                    f"a proteção de {repo.default_branch} não foi observada em "
+                    f"{len(refused)} dimensão(ões) ({', '.join(name for name, _ in refused)}), e "
+                    "nada é planejado sobre ela: um plano sobre proteção que ninguém "
+                    "leu afirmaria o que ninguém mediu"
+                ),
+                hold="; ".join(sorted({why.reason for _, why in refused})),
+            )
+        ]
+
+    items: list[PlanItem] = []
     if desired.ruleset is not None:
         items.extend(_plan_ruleset(repo, desired.ruleset))
-    if desired.retire_classic_protection and repo.classic_protection is not None:
+    classic = repo.observed_classic_protection()
+    if desired.retire_classic_protection and classic is not None:
         items.append(
             PlanItem(
                 action=DELETE_CLASSIC_PROTECTION,
                 target=repo.name,
                 reason=(
                     f"proteção clássica ativa em {repo.default_branch} "
-                    f"({repo.classic_protection.describe()}); o ruleset passa a ser a única "
+                    f"({classic.describe()}); o ruleset passa a ser a única "
                     "fonte de verdade sobre a branch"
                 ),
                 payload={"branch": repo.default_branch},
             )
         )
-    return [replace(item, hold=hold) for item in items] if hold else items
+    return items
 
 
 def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> str:
@@ -99,7 +147,17 @@ def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> st
     CI dele publica. Se ele já exige exatamente o contrato, aplicar não muda o que
     um PR espera. Se exige outra coisa, ou nada, o contrato fixo penduraria todo
     PR do repo esperando um status que nunca sai com esse nome.
+
+    A recusa da plataforma vem **antes** de tudo isso, inclusive de `--only`.
+    Nomear um repo em `--only` é o operador afirmando que a CI dele já publica os
+    nomes fixos de check; não é, e não teria como ser, uma afirmação sobre o que a
+    leitura recusada teria dito. Deixar `--only` levantar esta retenção aplicaria
+    convergência de branch a um repo cuja branch ninguém enxergou.
     """
+    refused = repo.unobservable()
+    if refused:
+        return "; ".join(sorted({why.reason for _, why in refused}))
+
     contract = desired.check_contract
     if not contract or repo.name in retrofitted:
         return ""
@@ -144,6 +202,7 @@ def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[Plan
     segundo ruleset sobre a mesma branch, que é exatamente a incoerência a evitar.
     """
     governing = repo.rulesets_governing_default_branch()
+    every = repo.observed_rulesets()
 
     if not governing:
         return [
@@ -152,11 +211,7 @@ def _plan_ruleset(repo: RepoState, desired_body: Mapping[str, Any]) -> list[Plan
                 target=repo.name,
                 reason=(
                     f"nenhum ruleset governa a branch {repo.default_branch}"
-                    + (
-                        f" (existem {len(repo.rulesets)} ruleset(s) fora dessa branch)"
-                        if repo.rulesets
-                        else ""
-                    )
+                    + (f" (existem {len(every)} ruleset(s) fora dessa branch)" if every else "")
                 ),
                 payload={"body": dict(desired_body)},
             )

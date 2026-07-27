@@ -114,11 +114,22 @@ def _report_only(excluded: tuple[RepoState, ...]) -> None:
 
 
 def _summarize(observed: Observed) -> str:
-    governed = sum(1 for repo in observed.repos if repo.rulesets_governing_default_branch())
-    classic = sum(1 for repo in observed.repos if repo.classic_protection is not None)
+    """A linha que o operador lê primeiro, e por isso a que não pode mentir.
+
+    Um repositório cuja proteção ninguém leu não entra em nenhuma das duas
+    contagens: ele não tem ruleset observado nem proteção clássica observada, e
+    somá-lo a qualquer uma das colunas transformaria uma cegueira num fato. Ele
+    ganha coluna própria, porque some da conta também seria uma afirmação.
+    """
+    readable = [repo for repo in observed.repos if not repo.unobservable()]
+    governed = sum(1 for repo in readable if repo.rulesets_governing_default_branch())
+    classic = sum(1 for repo in readable if repo.classic_protection is not None)
+    blind = len(observed.repos) - len(readable)
+    unobserved = f", {blind} sem observação de proteção" if blind else ""
     return (
         f"Org {observed.org}: {len(observed.repos)} repo(s) na org viva, "
-        f"{governed} com ruleset na branch default, {classic} com proteção clássica."
+        f"{governed} com ruleset na branch default, "
+        f"{classic} com proteção clássica{unobserved}."
     )
 
 

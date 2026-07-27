@@ -26,6 +26,17 @@ divergência e o motivo da retenção, e o `apply` não o realiza. Some do plano
 quando o operador resolver, na web ou no dado. Esconder essas quatro faria o
 plano mentir sobre a deriva; inventar um efeito para elas faria o `apply` falhar
 na hora de agir.
+
+Uma quinta causa de retenção não vem do dado nem da API que falta: vem de a
+plataforma não ter mostrado a dimensão (`Unobservable`). Ela é retida **por
+dimensão**, e não pelo repositório inteiro, ao contrário do que faz o planner do
+ruleset. Os dois estão certos, e a regra por trás é a mesma: não entregue meia
+garantia. Lá, aposentar a proteção clássica sem subir o ruleset deixaria a branch
+nua entre um passo e outro, então o repo anda inteiro ou não anda. Aqui as
+dimensões não se sustentam umas nas outras desse jeito: ligar os alerts do
+Dependabot num repo cujo bloco de secret scanning ninguém conseguiu ler não deixa
+nada pela metade, e reter o repo inteiro puniria dimensões que a cegueira não
+alcança.
 """
 
 from __future__ import annotations
@@ -37,7 +48,7 @@ from typing import Any
 
 from panlabs.org.config import Desired
 from panlabs.org.model import ActionsPolicy, Observed, OrgState, RepoState
-from panlabs.plan import Plan, PlanItem
+from panlabs.plan import Plan, PlanItem, Unobservable
 
 __all__ = [
     "ALWAYS_HELD",
@@ -253,7 +264,7 @@ class Toggle:
     label: str
     why: str
     """O que essa dimensão protege, dito sem depender do sentido da mudança."""
-    observed: Callable[[RepoState], bool]
+    observed: Callable[[RepoState], bool | Unobservable]
     wanted: Callable[[Desired], bool | None]
     payload: Callable[[bool], Mapping[str, Any]]
 
@@ -310,13 +321,34 @@ def _plan_repo(repo: RepoState, desired: Desired) -> list[PlanItem]:
 
 
 def _plan_toggles(repo: RepoState, desired: Desired) -> list[PlanItem]:
-    """As dimensões liga-desliga do repo, na ordem em que podem ser aplicadas."""
+    """As dimensões liga-desliga do repo, na ordem em que podem ser aplicadas.
+
+    Uma dimensão que a plataforma não mostrou entra **sempre**, retida: sem tê-la
+    observado ninguém pode dizer que ela converge, e um item que some do plano se
+    lê como um item que passou. É o mesmo motivo pelo qual `render` não deixa um
+    plano vazio afirmar conformidade.
+    """
     items: list[PlanItem] = []
     for toggle in REPO_TOGGLES:
         want = toggle.wanted(desired)
         if want is None:
+            # Nada foi pedido nesta dimensão, e não pedir nada é diferente de não
+            # conseguir olhar: aqui não há o que reter, porque não há o que cobrar.
             continue
         observed = toggle.observed(repo)
+        if isinstance(observed, Unobservable):
+            items.append(
+                PlanItem(
+                    action=toggle.action,
+                    target=repo.name,
+                    reason=(
+                        f"{toggle.label}: não observável, e por isso a convergência desta "
+                        f"dimensão não pode ser decidida; {toggle.why}"
+                    ),
+                    hold=observed.reason,
+                )
+            )
+            continue
         if observed == want:
             continue
         items.append(

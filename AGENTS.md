@@ -30,6 +30,7 @@ Este repo é resultado do mapa de wayfinding [O padrão panlabs, org, máquina e
 - **Toda decisão vive num planner puro; o applier não decide nada.** Todo script deste repo separa `plan(observed, desired) → Plan` de `apply(Plan)`, com **plano como default** e aplicação sob flag explícita. Cada item de plano carrega ação, alvo e **motivo**. O `desired` entra como segundo argumento porque é dado versionado, não observação. Ver [`docs/agents/workflow.md`](docs/agents/workflow.md).
 - **Nenhum script carrega contagem ou lista de repos.** O alvo é sempre derivado da org viva (`gh repo list panlabs-tech`).
 - **A configuração desejada é dado, não código.** Ela mora em `config/`, e um valor ainda não decidido é `null`, o que é diferente de decidido-como-vazio. O planner não planeja nada para uma dimensão não decidida.
+- **Uma dimensão que a plataforma não mostra é retida, nunca `False` e nunca fatal.** O terceiro valor é `Unobservable`, e o planner o converte em item retido citando o que a plataforma respondeu. "Não decidido" e "não observável" são as duas ausências do seam, e levam a lugares opostos.
 
 ## Superfície Python
 

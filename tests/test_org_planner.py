@@ -23,9 +23,11 @@ from panlabs.plan import Plan, PlanItem
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FLEET = FIXTURES / "org-fleet-2026-07-24.json"
+FLEET_WITH_PRIVATE = FIXTURES / "org-fleet-2026-07-27.json"
 DESIRED = FIXTURES / "desired-org.json"
 
 ORG = "panlabs-tech"
+DOTFILES = f"{ORG}/dotfiles"
 
 
 def desired() -> Desired:
@@ -57,6 +59,7 @@ def conforming_repo(name: str, want: Desired) -> dict[str, Any]:
         "description": (want.repo_descriptions or {}).get(full_name, "descrição qualquer"),
         "topics": list((want.repo_topics or {}).get(full_name, ["qualquer"])),
         "has_wiki": True if excepted else bool(wiki.get("enabled")),
+        "private": False,
         "security_and_analysis": {
             "secret_scanning": {"status": _status(want.secret_scanning)},
             "secret_scanning_push_protection": {"status": _status(want.push_protection)},
@@ -428,6 +431,7 @@ def test_a_repo_that_appears_in_the_live_org_enters_the_plan_without_any_code_ch
             "description": None,
             "topics": [],
             "has_wiki": True,
+            "private": False,
             "security_and_analysis": {
                 "secret_scanning": {"status": "disabled"},
                 "secret_scanning_push_protection": {"status": "disabled"},
@@ -515,3 +519,94 @@ def test_an_undecided_wiki_dimension_leaves_every_wiki_alone():
     raw["repos"][0]["has_wiki"] = True
 
     assert not planner.plan(build_observed(raw), replace(want, wiki=None))
+
+
+# --- a dimensão que a plataforma não mostra ------------------------------------
+#
+# Aqui cada dimensão é retida **sozinha**, e não o repo inteiro. É o contrário do
+# planner do ruleset, e os dois estão certos: lá metade da convergência deixaria a
+# branch nua entre um passo e outro, e aqui ligar o Dependabot num repo cujo bloco
+# de secret scanning ninguém leu não deixa nada pela metade. A regra é a mesma nos
+# dois, "não entregue meia garantia"; o tamanho da garantia é que difere.
+
+
+def fleet_with_private() -> Observed:
+    return build_observed(json.loads(FLEET_WITH_PRIVATE.read_text(encoding="utf-8")))
+
+
+def private_plan() -> Plan:
+    return planner.plan(fleet_with_private(), desired())
+
+
+UNOBSERVABLE_ACTIONS = (planner.SET_SECRET_SCANNING, planner.SET_PUSH_PROTECTION)
+
+
+def test_an_unobservable_dimension_is_planned_and_held_instead_of_silently_converged():
+    """Some do plano seria mentir sobre a deriva; virar `False` seria pior ainda."""
+    items = {item.action: item for item in items_for(private_plan(), DOTFILES)}
+
+    for action in UNOBSERVABLE_ACTIONS:
+        assert items[action].hold, f"{action} deveria estar retido"
+
+
+def test_the_held_item_says_which_dimension_and_what_the_platform_answered():
+    """O motivo diz o que ficou sem decidir; o `hold` diz por quê. Os dois são lidos."""
+    item = next(i for i in private_plan() if i.action == planner.SET_SECRET_SCANNING)
+
+    assert "secret scanning" in item.reason
+    assert "não observável" in item.reason
+    assert "security_and_analysis" in item.hold
+    assert DOTFILES in item.hold
+
+
+def test_an_unobservable_dimension_never_reaches_the_applier():
+    """O `apply` percorre `plan.applicable`, e é aqui que essa garantia é presa."""
+    applicable = {(item.target, item.action) for item in private_plan().applicable}
+
+    for action in UNOBSERVABLE_ACTIONS:
+        assert (DOTFILES, action) not in applicable
+
+
+def test_one_unreadable_repo_does_not_cost_the_fleet_its_plan():
+    """A regressão de verdade: hoje a corrida inteira morre por causa de um repo.
+
+    Um plano inobtenível é pior do que um plano parcial, porque ele não diz nada
+    sobre os outros sete repositórios, que continuam observáveis e governáveis.
+    """
+    plan = private_plan()
+
+    assert len({item.target for item in plan}) > 1
+    assert plan.applicable
+
+
+def test_a_dimension_the_platform_did_answer_is_converged_even_in_the_same_repo():
+    """Retenção é por dimensão, não por repositório: o resto do repo continua vivo.
+
+    Os alerts do Dependabot têm endpoint próprio e responderam normalmente no
+    repositório privado. Retê-los junto seria punir o repo por uma cegueira que
+    não o alcança.
+    """
+    applicable = {item.action for item in private_plan().applicable if item.target == DOTFILES}
+
+    assert planner.SET_DEPENDABOT_ALERTS in applicable
+
+
+def test_a_repo_that_becomes_public_leaves_the_retention_on_its_own():
+    """A idempotência do conserto: nenhum repositório é nomeado em lugar nenhum.
+
+    Nada precisa ser editado para a retenção sair, o que é o teste que uma lista
+    de exceção nomeando `dotfiles` não passaria.
+    """
+    raw = json.loads(FLEET_WITH_PRIVATE.read_text(encoding="utf-8"))
+    for entry in raw["repos"]:
+        if entry["full_name"] == DOTFILES:
+            entry["private"] = False
+            entry["security_and_analysis"] = {
+                "secret_scanning": {"status": "enabled"},
+                "secret_scanning_push_protection": {"status": "enabled"},
+            }
+
+    actions = actions_for(planner.plan(build_observed(raw), desired()), DOTFILES)
+
+    assert planner.SET_SECRET_SCANNING not in actions
+    assert planner.SET_PUSH_PROTECTION not in actions

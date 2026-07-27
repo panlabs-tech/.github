@@ -14,12 +14,12 @@
     "created_at": "2026-07-18T11:52:26Z",
     "default_repository_branch": "main",
     "default_repository_permission": "read",
-    "dependabot_alerts_enabled_for_new_repositories": false,
-    "dependabot_security_updates_enabled_for_new_repositories": false,
-    "dependency_graph_enabled_for_new_repositories": false,
+    "dependabot_alerts_enabled_for_new_repositories": true,
+    "dependabot_security_updates_enabled_for_new_repositories": true,
+    "dependency_graph_enabled_for_new_repositories": true,
     "deploy_keys_enabled_for_repositories": false,
-    "description": "Laboratório pessoal de soluções de software, dados e analytics",
-    "disk_usage": 16817,
+    "description": "Laboratório pessoal de desenvolvimento de software: um mantenedor e agentes autônomos operando de ponta a ponta, do ticket ao merge.",
+    "disk_usage": 17874,
     "display_commenter_full_name_setting_enabled": false,
     "email": "panini.development@gmail.com",
     "events_url": "https://api.github.com/orgs/panlabs-tech/events",
@@ -52,7 +52,7 @@
     "members_url": "https://api.github.com/orgs/panlabs-tech/members{/member}",
     "name": "panlabs.tech",
     "node_id": "O_kgDOEkSMtA",
-    "owned_private_repos": 0,
+    "owned_private_repos": 1,
     "plan": {
       "filled_seats": 1,
       "name": "free",
@@ -66,16 +66,16 @@
     "public_repos": 7,
     "readers_can_create_discussions": true,
     "repos_url": "https://api.github.com/orgs/panlabs-tech/repos",
-    "secret_scanning_enabled_for_new_repositories": false,
+    "secret_scanning_enabled_for_new_repositories": true,
     "secret_scanning_push_protection_custom_link": null,
     "secret_scanning_push_protection_custom_link_enabled": false,
-    "secret_scanning_push_protection_enabled_for_new_repositories": false,
+    "secret_scanning_push_protection_enabled_for_new_repositories": true,
     "secret_scanning_validity_checks_enabled": false,
-    "total_private_repos": 0,
+    "total_private_repos": 1,
     "twitter_username": null,
     "two_factor_requirement_enabled": false,
     "type": "Organization",
-    "updated_at": "2026-07-19T14:25:35Z",
+    "updated_at": "2026-07-25T02:20:07Z",
     "url": "https://api.github.com/orgs/panlabs-tech",
     "web_commit_signoff_required": false
   },
@@ -89,155 +89,188 @@
   "repos": [
     {
       "automated_security_fixes": {
-        "enabled": false,
+        "enabled": true,
         "paused": false
       },
       "description": "Repo meta da org panlabs-tech: o padrão, a CI compartilhada e os mecanismos que o aplicam e verificam",
       "full_name": "panlabs-tech/.github",
-      "has_wiki": true,
+      "has_wiki": false,
       "private": false,
       "security_and_analysis": {
         "dependabot_security_updates": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning_non_provider_patterns": {
           "status": "disabled"
         },
         "secret_scanning_push_protection": {
-          "status": "disabled"
-        },
-        "secret_scanning_validity_checks": {
-          "status": "disabled"
-        }
-      },
-      "topics": [],
-      "vulnerability_alerts": true
-    },
-    {
-      "automated_security_fixes": {
-        "enabled": false,
-        "paused": false
-      },
-      "description": "🎓 Editorial de aprendizados pessoais materializados em conhecimento",
-      "full_name": "panlabs-tech/ethitorial",
-      "has_wiki": true,
-      "private": false,
-      "security_and_analysis": {
-        "dependabot_security_updates": {
-          "status": "disabled"
-        },
-        "secret_scanning": {
-          "status": "disabled"
-        },
-        "secret_scanning_non_provider_patterns": {
-          "status": "disabled"
-        },
-        "secret_scanning_push_protection": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning_validity_checks": {
           "status": "disabled"
         }
       },
       "topics": [
-        "blog",
-        "learning"
+        "github-actions",
+        "python"
       ],
-      "vulnerability_alerts": false
-    },
-    {
-      "automated_security_fixes": {
-        "enabled": false,
-        "paused": false
-      },
-      "description": "🎛️ Um gerenciador pessoal da \"vida adulta\"",
-      "full_name": "panlabs-tech/life-under-control",
-      "has_wiki": true,
-      "private": false,
-      "security_and_analysis": {
-        "dependabot_security_updates": {
-          "status": "disabled"
-        },
-        "secret_scanning": {
-          "status": "disabled"
-        },
-        "secret_scanning_non_provider_patterns": {
-          "status": "disabled"
-        },
-        "secret_scanning_push_protection": {
-          "status": "disabled"
-        },
-        "secret_scanning_validity_checks": {
-          "status": "disabled"
-        }
-      },
-      "topics": [],
-      "vulnerability_alerts": false
-    },
-    {
-      "automated_security_fixes": {
-        "enabled": false,
-        "paused": false
-      },
-      "description": null,
-      "full_name": "panlabs-tech/panlabs",
-      "has_wiki": true,
-      "private": false,
-      "security_and_analysis": {
-        "dependabot_security_updates": {
-          "status": "disabled"
-        },
-        "secret_scanning": {
-          "status": "disabled"
-        },
-        "secret_scanning_non_provider_patterns": {
-          "status": "disabled"
-        },
-        "secret_scanning_push_protection": {
-          "status": "disabled"
-        },
-        "secret_scanning_validity_checks": {
-          "status": "disabled"
-        }
-      },
-      "topics": [],
-      "vulnerability_alerts": false
-    },
-    {
-      "automated_security_fixes": {
-        "enabled": false,
-        "paused": false
-      },
-      "description": "Conjunto de skills usadas majoritariamente no desenvolvimento de soluções na org panlabs",
-      "full_name": "panlabs-tech/skills",
-      "has_wiki": true,
-      "private": false,
-      "security_and_analysis": {
-        "dependabot_security_updates": {
-          "status": "disabled"
-        },
-        "secret_scanning": {
-          "status": "disabled"
-        },
-        "secret_scanning_non_provider_patterns": {
-          "status": "disabled"
-        },
-        "secret_scanning_push_protection": {
-          "status": "disabled"
-        },
-        "secret_scanning_validity_checks": {
-          "status": "disabled"
-        }
-      },
-      "topics": [],
       "vulnerability_alerts": true
     },
     {
       "automated_security_fixes": {
         "enabled": false,
+        "paused": false
+      },
+      "description": "Dotfiles da máquina de desenvolvimento panlabs, gerenciados por chezmoi. Recupera uma distro nova do zero, sem pré-requisito nenhum.",
+      "full_name": "panlabs-tech/dotfiles",
+      "has_wiki": false,
+      "private": true,
+      "security_and_analysis": null,
+      "topics": [],
+      "vulnerability_alerts": false
+    },
+    {
+      "automated_security_fixes": {
+        "enabled": true,
+        "paused": false
+      },
+      "description": "🎓 Editorial de aprendizados pessoais materializados em conhecimento",
+      "full_name": "panlabs-tech/ethitorial",
+      "has_wiki": false,
+      "private": false,
+      "security_and_analysis": {
+        "dependabot_security_updates": {
+          "status": "enabled"
+        },
+        "secret_scanning": {
+          "status": "enabled"
+        },
+        "secret_scanning_non_provider_patterns": {
+          "status": "disabled"
+        },
+        "secret_scanning_push_protection": {
+          "status": "enabled"
+        },
+        "secret_scanning_validity_checks": {
+          "status": "disabled"
+        }
+      },
+      "topics": [
+        "docker",
+        "fastapi",
+        "nextjs",
+        "postgresql",
+        "python",
+        "typescript"
+      ],
+      "vulnerability_alerts": true
+    },
+    {
+      "automated_security_fixes": {
+        "enabled": true,
+        "paused": false
+      },
+      "description": "🎛️ Um gerenciador pessoal da \"vida adulta\"",
+      "full_name": "panlabs-tech/life-under-control",
+      "has_wiki": false,
+      "private": false,
+      "security_and_analysis": {
+        "dependabot_security_updates": {
+          "status": "enabled"
+        },
+        "secret_scanning": {
+          "status": "enabled"
+        },
+        "secret_scanning_non_provider_patterns": {
+          "status": "disabled"
+        },
+        "secret_scanning_push_protection": {
+          "status": "enabled"
+        },
+        "secret_scanning_validity_checks": {
+          "status": "disabled"
+        }
+      },
+      "topics": [
+        "docker",
+        "fastapi",
+        "nextjs",
+        "postgresql",
+        "python",
+        "typescript"
+      ],
+      "vulnerability_alerts": true
+    },
+    {
+      "automated_security_fixes": {
+        "enabled": true,
+        "paused": false
+      },
+      "description": "🧪 A vitrine panlabs.tech: o site das soluções que passaram no gatilho de avaliação",
+      "full_name": "panlabs-tech/panlabs",
+      "has_wiki": false,
+      "private": false,
+      "security_and_analysis": {
+        "dependabot_security_updates": {
+          "status": "enabled"
+        },
+        "secret_scanning": {
+          "status": "enabled"
+        },
+        "secret_scanning_non_provider_patterns": {
+          "status": "disabled"
+        },
+        "secret_scanning_push_protection": {
+          "status": "enabled"
+        },
+        "secret_scanning_validity_checks": {
+          "status": "disabled"
+        }
+      },
+      "topics": [
+        "docker",
+        "nextjs",
+        "typescript"
+      ],
+      "vulnerability_alerts": true
+    },
+    {
+      "automated_security_fixes": {
+        "enabled": true,
+        "paused": false
+      },
+      "description": "Conjunto de skills usadas majoritariamente no desenvolvimento de soluções na org panlabs",
+      "full_name": "panlabs-tech/skills",
+      "has_wiki": false,
+      "private": false,
+      "security_and_analysis": {
+        "dependabot_security_updates": {
+          "status": "enabled"
+        },
+        "secret_scanning": {
+          "status": "enabled"
+        },
+        "secret_scanning_non_provider_patterns": {
+          "status": "disabled"
+        },
+        "secret_scanning_push_protection": {
+          "status": "enabled"
+        },
+        "secret_scanning_validity_checks": {
+          "status": "disabled"
+        }
+      },
+      "topics": [
+        "claude-code"
+      ],
+      "vulnerability_alerts": true
+    },
+    {
+      "automated_security_fixes": {
+        "enabled": true,
         "paused": false
       },
       "description": "📦 A collection of production-ready Terraform modules focused on AWS environments",
@@ -246,16 +279,16 @@
       "private": false,
       "security_and_analysis": {
         "dependabot_security_updates": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning_non_provider_patterns": {
           "status": "disabled"
         },
         "secret_scanning_push_protection": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning_validity_checks": {
           "status": "disabled"
@@ -263,39 +296,45 @@
       },
       "topics": [
         "aws",
-        "modules",
         "terraform"
       ],
-      "vulnerability_alerts": false
+      "vulnerability_alerts": true
     },
     {
       "automated_security_fixes": {
-        "enabled": false,
+        "enabled": true,
         "paused": false
       },
       "description": "🧳Seu organizador de viagens",
       "full_name": "panlabs-tech/travelmanager",
-      "has_wiki": true,
+      "has_wiki": false,
       "private": false,
       "security_and_analysis": {
         "dependabot_security_updates": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning_non_provider_patterns": {
           "status": "disabled"
         },
         "secret_scanning_push_protection": {
-          "status": "disabled"
+          "status": "enabled"
         },
         "secret_scanning_validity_checks": {
           "status": "disabled"
         }
       },
-      "topics": [],
-      "vulnerability_alerts": false
+      "topics": [
+        "docker",
+        "fastapi",
+        "nextjs",
+        "postgresql",
+        "python",
+        "typescript"
+      ],
+      "vulnerability_alerts": true
     }
   ]
 }

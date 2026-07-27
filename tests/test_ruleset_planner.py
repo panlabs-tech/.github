@@ -11,12 +11,16 @@ from typing import Any
 
 from panlabs.plan import Plan, PlanItem
 from panlabs.ruleset import planner
+from panlabs.ruleset.applier import EFFECTS
 from panlabs.ruleset.config import Desired, load_desired
 from panlabs.ruleset.model import Observed
 from panlabs.ruleset.observe import build_observed
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FLEET = FIXTURES / "fleet-2026-07-24.json"
+FLEET_WITH_PRIVATE = FIXTURES / "fleet-2026-07-27.json"
+
+DOTFILES = "panlabs-tech/dotfiles"
 
 
 def load_fleet_raw() -> dict[str, Any]:
@@ -645,3 +649,107 @@ def test_an_undecided_desired_state_plans_nothing_at_all():
     plan = planner.plan(fleet(), Desired())
 
     assert not plan
+
+
+# --- o repositório que a plataforma recusa a mostrar ---------------------------
+#
+# Aqui a retenção é do **repositório inteiro**, e não da dimensão, ao contrário do
+# planner de org. É a mesma regra que já retinha o repo não retrofitado: metade da
+# convergência é pior que nenhuma, porque restringir o merge sem subir o ruleset
+# muda o fluxo sem entregar garantia nenhuma.
+
+
+def private_fleet() -> Observed:
+    return build_observed(json.loads(FLEET_WITH_PRIVATE.read_text(encoding="utf-8")))
+
+
+def private_plan(**kwargs: Any) -> Plan:
+    return planner.plan(private_fleet(), desired(), **kwargs)
+
+
+def test_a_repo_whose_protection_was_refused_is_planned_and_held():
+    """Sumir com ele faria o plano dizer que a frota inteira converge, e ela não."""
+    items = items_for(private_plan(), DOTFILES)
+
+    assert items
+    assert all(item.hold for item in items)
+
+
+def test_the_held_repo_carries_an_item_naming_the_dimension_that_was_not_observed():
+    item = next(
+        i for i in items_for(private_plan(), DOTFILES) if i.action == planner.OBSERVE_PROTECTION
+    )
+
+    assert "rulesets" in item.reason
+    assert "Upgrade to GitHub" in item.hold
+
+
+def test_nothing_is_planned_about_a_protection_nobody_could_read():
+    """Um `create-ruleset` daqui mandaria criar um ruleset que já pode existir.
+
+    E um `delete-classic-protection` ausente é pior ainda: ele **é** a ausência,
+    e ninguém saberia dizer se a proteção clássica sumiu ou nunca foi lida.
+    """
+    actions = actions_for(private_plan(), DOTFILES)
+
+    assert planner.CREATE_RULESET not in actions
+    assert planner.UPDATE_RULESET not in actions
+    assert planner.DELETE_RULESET not in actions
+    assert planner.DELETE_CLASSIC_PROTECTION not in actions
+
+
+def test_one_unreadable_repo_does_not_cost_the_fleet_its_plan():
+    """A regressão de verdade: hoje o 403 de um repo apaga o plano dos outros sete."""
+    plan = private_plan()
+
+    assert len({item.target for item in plan}) > 1
+
+
+def test_the_settings_of_an_unreadable_repo_are_held_along_with_it():
+    """`GET /repos` respondeu, então as settings **foram** observadas: elas divergem.
+
+    Mesmo assim não se aplica nada: restringir o merge a squash num repo cujo
+    ruleset ficou para depois mudaria o fluxo sem entregar a garantia que justifica
+    a mudança, que é exatamente a razão de o `hold` deste planner ser do repo todo.
+    """
+    settings = [
+        i for i in items_for(private_plan(), DOTFILES) if i.action == planner.UPDATE_REPO_SETTINGS
+    ]
+
+    assert settings
+    assert all(item.hold for item in settings)
+
+
+def test_only_cannot_lift_the_retention_of_a_repo_nobody_could_read():
+    """`--only` afirma que a CI daquele repo publica os checks, e nada além disso.
+
+    Ela não afirma que a plataforma vai aceitar um ruleset, e não poderia: quem
+    nomeia o repo não tem como saber o que a leitura recusada teria dito.
+    """
+    plan = private_plan(retrofitted=[DOTFILES])
+
+    assert all(item.hold for item in items_for(plan, DOTFILES))
+
+
+def test_a_repo_that_becomes_readable_leaves_the_retention_on_its_own():
+    """A idempotência do conserto: nenhum repositório é nomeado em lugar nenhum."""
+    raw = json.loads(FLEET_WITH_PRIVATE.read_text(encoding="utf-8"))
+    for entry in raw["repos"]:
+        if entry["name"] == DOTFILES:
+            entry.pop("unobservable", None)
+            entry["rulesets"] = []
+            entry["classic_protection"] = None
+
+    actions = actions_for(planner.plan(build_observed(raw), desired()), DOTFILES)
+
+    assert planner.OBSERVE_PROTECTION not in actions
+    assert planner.CREATE_RULESET in actions
+
+
+def test_the_unobservable_item_has_no_effect_registered_for_it():
+    """Não existe chamada de API que torne um repositório observável.
+
+    Inventar um efeito faria o `apply` falhar na hora de agir, que é pior do que
+    dizê-lo no plano. É a mesma escolha do `ALWAYS_HELD` do planner de org.
+    """
+    assert planner.OBSERVE_PROTECTION not in EFFECTS

@@ -19,6 +19,12 @@ O `hold` de um item é o oposto do payload: o motivo pelo qual ele **não** vai 
 realizado agora. Um item retido continua no plano, para ser lido, e o `apply` não
 o executa. Isso existe porque "some do plano" e "não é seguro aplicar hoje" são
 coisas diferentes, e esconder a segunda faria o plano mentir sobre a deriva.
+
+O seam carrega **duas palavras para ausência**, e elas levam a lugares opostos.
+"Não decidido" é ausência no dado versionado, e nada é planejado para ela
+(`report_undecided`). `Unobservable` é ausência na plataforma, e ela é planejada
+e **retida**: a dimensão existe, o operador a quer, e ninguém conseguiu medi-la.
+Um nome só para as duas faria o plano vazio significar duas coisas incompatíveis.
 """
 
 from __future__ import annotations
@@ -34,12 +40,44 @@ __all__ = [
     "Effect",
     "Plan",
     "PlanItem",
+    "Unobservable",
     "apply",
     "dump_raw",
     "load_raw",
     "report_undecided",
     "why_empty",
 ]
+
+
+@dataclass(frozen=True)
+class Unobservable:
+    """Uma dimensão que a plataforma não mostrou, com o que ela disse a respeito.
+
+    É o terceiro valor entre "observado ligado" e "observado desligado", e existe
+    porque os dois primeiros são afirmações sobre o alvo que ninguém pode fazer
+    aqui. Um repositório privado num plano que não oferece rulesets não tem
+    ruleset desligado: ele tem ruleset que este observador não alcança, e a
+    diferença decide se o plano cobra convergência ou explica por que não pode.
+
+    **É um tipo, e não `None` nem uma flag ao lado, de propósito.** `bool | None`
+    faria os três estados caberem no mesmo `if not`, e o primeiro leitor distraído
+    transformaria "não consegui ler" em "está desligado", que é exatamente a
+    mentira que este repo proíbe em `org/observe.py` e em `ANATOMY.md`. Sendo tipo,
+    quem ler a dimensão é obrigado pelo verificador de tipos a decidir o que fazer
+    com o terceiro caso.
+
+    O motivo é obrigatório por construção, pela mesma razão que o de `PlanItem`:
+    ele vira o `hold` do item retido, e retenção sem motivo escrito não é revisável.
+    Onde a plataforma se explicou, ele **cita o que ela disse**, em vez de traduzir:
+    um 403 de plano e um 403 de permissão só se distinguem por esse texto, e
+    parafrasear seria escolher qual dos dois aconteceu sem ter como saber.
+    """
+
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.reason:
+            raise ValueError("dimensão não observável sem motivo escrito")
 
 
 @dataclass(frozen=True)
