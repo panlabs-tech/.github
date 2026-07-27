@@ -1,0 +1,15 @@
+{
+  "_": "Os valores que a anatomia cobra e que são **decisão**, não catálogo. O catálogo de itens é código (`scripts/panlabs/checker/catalog/`), porque um item é um predicado; o que mora aqui é o punhado de dimensões em que o item existe mas o **valor** que ele compara ainda é escolha do operador. `null` significa ainda não decidido, e um item cuja dimensão está `null` não é avaliado -- o que é diferente de decidido-como-vazio, e diferente de conforme. A corrida do checker diz em voz alta qual dimensão está sem decisão, para que o silêncio não seja lido como aprovação.",
+  "_fronteira": "Isto não é `config/org.json`. Lá mora a configuração que a spec de Org #2 decide e o script de org aplica; o checker lê de lá o que precisa (a exceção de wiki) em vez de cravar. Aqui moram valores que só a anatomia cobra e que nenhum script aplica, porque não há API que os aplique: licença uniforme e série de runtime convergida são trabalho humano em cada repositório.",
+
+  "_license": "O identificador SPDX da licença uniforme da org. `README e LICENSE em todo repo, licença uniforme` é decisão publicada da spec de Repo #4, mas o **valor** nunca foi nomeado em texto nenhum. Enquanto for `null`, o item `license-uniform` não é avaliado: o que a anatomia cobra hoje é a existência do arquivo (`license-exists`), que é item à parte. Preencher esta linha liga a cobrança de uniformidade na frota inteira, sem tocar em código.",
+  "license": null,
+
+  "_serie": "Série, e não major, porque as duas superfícies medem convergência em unidades diferentes. Em Node a série é o major (`24` cobre `24.3.0`); em Python a unidade em que `verde significa o mesmo` é `3.12`, porque `3.12` e `3.13` divergem em comportamento de biblioteca. A regra do item é uma só: a versão declarada pertence à série se for ela ou começar por ela mais um ponto.",
+
+  "_python_series": "A série de Python para a qual a frota converge. Versões diferentes fazem `verde` significar coisas diferentes, e é por isso que o item existe; mas a spec de Máquina mediu a frota e **não** decidiu o número. Enquanto for `null`, `python-runtime-converged` não é avaliado, e o que resta é o slot: `python-runtime-declared` cobra que o repositório declare a sua versão, sem opinar sobre qual.",
+  "python_series": null,
+
+  "_node_series": "O mesmo para Node, e aqui a medição é explícita: `docs/maquina.md` registra a frota declarando **dois** majors (24 em dois repositórios, 22 em outros dois). Escolher um é decisão com custo (pode invalidar módulo nativo já compilado) e continua do operador. `null` até lá.",
+  "node_series": null
+}

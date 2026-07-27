@@ -1,15 +1,18 @@
-"""O catálogo-semente de itens de anatomia, um módulo por eixo.
+"""O catálogo de itens de anatomia, um módulo por eixo.
 
-O suficiente para exercitar os três escopos de verdade (org, stack e tipo),
-não o catálogo cheio -- que é da spec de Repo #4 (ver `ANATOMY.md`). Onde a
-#4 decidir diferente, ela substitui os itens daqui; este pacote não antecipa
-esse conteúdo além do que já está publicado e decidido.
+É o catálogo **cheio**: a lista completa de itens da [`ANATOMY.md`](../../../../ANATOMY.md),
+onde antes havia uma semente de cinco itens. A propriedade que o documento e este
+pacote sustentam juntos é uma só: **item escrito lá tem veredito aqui**. Um item
+que existisse só em prosa seria recomendação, e a leitura binária da anatomia não
+tem nível recomendado.
 
-**Um módulo por eixo, e o endereço carrega o escopo.** O catálogo cheio tem da
-ordem de vinte e cinco itens em três eixos, e um arquivo único tornaria a escrita
-dele uma sessão que não cabe. O vocabulário compartilhado (o tipo de um item, o
-escopo, os predicados) mora em `item.py`; cada módulo de eixo carrega só os itens
-dele, e um teste guarda que nenhum item mora no eixo errado.
+**Um módulo por eixo, e o endereço carrega o escopo.** São da ordem de trinta itens
+em três eixos, e um arquivo único tornaria a escrita e a revisão deles uma sessão
+que não cabe. O vocabulário compartilhado (o tipo de um item, o escopo, os
+predicados) mora em `item.py`, os caminhos que mais de um eixo pergunta moram em
+`paths.py`, e cada módulo de eixo carrega só os itens dele. Um teste guarda que
+nenhum item mora no eixo errado: um item de stack no módulo de org mentiria sobre
+o eixo em que foi avaliado, e o escopo é o que permite auditar o próprio checker.
 
 Os módulos entram aqui **renomeados** de propósito. `item.py` exporta `stack()` e
 `tipo()`, que são fábricas de escopo com exatamente os mesmos nomes dos módulos de

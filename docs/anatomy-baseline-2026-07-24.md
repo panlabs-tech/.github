@@ -76,3 +76,55 @@ uv run panlabs-checker --dump-observed /tmp/fleet-cru.json
 jq -S '{org, repos: [.repos[] | select(.private | not)]}' /tmp/fleet-cru.json \
   > tests/fixtures/checker-fleet-2026-07-25.json
 ```
+
+## A terceira matriz, 2026-07-27: o catálogo cheio
+
+Gerada pela [issue #28](https://github.com/panlabs-tech/.github/issues/28), contra o catálogo **cheio**: 39 itens em três eixos (23 invariantes, 9 de stack, 7 de tipo), no lugar dos cinco da semente. O mecanismo é o mesmo da segunda matriz; o que mudou é o que ele cobra. Read-only como as duas anteriores, e o retrato está versionado em [`tests/fixtures/checker-fleet-2026-07-27.json`](../tests/fixtures/checker-fleet-2026-07-27.json), com o mesmo filtro de repositório privado.
+
+**88 linhas em 8 repositórios.** A distribuição importa mais que o total:
+
+| Repo | Linhas | Tipo declarado |
+| --- | --- | --- |
+| `panlabs-tech/.github` | 2 | meta |
+| `panlabs-tech/skills` | 9 | skills |
+| `panlabs-tech/dotfiles` | 11 | dotfiles |
+| `panlabs-tech/ethitorial` | 12 | aplicação |
+| `panlabs-tech/panlabs` | 12 | aplicação |
+| `panlabs-tech/life-under-control` | 14 | aplicação |
+| `panlabs-tech/tfbox` | 14 | módulo de infraestrutura |
+| `panlabs-tech/travelmanager` | 14 | aplicação |
+
+E os itens que mais aparecem, que são o retrofit mais barato por serem repetidos:
+
+| Repos | Item |
+| --- | --- |
+| 7 | `ci-references-shared-workflows` |
+| 6 | `status-rollup-contract` |
+| 5 | `license-exists`, `local-commit-gate-exists`, `commit-message-standard-declared`, `no-stale-tool-config`, `no-vendored-agent-equipment`, `node-ci-leg` |
+| 4 | `agent-guidance-generic-exists`, `agent-doc-issue-tracker`, `agent-doc-triage-labels`, `agent-doc-domain`, `app-mcp-config-versioned` |
+
+### O que esta matriz diz que as anteriores não diziam
+
+**O repo meta sai com duas linhas, e as duas são verdadeiras.** `panlabs-tech/.github` não tem portão local antes do commit nem configuração mecânica do padrão de mensagem: as duas coisas vivem em prosa no `AGENTS.md`, e prosa não é portão. É o item invariante cobrado do repositório que carrega a definição do padrão, exatamente como a spec pediu, e é a primeira vez que ele aparece na matriz por dívida própria em vez de por um arquivo que a própria issue criava.
+
+**O fóssil da orientação de agente foi encontrado, e é um só.** `panlabs-tech/travelmanager` tem `AGENTS.md` e `CLAUDE.md` com conteúdo **idêntico**, byte a byte, e o genérico começa com o título do específico. É o fóssil que a spec de Repo #4 descreve sem nomear o repositório. Os outros quatro casos de deriva de orientação são de outra natureza: `dotfiles`, `life-under-control`, `panlabs` e `skills` não têm `AGENTS.md` nenhum.
+
+**Os dois resíduos de ferramenta batem com o levantamento.** `.codex/` em quatro repositórios (`ethitorial`, `life-under-control`, `panlabs`, `travelmanager`) e `.serena/` num quinto (`tfbox`). O checker alarma; a remoção tem preflight, e ele é humano.
+
+**Equipamento global vendorizado é o item de maior volume por repositório.** Cinco repositórios versionam `.agents/skills/` ou `.claude/`, de 11 a 95 arquivos cada. A des-vendorização acontece dentro do retrofit de cada um.
+
+**Os condicionais se comportaram como condicionais.** `agent-doc-mcps` aparece em dois repositórios e não nos outros seis; `agent-doc-local-dev` em dois; `agent-doc-design` em três. Nenhum deles aparece onde a condição não vale, e `app-local-services-composition` não apareceu em lugar nenhum: as três aplicações com dependência local com estado declaram composição, e a vitrine, que não tem essa dependência, não é cobrada. Esse é o falso positivo que a spec antecipou por escrito, e ele não aconteceu.
+
+**O módulo de infraestrutura não foi reprovado por regra de aplicação.** `tfbox` usa o gerenciador de pacotes divergente e não recebe `app-package-manager-single`: a regra é de tipo aplicação e não o alcança. Ele recebe, sim, os invariantes e os itens da superfície Node que de fato tem.
+
+**Três itens existem e não foram avaliados**, e a corrida diz isso em voz alta: `license-uniform`, `python-runtime-converged` e `node-runtime-converged` comparam contra valor que ainda não foi decidido em `config/anatomy.json`. Silêncio ali é ausência de pergunta, não aprovação.
+
+### Como reproduzir
+
+```bash
+uv run panlabs-checker --dump-observed /tmp/fleet-cru.json
+jq -S '{org, repos: [.repos[] | select(.private | not)]}' /tmp/fleet-cru.json \
+  > tests/fixtures/checker-fleet-2026-07-27.json
+```
+
+O retrato de 2026-07-25 continua versionado como registro da segunda matriz. Ele **não** serve de fixture para o catálogo cheio: foi capturado antes de `config/checker.json` declarar os manifestos e o portão local, então arquivos que existem na árvore vieram sem conteúdo, e um item de conteúdo reprovaria um repositório que está certo. Um teste guarda essa correspondência no retrato em uso, para que fixture velha não seja lida como retrato de hoje.
