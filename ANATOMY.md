@@ -57,7 +57,7 @@ Um item só pode ser escrito sobre o que a observação alcança, e por isso o a
 
 Duas propriedades não se negociam. **Ler mais não é escrever nada:** o checker continua read-only, e rodá-lo não muda nada em nenhum repositório, em nenhum momento. E **observação parcial não pode parecer conforme:** uma árvore que a API devolve truncada vira erro de observação daquele repositório, pelo mesmo motivo que o falso-negativo da listagem raiz era grave.
 
-O caminho importa e é escolha de cada item: parte da anatomia é sobre o arquivo existir **em algum lugar** (o lockfile de um monorepo mora junto do manifesto), e parte é sobre ele existir num **caminho exato** (a declaração de runtime que o gerenciador da máquina lê está na raiz).
+**A superfície é lida da árvore inteira; o que cada item exige é decisão dele.** As duas perguntas são diferentes e não se confundem: "este repositório tem superfície Node?" olha o repositório todo, e "ele declara a versão de runtime que o gerenciador da máquina lê?" olha um caminho exato, na raiz. O catálogo-semente pergunta pela raiz nos três itens que perguntam por arquivo; se algum item do catálogo cheio precisar da outra pergunta, ela é escolha dele, e o escopo continua revisável.
 
 ## Quando o checker roda
 
