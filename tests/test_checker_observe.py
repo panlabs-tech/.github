@@ -240,14 +240,21 @@ def test_the_versioned_fleet_snapshot_carries_the_whole_tree_and_the_declared_co
     assert any(entry.contents for entry in state.repos)
 
 
-def test_the_versioned_snapshot_carries_no_private_repo_into_this_public_one():
+def test_no_versioned_snapshot_carries_a_private_repo_into_this_public_one():
     """Este repositório é público, e a frota tem repositório privado.
 
     Uma árvore recursiva mais conteúdo de arquivo é exatamente o tipo de retrato
     que não pode atravessar essa fronteira: nomes de arquivo de um repositório
     privado são informação dele. O guarda é o próprio dado observado, e não uma
     lista de nomes escrita à mão, que envelheceria no primeiro repo novo.
-    """
-    state = build_observed(json.loads(FLEET.read_text(encoding="utf-8")))
 
-    assert [entry.name for entry in state.repos if entry.private] == []
+    Vale para **todo** retrato versionado, e não para um nome fixo: cada corrida
+    da frota publica um retrato datado novo, e um guarda amarrado ao retrato de
+    ontem deixaria o de hoje entrar sem ninguém olhando.
+    """
+    snapshots = sorted(FIXTURES.glob("checker-fleet-*.json"))
+
+    assert snapshots
+    for snapshot in snapshots:
+        state = build_observed(json.loads(snapshot.read_text(encoding="utf-8")))
+        assert [entry.name for entry in state.repos if entry.private] == [], snapshot.name

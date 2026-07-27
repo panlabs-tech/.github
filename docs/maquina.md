@@ -13,7 +13,9 @@ O ganho de declarar isto é que "como instalo isso" para de ser decisão caso a 
 | O que já é do sistema | gerenciador de pacotes da distro | quem cuida da atualização é o sistema, e a versão da distro é boa o suficiente | `fdfind`, `batcat`, `rg`, `fzf`, `eza`, `zoxide` |
 | Runtime de linguagem | gerenciador de runtime | a versão é do projeto, não da máquina, e mais de uma coexiste | Node, por `mise` |
 | Runtime de Python | gerenciador dedicado, **fora** do de runtime | ele resolve ambiente e dependência juntos, e o de runtime não faz isso | `uv` |
-| CLI que precisa ficar fresca | binário direto | o release é mais rápido que qualquer distro, e a atualização é do próprio binário | `mise`, `chezmoi`, `gh`, `uv`, `jq`, `gitleaks` |
+| CLI que precisa ficar fresca | binário direto | o release é mais rápido que qualquer distro, e a atualização é do próprio binário | `mise`, `chezmoi`, `gh`, `uv`, `jq`, `gitleaks`, `lefthook` |
+
+`lefthook` entrou nesta classe com o catálogo cheio da anatomia ([#28](https://github.com/panlabs-tech/.github/issues/28)): o portão local passou a ser **invariante de org**, e o binário que executa a declaração versionada de cada repo é equipamento da máquina, não do repo. A justificativa própria dele é essa, e não conveniência: sem ele, todo `lefthook.yml` da frota é declaração que ninguém executa. **Ele ainda não está instalado nesta máquina**, e instalá-lo é convergência de máquina, não desta issue.
 
 **Nenhuma ferramenta nova entra sem justificativa própria.** Seis candidatas foram avaliadas e reprovadas durante o mapeamento, e o registro delas fica no [mapa](https://github.com/panlabs-tech/panlabs/issues/46). A regra que sobrevive ao mapa é esta: a máquina não vira coleção.
 

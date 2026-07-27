@@ -10,7 +10,9 @@ Domínio: governança da org no GitHub, ambiente da máquina de desenvolvimento 
 - **`.github/workflows/`**: os reusable workflows que todos os repos da org referenciam em vez de copiar.
 - **`scripts/`**: o script de ruleset (aplica a configuração de proteção repo a repo), o script de org (converge o que não é ruleset: a política de Actions que sustenta a esteira, segurança, vitrine e features desligadas), o checker de conformidade (mede a frota contra a anatomia), o script de máquina (converge o equipamento global da máquina de desenvolvimento), o script de espaço de trabalho (converge o estado estacionário de `~/workspaces`) e o heartbeat (o hospedeiro de passos que a tarefa diária do host dirige).
 - **`config/`**: a configuração desejada, como **dado**. Os scripts leem daqui; nenhum deles crava valor em código.
-- **`ANATOMY.md`**: a definição canônica do que é um repo panlabs.
+- **`ANATOMY.md`**: a definição canônica do que é um repo panlabs, com o catálogo cheio dos 33 itens nos três eixos. A tabela de lá e o catálogo executável são amarrados por um teste, nos dois sentidos.
+- **`lefthook.yml`**: o portão 1, local, antes do commit: formatação e verificação da superfície Python, scan de segredos e padrão de mensagem de commit. As ferramentas são equipamento da máquina; este arquivo é a declaração de adesão, e é ela que é versionada.
+- **[`docs/anatomia-frota-2026-07-27.md`](docs/anatomia-frota-2026-07-27.md)**: a matriz datada da frota contra o catálogo cheio, e o inventário de retrofit que sai dela.
 - **[`docs/maquina.md`](docs/maquina.md)**: o padrão da máquina de desenvolvimento, com o método de instalação por classe, a ordem de bootstrap e os limites honestos da postura de permissão.
 - **[`docs/espaco-de-trabalho.md`](docs/espaco-de-trabalho.md)**: o estado estacionário do espaço de trabalho, com o invariante aditivo, o critério de descarte sem eixo de tempo e o preflight que preserva o que só existe local.
 - **[`docs/heartbeat.md`](docs/heartbeat.md)**: o heartbeat da máquina, com o motivo de o relógio morar no host, o ciclo oportunista, os canais de alarme e a expectativa honesta sobre o que a compactação rende.
