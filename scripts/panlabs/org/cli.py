@@ -28,7 +28,7 @@ from panlabs.org.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.org.model import Observed
 from panlabs.org.observe import build_observed, fetch_raw, observed_to_dict
 from panlabs.org.planner import plan
-from panlabs.plan import Plan, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.plan import Plan, Unobservable, apply, dump_raw, load_raw, report_undecided, why_empty
 
 DEFAULT_ORG = "panlabs-tech"
 
@@ -85,12 +85,30 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _summarize(observed: Observed) -> str:
+    """A linha que o operador lê primeiro, e por isso a que não pode mentir.
+
+    A contagem compara com `True` de propósito, em vez de confiar na veracidade do
+    valor: `Unobservable` é um objeto, e objeto é truthy. Um `and` distraído aqui
+    contaria como protegido exatamente o repositório que ninguém conseguiu medir,
+    e a mentira sairia na primeira linha da saída, antes de qualquer plano.
+    """
     org = observed.org
     esteira = "ligada" if org.actions.can_approve_pull_requests else "DESLIGADA"
-    protegidos = sum(1 for repo in observed.repos if repo.secret_scanning and repo.push_protection)
+    protegidos = sum(
+        1
+        for repo in observed.repos
+        if repo.secret_scanning is True and repo.push_protection is True
+    )
+    cegos = sum(
+        1
+        for repo in observed.repos
+        if isinstance(repo.secret_scanning, Unobservable)
+        or isinstance(repo.push_protection, Unobservable)
+    )
+    sem_observacao = f", {cegos} sem observação nessas dimensões" if cegos else ""
     return (
         f"Org {org.login}: {len(observed.repos)} repo(s) na org viva, "
-        f"{protegidos} com secret scanning e push protection, "
+        f"{protegidos} com secret scanning e push protection{sem_observacao}, "
         f"{len(org.pinned_repos)} pin(s) no perfil.\n"
         f"Política de Actions que cria e aprova PR (a esteira): {esteira}."
     )

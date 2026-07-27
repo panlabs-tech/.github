@@ -17,6 +17,7 @@ from panlabs.ruleset.cli import main
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FLEET = FIXTURES / "fleet-2026-07-24.json"
+FLEET_WITH_PRIVATE = FIXTURES / "fleet-2026-07-27.json"
 DESIRED = FIXTURES / "desired-ruleset.json"
 SHIPPED = Path(__file__).resolve().parents[1] / "config" / "ruleset.json"
 
@@ -248,3 +249,35 @@ def test_every_action_the_planner_can_emit_has_an_effect_registered():
     }
 
     assert set(EFFECTS) == emitted
+
+
+# --- o resumo não afirma nada sobre o que ninguém mediu ------------------------
+
+
+def test_the_summary_separates_what_was_not_observed_from_what_has_no_protection(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """ "Nenhum ruleset governa esta branch" e "ninguém leu esta branch" são opostos.
+
+    Contá-los na mesma coluna faria a linha de resumo dizer que a frota tem um
+    repositório desprotegido, ou um protegido, sem que nenhuma das duas tenha sido
+    observada.
+    """
+    code = main(["--observed", str(FLEET_WITH_PRIVATE), "--config", str(DESIRED)])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert (
+        "8 repo(s) na org viva, 3 com ruleset na branch default, "
+        "4 com proteção clássica, 1 sem observação de proteção." in out
+    )
+
+
+def test_the_whole_fleet_still_gets_a_plan_with_an_unreadable_repo_in_it(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """Antes deste conserto o comando saía com erro e plano nenhum."""
+    code = main(["--observed", str(FLEET_WITH_PRIVATE), "--config", str(DESIRED)])
+
+    assert code == 0
+    assert planner.OBSERVE_PROTECTION in capsys.readouterr().out

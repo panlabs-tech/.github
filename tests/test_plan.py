@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from panlabs.plan import Plan, PlanItem, apply
+from panlabs.plan import Plan, PlanItem, Unobservable, apply
 
 
 def test_item_without_reason_is_rejected_because_plan_without_reason_is_not_reviewable():
@@ -181,3 +181,30 @@ def test_apply_raises_when_no_effect_is_registered_for_an_action():
 
     with pytest.raises(KeyError, match="unknown"):
         apply(plan, {})
+
+
+# --- a outra palavra para ausência ---------------------------------------------
+#
+# O seam já carregava "não decidido", que é ausência no **dado**. `Unobservable` é
+# ausência na **plataforma**, e as duas precisam de nomes diferentes porque levam a
+# lugares opostos: nada é planejado para o que ninguém decidiu, e é planejado e
+# retido o que ninguém conseguiu observar.
+
+
+def test_an_unobservable_dimension_without_a_reason_is_rejected():
+    """Mesma regra do item de plano: retenção sem motivo escrito não é revisável."""
+    with pytest.raises(ValueError, match="motivo"):
+        Unobservable("")
+
+
+def test_an_unobservable_dimension_is_not_a_boolean_in_disguise():
+    """O tipo é o guarda: `False` e "não consegui ler" não podem se confundir.
+
+    Um `bool | None` faria os dois caberem no mesmo `if not`, e o primeiro leitor
+    distraído transformaria "a plataforma não mostrou" em "está desligado", que é
+    exatamente a mentira que a doutrina deste repo proíbe.
+    """
+    unobservable = Unobservable("o GitHub recusou a leitura")
+
+    assert not isinstance(unobservable, bool)
+    assert unobservable.reason == "o GitHub recusou a leitura"

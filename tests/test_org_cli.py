@@ -20,6 +20,7 @@ from panlabs.org.config import load_desired
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FLEET = FIXTURES / "org-fleet-2026-07-24.json"
+FLEET_WITH_PRIVATE = FIXTURES / "org-fleet-2026-07-27.json"
 DESIRED = FIXTURES / "desired-org.json"
 
 
@@ -229,3 +230,34 @@ def test_the_held_items_are_shown_with_the_reason_they_will_not_be_applied(
     assert "retido set-two-factor-requirement" in out
     assert "PATCH /orgs` não aceita two_factor_requirement_enabled" in out
     assert "retido(s): planejado(s) e não aplicado(s)." in out
+
+
+# --- o resumo não conta como protegido o que ninguém mediu ---------------------
+
+
+def test_the_summary_never_counts_an_unobservable_repo_as_protected(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """O disfarce mais barato de todos, e o mais fácil de não notar.
+
+    `Unobservable` é um objeto, e objeto é truthy: um `if repo.secret_scanning`
+    distraído conta como protegido justamente o repositório que ninguém conseguiu
+    medir. A linha de resumo é a primeira coisa que o operador lê, e ela não pode
+    ser a que mente.
+    """
+    code = main(["--observed", str(FLEET_WITH_PRIVATE), "--config", str(DESIRED)])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert "8 repo(s) na org viva" in out
+    assert "7 com secret scanning e push protection" in out
+    assert "1 sem observação" in out
+
+
+def test_the_esteira_verdict_still_reaches_the_operator_with_a_private_repo_around(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """O invariante P0: é esta linha que o repo privado vinha apagando desde 25/07."""
+    main(["--observed", str(FLEET_WITH_PRIVATE), "--config", str(DESIRED)])
+
+    assert "a esteira): ligada" in capsys.readouterr().out

@@ -15,6 +15,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from panlabs.plan import Unobservable
+
 __all__ = ["ActionsPolicy", "Observed", "OrgState", "RepoState"]
 
 
@@ -51,16 +53,31 @@ class OrgState:
 
 @dataclass(frozen=True)
 class RepoState:
-    """Um repositório da org viva, no recorte que esta configuração governa."""
+    """Um repositório da org viva, no recorte que esta configuração governa.
+
+    Duas dimensões são `bool | Unobservable`, e as outras duas não. A assimetria é
+    observada, não escolhida: secret scanning e push protection moram no bloco
+    `security_and_analysis`, que a API devolve **nulo** onde o plano da conta não
+    as oferece; alerts e security updates têm endpoint próprio e responderam.
+    Dar o terceiro valor a quem nunca ficou cego inventaria uma cegueira que não
+    houve, e obrigaria todo leitor a tratar um caso impossível.
+    """
 
     name: str
     description: str | None = None
     topics: tuple[str, ...] = ()
     wiki_enabled: bool = False
-    secret_scanning: bool = False
-    push_protection: bool = False
+    secret_scanning: bool | Unobservable = False
+    push_protection: bool | Unobservable = False
     dependabot_alerts: bool = False
     dependabot_security_updates: bool = False
+    private: bool = False
+    """Se o repo é privado. Lido porque é ele que explica o bloco de segurança nulo.
+
+    O checker já o observava (issue #27), e pelo mesmo motivo de fundo: parte do
+    que a plataforma mostra depende da visibilidade, e um observador que não a lê
+    não consegue escrever um motivo honesto sobre o que deixou de ver.
+    """
 
 
 @dataclass(frozen=True)

@@ -52,6 +52,8 @@ Se o `apply` precisa de um `if`, esse `if` está no lugar errado. Item retido n�
 
 **A configuração desejada entra como segundo argumento**, `plan(observed, desired)`, porque ela é *dado versionado* e não observação: ela mora em `config/`, não no código. O seam continua sendo o mesmo: uma função pura de estado para plano, e acima dela só a chamada real de API. Um valor `null` no dado significa **ainda não decidido**, e o planner não planeja nada para essa dimensão; isso é diferente de decidido-como-vazio, e quem lê um plano vazio precisa saber qual dos dois é.
 
+**Do outro lado do seam existe a ausência oposta, e ela leva ao lugar contrário.** Uma dimensão que a plataforma se recusa a mostrar é `Unobservable`, um terceiro valor entre observado-ligado e observado-desligado. Ela nunca vira `False`, nunca some do plano e nunca derruba a corrida: vira **item retido**, com o motivo citando o que a plataforma respondeu. Nada é planejado para o que ninguém decidiu; é planejado e retido o que ninguém conseguiu medir. Um repositório privado num plano que não oferece rulesets é o caso vivo: ele não tem ruleset desligado, ele tem ruleset que este observador não alcança, e um plano da frota que morre por causa dele é pior do que um plano parcial. A recusa **por plano** é a única que vira retenção; um 403 de permissão continua sendo erro alto, porque esse tem conserto pelo operador e engoli-lo esconderia o conserto.
+
 O vocabulário vive em `scripts/panlabs/plan.py`, e é **um só**: o mesmo formato serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
 
 ## Conformidade

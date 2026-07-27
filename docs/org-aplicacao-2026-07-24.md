@@ -4,6 +4,8 @@ Aplicada por `uv run panlabs-org --apply`, com a configuração desejada de [`co
 
 **42 itens aplicados, 2 retidos.** O retrato observado que produziu o plano está versionado em [`tests/fixtures/org-fleet-2026-07-24.json`](../tests/fixtures/org-fleet-2026-07-24.json), capturado antes da aplicação.
 
+> Uma emenda, em 2026-07-27, pela [#31](https://github.com/panlabs-tech/.github/issues/31): o retrato ganhou o campo `private` em cada repositório, que a observação passou a exigir. O valor é `false` nos sete, o que era fato naquela data, porque o primeiro repositório privado da org só nasceu no dia 25. Nenhum outro campo mudou, e a frota de sete continua sendo o retrato **divergente** contra o qual o planner é testado; quem carrega o caso do repositório privado é [`org-fleet-2026-07-27.json`](../tests/fixtures/org-fleet-2026-07-27.json).
+
 ## O P0 não precisou ser aplicado
 
 A política de organização que permite ao Actions criar e aprovar PR já estava religada quando o script passou a existir, e a primeira corrida confirmou isso do jeito que a issue previu: ela não apareceu no plano. Ela deixa de depender de alguém lembrar, e passa a ser invariante vigiado, `uv run panlabs-org` sem flag é a verificação.
