@@ -6,6 +6,12 @@ daqui decide coisa alguma: ela só pergunta e responde.
 Falha de rede ou de credencial vira `GhError`, e "não existe" vira `GhNotFoundError`.
 A distinção importa: um token expirado não pode virar "a frota inteira está fora
 do padrão".
+
+Pelo mesmo motivo, um 403 também não é um só. "Este plano não oferece rulesets
+em repositório privado" é uma resposta sobre o que a plataforma **mostra**, e
+some quando o repo vira público; "eleve o token" é falta de permissão, e some
+quando o operador eleva o escopo. Os dois chegam com o mesmo código HTTP, e só
+o texto da plataforma os separa.
 """
 
 from __future__ import annotations
@@ -15,7 +21,28 @@ import subprocess
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-__all__ = ["GhError", "GhNotFoundError", "api", "graphql", "repo_names"]
+__all__ = [
+    "GhError",
+    "GhNotFoundError",
+    "GhUpgradeRequiredError",
+    "api",
+    "graphql",
+    "repo_names",
+]
+
+UPGRADE_MARKER = "Upgrade to GitHub"
+"""O que o GitHub diz quando o plano da conta não oferece o recurso pedido.
+
+Acoplar ao texto da plataforma tem custo, e ele é pago de propósito: é a única
+coisa que distingue os dois 403, e sem a distinção o motivo escrito no plano
+mentiria em metade dos casos. O acoplamento é **fail-closed**, e é isso que o
+torna aceitável: se o GitHub reescrever a frase, este ramo deixa de casar e a
+falha volta a ser o `GhError` fatal de sempre. O desenho erra para o lado
+barulhento, nunca para o silencioso.
+
+Só o prefixo, sem a edição do plano: "Upgrade to GitHub Pro" hoje, e o dia em
+que uma dimensão exigir Team ou Enterprise não deve precisar de outra linha aqui.
+"""
 
 
 class GhError(RuntimeError):
@@ -24,6 +51,17 @@ class GhError(RuntimeError):
 
 class GhNotFoundError(GhError):
     """O recurso pedido não existe: resposta 404, não falha de infraestrutura."""
+
+
+class GhUpgradeRequiredError(GhError):
+    """A plataforma recusou por plano ou visibilidade, não por falta de permissão.
+
+    Nenhum token conserta este: o recurso existe, e o repositório é que não o
+    alcança onde está. É a única classe de recusa que quem observa pode tratar
+    como fato sobre o alvo em vez de falha da corrida, e por isso ela é estreita
+    de propósito. Continua sendo `GhError`: quem só sabe capturar o pai continua
+    capturando este, e para de graça.
+    """
 
 
 def _run(args: Sequence[str], *, stdin: str | None = None) -> str:
@@ -47,6 +85,8 @@ def _run(args: Sequence[str], *, stdin: str | None = None) -> str:
         detail = (completed.stderr or completed.stdout).strip()
         if "HTTP 404" in detail:
             raise GhNotFoundError(detail)
+        if "HTTP 403" in detail and UPGRADE_MARKER in detail:
+            raise GhUpgradeRequiredError(detail)
         raise GhError(f"`gh {' '.join(args)}` falhou: {detail}")
 
     return completed.stdout
