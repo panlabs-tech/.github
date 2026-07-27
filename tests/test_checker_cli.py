@@ -53,24 +53,19 @@ def test_the_matrix_the_operator_reads_names_item_scope_and_reason(
 def test_a_repo_with_no_drift_and_no_error_yields_exit_zero(
     forbid_api: None, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ):
+    """O mesmo retrato de sempre, menos o único defeito que ele carrega.
+
+    Derivado da fixture em vez de montado à mão: com o catálogo cheio, um
+    repositório conforme escrito inline neste teste declararia trinta fatos, e o
+    dia em que um item novo entrasse ele falharia sem ter nada a dizer sobre a
+    interface, que é o que este arquivo testa.
+    """
+    raw = json.loads(SAMPLE.read_text(encoding="utf-8"))
+    for entry in raw["repos"]:
+        entry["has_readme"] = True
+
     clean = tmp_path / "observed.json"
-    clean.write_text(
-        json.dumps(
-            {
-                "org": "panlabs-tech",
-                "repos": [
-                    {
-                        "name": "panlabs-tech/skills",
-                        "tipo": "skills",
-                        "files": ["README.md", "LICENSE"],
-                        "has_readme": True,
-                        "has_license": True,
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
+    clean.write_text(json.dumps(raw), encoding="utf-8")
 
     code = main(["--observed", str(clean)])
 
