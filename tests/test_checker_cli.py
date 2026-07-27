@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from anatomy import conformant
 from panlabs import gh
 from panlabs.checker.cli import EXIT_CLEAN, EXIT_DRIFT, EXIT_ERROR, main
 
@@ -56,18 +57,7 @@ def test_a_repo_with_no_drift_and_no_error_yields_exit_zero(
     clean = tmp_path / "observed.json"
     clean.write_text(
         json.dumps(
-            {
-                "org": "panlabs-tech",
-                "repos": [
-                    {
-                        "name": "panlabs-tech/skills",
-                        "tipo": "skills",
-                        "files": ["README.md", "LICENSE"],
-                        "has_readme": True,
-                        "has_license": True,
-                    }
-                ],
-            }
+            {"org": "panlabs-tech", "repos": [conformant("panlabs-tech/skills", tipo="skills")]}
         ),
         encoding="utf-8",
     )
@@ -105,9 +95,12 @@ def test_json_output_is_the_serialized_matrix_and_nothing_else(
 
     payload = json.loads(capsys.readouterr().out)
 
-    assert len(payload["items"]) == 1
-    assert {"action", "target", "reason", "payload", "hold"} == set(payload["items"][0])
-    assert payload["items"][0]["payload"]["verdict"] == "deriva"
+    campos = {"action", "target", "reason", "payload", "hold"}
+
+    assert payload["items"]
+    assert all(campos == set(i) for i in payload["items"])
+    assert {i["payload"]["verdict"] for i in payload["items"]} == {"deriva"}
+    assert all(i["payload"]["scope"] for i in payload["items"])
 
 
 # --- o código de saída: 1 é deriva, e só deriva -------------------------------

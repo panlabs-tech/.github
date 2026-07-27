@@ -24,9 +24,12 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
+from panlabs.checker.catalog import build
+from panlabs.checker.config import DEFAULT_ANATOMY_PATH, load_anatomy
 from panlabs.checker.observe import build_observed, fetch_raw
 from panlabs.checker.planner import ERROR_VERDICT, plan
-from panlabs.plan import Plan, dump_raw, load_raw
+from panlabs.org.config import load_desired
+from panlabs.plan import Plan, dump_raw, load_raw, report_undecided
 
 DEFAULT_ORG = "panlabs-tech"
 
@@ -72,6 +75,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
+        anatomy = load_anatomy()
+        catalog = build(anatomy, load_desired())
         raw = load_raw(args.observed, lambda: fetch_raw(args.org))
     except (OSError, ValueError, gh.GhError) as exc:
         print(f"erro: {exc}", file=sys.stderr)
@@ -80,15 +85,19 @@ def main(argv: list[str] | None = None) -> int:
     observed = build_observed(raw)
     dump_raw(args.dump_observed, raw)
 
-    the_matrix = plan(observed)
+    the_matrix = plan(observed, catalog)
 
     if args.json:
         print(the_matrix.to_json())
     else:
-        print(f"Org {observed.org}: {len(observed.repos)} repo(s) avaliado(s).\n")
+        report_undecided(anatomy.undecided, DEFAULT_ANATOMY_PATH)
+        print(
+            f"Org {observed.org}: {len(observed.repos)} repo(s) avaliado(s) "
+            f"contra {len(catalog)} item(ns) de anatomia.\n"
+        )
         print(the_matrix.render())
         if not the_matrix:
-            print("Nenhuma deriva ou erro no catálogo-semente avaliado.")
+            print("Nenhuma deriva ou erro nos itens avaliados.")
 
     return _exit_code(the_matrix)
 

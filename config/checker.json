@@ -1,13 +1,17 @@
 {
-  "_": "A configuração de observação do checker de conformidade, decidida pela spec de Repo #4 (issue #27). O tipo de cada repositório mora ao lado, em `repo-types.json`, porque é classificação do operador e não parâmetro de leitura. `null` numa dimensão significa ainda não decidido, e nada é observado para ela.",
+  "_": "A configuração de observação do checker de conformidade, decidida pela spec de Repo #4 (issue #27). O tipo de cada repositório mora ao lado, em `repo-types.json`, porque é classificação do operador e não parâmetro de leitura. Os **valores** que o catálogo cobra moram em `anatomy.json`; aqui só mora o que é lido. `null` numa dimensão significa ainda não decidido, e nada é observado para ela.",
 
   "_read_files": "Os arquivos cujo CONTEÚDO é lido, em caminho relativo à raiz do repositório. O conjunto é dado, e é declarado por três motivos. Primeiro, porque item de slot não se verifica por presença de arquivo: vocabulário de label declarado dentro de um documento, referência à CI compartilhada dentro de um workflow e ferramenta declarada dentro de um manifesto são todos conteúdo. Segundo, porque varredura cega pagaria uma chamada por arquivo, e o conjunto declarado cabe numa consulta GraphQL por repositório, com um apelido por arquivo. Terceiro, porque o retrato observado é fixture: é com o conteúdo já capturado aqui que o catálogo cheio da #4 vai ser escrito, sem rede.",
   "_read_files_ausente": "Um arquivo declarado que o repositório não tem simplesmente não aparece no conteúdo observado. Ausente e vazio são estados diferentes, e é o item do catálogo que decide o que cada um significa; a observação não julga nenhum dos dois.",
+  "_read_files_catalogo_cheio": "O conjunto cresceu com o catálogo cheio (issue #28), e cada entrada nova existe porque um item se verifica por conteúdo e não por presença: o portão local precisa **declarar** o padrão de mensagem de commit, a verificação de segredos e a ferramenta de cada superfície; a configuração de MCP precisa carregar placeholder de variável de ambiente em vez de segredo literal; e a versão de runtime de cada superfície é slot cujo valor é lido, nunca cravado.",
   "read_files": [
     "AGENTS.md",
     "CLAUDE.md",
     ".python-version",
+    ".node-version",
     ".github/workflows/pr-checks.yml",
-    "docs/agents/triage-labels.md"
+    "docs/agents/triage-labels.md",
+    "lefthook.yml",
+    ".mcp.json"
   ]
 }

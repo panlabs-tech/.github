@@ -1,0 +1,146 @@
+{
+  "_": "Os valores que o catálogo da anatomia cobra, como **dado**. O catálogo (scripts/panlabs/checker/catalog/) decide *que* item existe e em que eixo ele é avaliado; este arquivo carrega *qual valor* cada item cobra. A separação é a mesma que rege o resto do repo: a decisão mora num planner puro, e o valor mora em config/. Decidido pela spec de Repo #4 (issue #28).",
+  "_null": "`null` numa dimensão significa **ainda não decidido**, e nenhum item é avaliado para ela. Isso é diferente de decidida-como-vazia: uma lista vazia é uma decisão, `null` não é. O CLI do checker avisa quais dimensões estão nesse estado, para que um plano vazio não seja lido como conformidade.",
+  "_onde_o_valor_nao_mora_aqui": "Descrição, topics e wiki não estão aqui: o dado desejado deles já mora em `config/org.json`, decidido pela spec de Org #2, e duplicá-lo faria dois arquivos divergirem. O checker atravessa a fronteira de *verificação* de propósito (ANATOMY.md), lendo o declarado lá em vez de cravar valor.",
+
+  "_uniform_license": "A licença uniforme da org. `README e LICENSE em todo repo, licença uniforme` é o único núcleo verdadeiramente universal observado nas quinze orgs de referência varridas. O identificador é SPDX, como a plataforma o reporta.",
+  "uniform_license": "MIT",
+
+  "_agent_docs": "Os documentos de configuração de agente, em `docs/agents/`. Os obrigatórios têm nome fixo; os condicionais existem só onde a condição que os aciona existe, e a ausência de um condicional **não é deriva** -- é o falso positivo que a anatomia existe para prevenir. Por isso os condicionais moram aqui: eles são declarados para que ninguém os cobre por engano.",
+  "agent_docs": {
+    "required": [
+      "docs/agents/issue-tracker.md",
+      "docs/agents/triage-labels.md",
+      "docs/agents/workflow.md",
+      "docs/agents/domain.md"
+    ],
+    "conditional": [
+      "docs/agents/design.md",
+      "docs/agents/local-dev.md",
+      "docs/agents/mcps.md"
+    ]
+  },
+
+  "_agent_entrypoint": "O arquivo genérico de orientação do agente é a **fonte-da-verdade**; o do agente primário apenas o referencia, mais o que é genuinamente específico dele. Sem essa amarra, o genérico vira fóssil que já não corresponde ao conteúdo real, que é exatamente o que a frota mostrou.",
+  "agent_entrypoint": {
+    "generic": "AGENTS.md",
+    "primary": "CLAUDE.md"
+  },
+
+  "_stale_tool_paths": "Configuração stale de ferramenta: o teste é **fora da toolchain decidida na spec de Máquina** (`config/machine.json`). A lista é dado e não código porque ela cresce quando um fóssil novo aparece, e cada entrada carrega o motivo pelo qual aquilo não é da toolchain. Um prefixo terminado em `/` casa o diretório inteiro; sem barra, casa o caminho exato. **Preflight obrigatório antes de remover:** aquilo é candidato a promoção global? Hoje é operação nula, porque o resíduo mais comum é configuração de MCP, que o mecanismo versionado já cobre, mas a ordem importa para não apagar capacidade por engano.",
+  "stale_tool_paths": [
+    {
+      "prefix": ".codex/",
+      "why": "configuração de agente concorrente; o agente primário da máquina é decidido em config/machine.json"
+    },
+    {
+      "prefix": ".serena/",
+      "why": "ferramenta de indexação fora da toolchain decidida; o resíduo inclui memórias geradas por ela"
+    },
+    {
+      "prefix": ".github/copilot-instructions.md",
+      "why": "orientação de agente concorrente; a fonte-da-verdade é o arquivo genérico da raiz"
+    }
+  ],
+
+  "_global_equipment_paths": "O repo **não** versiona equipamento global: skills, subagentes e comandos, o mecanismo dos hooks portáveis, a lista de permissões e a barra de status. Ficam de fora **por design, não por omissão**: eles moram num lugar só, instalados globalmente na máquina. Adesão a mecanismo global é declarada por **arquivo marcador**, que é versionado; a lógica do mecanismo, não. A des-vendorização acontece dentro do retrofit de cada repo, e o destino de cada skill é decidido na spec de Máquina -- incluindo que duas supostas órfãs são revisão antiga de globais existentes e devem ser descartadas, não promovidas.",
+  "global_equipment_paths": [
+    {
+      "prefix": ".claude/skills/",
+      "why": "skills são equipamento global, instalado em ~/.agents e symlinkado em ~/.claude"
+    },
+    {
+      "prefix": ".claude/commands/",
+      "why": "comandos são equipamento global, pelo mesmo motivo das skills"
+    },
+    {
+      "prefix": ".claude/agents/",
+      "why": "subagentes são equipamento global, pelo mesmo motivo das skills"
+    },
+    {
+      "prefix": ".agents/skills/",
+      "why": "a árvore neutra de skills é a mesma cópia global vista por outro nome"
+    },
+    {
+      "prefix": ".agents/commands/",
+      "why": "idem, para comandos"
+    },
+    {
+      "prefix": ".agents/agents/",
+      "why": "idem, para subagentes"
+    },
+    {
+      "prefix": "skills-lock.json",
+      "why": "o lockfile do sincronizador que vendoriza as skills; sem vendorização ele não descreve nada"
+    },
+    {
+      "prefix": ".claude/settings.json",
+      "why": "lista de permissões e barra de status são globais; um override versionado as faz existir em dois lugares"
+    },
+    {
+      "prefix": ".claude/settings.local.json",
+      "why": "override local do operador, sempre fora do git por definição"
+    }
+  ],
+
+  "_local_gate": "O portão 1, local, antes do commit. O invariante de org cobra que ele **exista** e que carregue a disciplina de versionamento (padrão de mensagem de commit e verificação de segredos); o eixo de stack cobra o que ele roda **por superfície**. Erro barato pego barato: o portão 2 é a CI, no PR.",
+  "local_gate": {
+    "file": "lefthook.yml",
+    "commit_message_tool": "commitlint",
+    "secret_scan_tool": "gitleaks"
+  },
+
+  "_shared_ci": "A CI de cada repo **referencia** os reusable workflows publicados por este repo, e nenhum repo copia YAML. Os quatro arquivos de CI da frota nasceram copiados um do outro, em quatro datas ao longo de junho, e sete semanas depois divergiam entre 48% e 86%: origem comum não impede deriva. O repo que **publica** os workflows os referencia por caminho local, porque um caller no mesmo repo resolve contra o próprio commit e evita o ovo-e-a-galinha de uma tag que ainda não existe; a exceção é dado declarado, nunca um `if` no catálogo.",
+  "shared_ci": {
+    "caller": ".github/workflows/pr-checks.yml",
+    "ref": "panlabs-tech/.github/.github/workflows/",
+    "publisher": "panlabs-tech/.github",
+    "publisher_ref": "./.github/workflows/"
+  },
+
+  "_status_contract": "O contrato de nomes de status: um job de rollup de id fixo, que declara dependência das pernas por superfície e reporta um status único, mais o job de segurança. O rollup existe **sempre**, inclusive em repo sem superfície nenhuma, onde passa trivialmente -- é o que faz a lista fixa de required checks sobreviver a stack variável. Por isso ele é invariante de org, e não item de stack: um item de eixo stack precisaria de um valor de stack, e um repo sem superfície não tem nenhum.",
+  "status_contract": {
+    "jobs": ["checks", "security"]
+  },
+
+  "_surfaces": "O que cada superfície declara. `runtime_file` é **slot**: a anatomia exige que o repo declare a versão, não que declare um número específico. `runtime_major` é a convergência da frota, e está `null` porque ela ainda não aconteceu: os quatro repos com superfície Node declaram 22 e 24, metade e metade, e escolher o número é decisão do operador, não do agente. Enquanto for `null`, o item de convergência não avalia nada, e o CLI diz isso em voz alta.",
+  "surfaces": {
+    "python": {
+      "runtime_file": ".python-version",
+      "runtime_major": null,
+      "gate_tool": "ruff",
+      "ci_workflow": "checks-python.yml",
+      "lockfiles": null
+    },
+    "node": {
+      "runtime_file": ".node-version",
+      "runtime_major": null,
+      "gate_tool": "biome",
+      "ci_workflow": "checks-node.yml",
+      "lockfiles": ["package-lock.json", "pnpm-lock.yaml"]
+    }
+  },
+
+  "_terraform_fora": "A superfície Terraform existe em um repo só, e um reusable workflow de um consumidor é abstração sem retorno: a spec de Fundação a deixou fora da CI compartilhada. Sem CI compartilhada e sem ferramenta decidida, não há item de anatomia para ela -- e não ter item é honesto, enquanto inventar um seria cobrar regra que ninguém decidiu.",
+
+  "_aplicacao": "O que o tipo aplicação carrega além dos invariantes. O gerenciador de pacotes é **único** e não é slot: é um valor que a anatomia fixa, porque navegar entre aplicações não pode exigir recontextualização. A regra é do tipo aplicação e **não alcança** o módulo de infraestrutura, o que importa porque são dois os repos com o gerenciador divergente, e não um.",
+  "aplicacao": {
+    "package_manager_lockfile": "pnpm-lock.yaml",
+    "package_manager_workspace": "pnpm-workspace.yaml",
+    "foreign_lockfiles": ["package-lock.json", "yarn.lock", "bun.lockb"],
+    "apps_dir": "apps/",
+    "container_build_file": "Dockerfile",
+    "mcp_config": ".mcp.json",
+    "mcp_env_placeholder": "${",
+    "env_example": ".env.example",
+    "_stateful_markers": "A composição de serviços locais é **condicional**: existe se e somente se a aplicação tem dependência local com estado. Estes são os rastros observáveis dessa dependência na árvore. Uma aplicação sem nenhum deles não é cobrada, e a ausência da composição ali **não é** deriva -- é o falso positivo que a spec antecipou explicitamente.",
+    "stateful_markers": ["alembic.ini", "alembic/", "migrations/", "prisma/"],
+    "compose_files": ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"]
+  },
+
+  "_empty_stack_types": "Dois dos cinco tipos têm stack vazia por natureza, e são o fixture mais importante do checker, não caso de borda: é neles que um contrato de required checks ingênuo quebra. Um repo destes que ganha superfície ganhou código de produto que não é dele.",
+  "empty_stack_types": ["skills", "dotfiles"],
+
+  "_meta_files": "O que o tipo meta carrega por ser quem define o padrão. Ele é cobrado de todo invariante como qualquer outro repo: sem isso, o repo que define o padrão vira a primeira exceção a ele.",
+  "meta_files": ["ANATOMY.md"]
+}

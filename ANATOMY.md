@@ -38,11 +38,71 @@ Dois dos cinco (**skills** e **dotfiles**) têm stack vazia por natureza. O tipo
 
 ## O catálogo
 
-Este documento entrega o **esqueleto**: os três eixos, os cinco tipos e o vocabulário. O **conteúdo do catálogo**, isto é, a lista completa de itens por eixo (quais documentos são invariantes, quais ferramentas cada stack exige, o que cada tipo carrega) é decidido pela [spec de Repo #4](https://github.com/panlabs-tech/.github/issues/4), que esta issue bloqueia.
-
-O checker (`scripts/panlabs/checker/`) já opera sobre este esqueleto com um **catálogo-semente**: itens suficientes para exercitar os três escopos de verdade, não para cobrir a frota inteira. Onde o catálogo-semente e o catálogo final da #4 divergirem, a #4 é quem decide o item; este documento continua descrevendo a forma.
+Este é o catálogo cheio, decidido pela [spec de Repo #4](https://github.com/panlabs-tech/.github/issues/4) e escrito pela [issue #28](https://github.com/panlabs-tech/.github/issues/28). Item escrito aqui que não vira veredito seria recomendação, e a leitura binária proíbe recomendação: **um teste amarra esta tabela ao catálogo executável**, e escrever um item aqui sem implementá-lo (ou o contrário) reprova.
 
 O catálogo é um **pacote com um módulo por eixo** (`catalog/org.py`, `catalog/stack.py`, `catalog/tipo.py`), e o endereço de um item carrega o escopo dele. Não é organização: um item de stack morando no módulo de org mentiria sobre o eixo em que foi avaliado, e um teste guarda essa correspondência.
+
+O que cada item **exige** é dado, e mora em [`config/anatomy.json`](config/anatomy.json). A separação é a mesma que rege o resto do repo: o catálogo decide *que item existe e em que eixo ele é avaliado*, e o dado carrega *qual valor ele cobra*. Uma dimensão `null` está ainda não decidida, e o item que depende dela não gera veredito nenhum, o que o CLI anuncia em voz alta para que silêncio não seja lido como conformidade.
+
+### Invariante de org
+
+| Item | O que cobra |
+| --- | --- |
+| `readme-exists` | README em todo repo. |
+| `license-exists` | LICENSE em todo repo. |
+| `license-uniform` | A licença é a mesma na org toda. Só cobra de quem já tem alguma: cobrar uniformidade de quem não tem licença nenhuma daria duas linhas para o mesmo conserto. |
+| `agent-entrypoint-generico` | O arquivo genérico de orientação do agente existe, e é a fonte-da-verdade. |
+| `agent-entrypoint-primario-referencia-generico` | O arquivo do agente primário **referencia** o genérico, mais o que é genuinamente específico dele. É a amarra que mata o fóssil de um genérico que já não corresponde ao conteúdo real. |
+| `agent-docs-obrigatorios` | Os quatro documentos de nome fixo: tracker de issues, vocabulário de labels, fluxo de trabalho e domínio. O motivo nomeia quais faltam. |
+| `triage-labels-slot-declarado` | O vocabulário de labels é **slot**: o documento diz alguma coisa e nomeia ao menos uma label. Qual label é do repo, e nenhum dialeto está cravado no código. |
+| `sem-configuracao-stale-de-ferramenta` | Nada versionado fora da toolchain decidida na spec de Máquina. Preflight antes de remover: aquilo é candidato a promoção global? |
+| `sem-equipamento-global-versionado` | Skills, subagentes, comandos, hooks portáveis, lista de permissões e barra de status ficam de fora **por design, não por omissão**. |
+| `portao-local-existe` | O portão 1 existe, antes do commit. |
+| `padrao-de-mensagem-de-commit` | O portão local verifica a mensagem de commit. |
+| `scan-de-segredos-antes-do-commit` | O portão local verifica segredos antes do commit, e não depois de já estarem no histórico. |
+| `ci-referencia-workflows-compartilhados` | A CI referencia os reusable workflows publicados aqui, e ninguém copia YAML. O repo que os publica os referencia por caminho local, e essa exceção é dado declarado. |
+| `contrato-de-nomes-de-status` | O rollup de id fixo e o job de segurança existem, com zero, uma ou duas superfícies. |
+| `descricao-declarada` | Descrição, comparada com o declarado em `config/org.json`; sem texto governado, só se cobra que exista alguma. |
+| `topics-declarados` | Topics, pelo mesmo critério da descrição. |
+| `wiki-conforme-decidido` | Wiki como a org decidiu, com as exceções declaradas em `config/org.json`. |
+
+**Dois itens que a prosa da spec listou sob stack e que moram aqui.** O contrato de nomes de status e a referência à CI compartilhada valem para **todo** repositório, inclusive o de stack vazia, onde o rollup passa trivialmente e é justamente esse o ponto. Um item de eixo stack precisa de um valor de stack para aparecer na matriz, e um repositório sem superfície nenhuma não tem nenhum: escrevê-los como item de stack os deixaria sem escopo exatamente no repositório que eles existem para servir.
+
+### Variante por stack, aplicada por superfície
+
+Os itens são **gerados a partir do dado**, um conjunto por superfície declarada. Uma superfície nova entra no catálogo pelo dado, com o mesmo conjunto de cobranças, em vez de alguém precisar lembrar de escrever quatro itens à mão e esquecer um.
+
+| Item | O que cobra |
+| --- | --- |
+| `python-runtime-declared` | A superfície Python declara a versão de runtime na raiz. **Slot**: obriga a declaração, não o número. |
+| `python-portao-local-declara-ferramenta` | O portão local roda a ferramenta de formatação e verificação daquela superfície. |
+| `python-ci-referencia-perna-compartilhada` | A perna de CI daquela superfície vem do workflow compartilhado. |
+| `node-runtime-declared` | Idem, para a superfície Node. |
+| `node-lockfile-committed` | A superfície Node versiona lockfile na raiz. |
+| `node-portao-local-declara-ferramenta` | Idem. |
+| `node-ci-referencia-perna-compartilhada` | Idem. |
+
+Existe um item de convergência de versão maior por superfície, `<superfície>-runtime-major-convergido`, e ele **não aparece na tabela porque não está ativo**: `runtime_major` é `null` no dado. Os quatro repos com superfície Node declaram 22 e 24, metade e metade, e escolher o número da frota é decisão do operador. Enquanto for `null`, o item não avalia nada e o CLI reporta a dimensão como não decidida.
+
+**A superfície Terraform não tem item, e a ausência é deliberada.** Ela existe em um repo só, e a spec de Fundação a deixou fora da CI compartilhada porque um reusable workflow de um consumidor é abstração sem retorno. Sem CI compartilhada e sem ferramenta decidida, não ter item é honesto; inventar um seria cobrar regra que ninguém decidiu.
+
+### Variante por tipo
+
+| Item | O que cobra |
+| --- | --- |
+| `anatomy-doc-exists` | O tipo **meta** carrega a própria definição do padrão, ao lado do checker que a mede. |
+| `aplicacao-gerenciador-de-pacotes-unico` | Gerenciador de pacotes único. Valor fixo, não slot: dois gerenciadores são exatamente a recontextualização que a regra existe para matar. |
+| `aplicacao-layout-de-monorepo` | Aplicações em subpastas, e não código plano na raiz. |
+| `aplicacao-build-de-container-por-app` | Arquivo de build de container por aplicação, morando junto de cada uma. Só cobra de quem já tem o layout. |
+| `aplicacao-composicao-de-servicos-locais` | **Condicional**: existe se e somente se a aplicação tem dependência local com estado. Sem esse rastro na árvore, o item não se aplica, e a ausência **não é** deriva. |
+| `aplicacao-mcp-versionado-com-placeholder` | Configuração de MCP versionada, com placeholder de variável de ambiente em vez de segredo literal gitignorado. |
+| `aplicacao-exemplo-de-variaveis-de-ambiente` | Arquivo de exemplo de variáveis, sem o qual o placeholder não diz o que preencher. |
+| `skills-sem-superficie` | Stack vazia por natureza. Superfície ali é código de produto, que não é o conteúdo do tipo. |
+| `dotfiles-sem-superficie` | Idem. |
+
+**O módulo de infraestrutura não tem item próprio, e isso é a definição dele.** Ele é variante *declarada*, não exceção: a diferença é que ele é verificável como qualquer outro, cobrado de todo invariante e de todo item das superfícies que ele tem. O que não o alcança é a regra de convergência de gerenciador de pacotes, que é do tipo aplicação. Isso importa porque são **dois** os repos com o gerenciador divergente, e não um: a vitrine, que a regra alcança, e o de infraestrutura, que ela não alcança.
+
+**Skills e dotfiles são o fixture mais importante do checker, não caso de borda.** É neles que um contrato de required checks ingênuo quebra, e é por isso que o rollup existe sempre.
 
 ## O que o checker enxerga
 
@@ -57,7 +117,7 @@ Um item só pode ser escrito sobre o que a observação alcança, e por isso o a
 
 Duas propriedades não se negociam. **Ler mais não é escrever nada:** o checker continua read-only, e rodá-lo não muda nada em nenhum repositório, em nenhum momento. E **observação parcial não pode parecer conforme:** uma árvore que a API devolve truncada vira erro de observação daquele repositório, pelo mesmo motivo que o falso-negativo da listagem raiz era grave.
 
-**A superfície é lida da árvore inteira; o que cada item exige é decisão dele.** As duas perguntas são diferentes e não se confundem: "este repositório tem superfície Node?" olha o repositório todo, e "ele declara a versão de runtime que o gerenciador da máquina lê?" olha um caminho exato, na raiz. O catálogo-semente pergunta pela raiz nos três itens que perguntam por arquivo; se algum item do catálogo cheio precisar da outra pergunta, ela é escolha dele, e o escopo continua revisável.
+**A superfície é lida da árvore inteira; o que cada item exige é decisão dele.** As duas perguntas são diferentes e não se confundem: "este repositório tem superfície Node?" olha o repositório todo, e "ele declara a versão de runtime que o gerenciador da máquina lê?" olha um caminho exato, na raiz. Os itens de slot e de portão perguntam pela raiz, porque é lá que o gerenciador da máquina e o `git` leem; os de layout de monorepo e de build de container perguntam por caminho relativo à aplicação, porque é lá que aquilo mora. A escolha é de cada item, e o escopo continua revisável.
 
 ## Quando o checker roda
 

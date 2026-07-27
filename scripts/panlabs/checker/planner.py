@@ -15,7 +15,9 @@ foi avaliado, pediu atenção.
 
 from __future__ import annotations
 
-from panlabs.checker.catalog import DEFAULT_CATALOG, AnatomyItem
+from collections.abc import Sequence
+
+from panlabs.checker.catalog import AnatomyItem
 from panlabs.checker.model import Observed, RepoObserved
 from panlabs.plan import Plan, PlanItem
 
@@ -27,15 +29,20 @@ ERROR_VERDICT = "erro"
 _NO_SCOPE_LABEL = "sem escopo (falha de observação)"
 
 
-def plan(observed: Observed, catalog: tuple[AnatomyItem, ...] = DEFAULT_CATALOG) -> Plan:
-    """A matriz de deriva da frota inteira, em ordem estável de repo."""
+def plan(observed: Observed, catalog: Sequence[AnatomyItem]) -> Plan:
+    """A matriz de deriva da frota inteira, em ordem estável de repo.
+
+    O catálogo entra como segundo argumento pelo mesmo motivo que o `desired`
+    entra nos outros planners: ele é construído a partir de dado versionado, e um
+    default constante o faria ler arquivo em tempo de import.
+    """
     items: list[PlanItem] = []
     for repo in observed.sorted_repos():
         items.extend(_plan_repo(repo, catalog))
     return Plan(tuple(items))
 
 
-def _plan_repo(repo: RepoObserved, catalog: tuple[AnatomyItem, ...]) -> list[PlanItem]:
+def _plan_repo(repo: RepoObserved, catalog: Sequence[AnatomyItem]) -> list[PlanItem]:
     if repo.error is not None:
         return [
             PlanItem(

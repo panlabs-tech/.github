@@ -1,11 +1,14 @@
 {
-  "_nota": "O tipo de cada repositório é dado declarado, não inferido: tipos são nomeados e finitos (ver ANATOMY.md), e classificar um repositório é escolha de quem o cria, não cálculo do checker. Um repositório ausente daqui, ou com valor null, ainda não foi classificado -- os itens de escopo tipo não o alcançam, e isso não é deriva. Só os tipos já confirmados em texto publicado (issue #4) estão preenchidos; os demais aguardam decisão explícita do operador.",
+  "_nota": "O tipo de cada repositório é dado declarado, não inferido: tipos são nomeados e finitos (ver ANATOMY.md), e classificar um repositório é escolha de quem o cria, não cálculo do checker. Um repositório ausente daqui, ou com valor null, ainda não foi classificado -- os itens de escopo tipo não o alcançam, e isso não é deriva.",
+
+  "_classificacao_completa": "A issue #28 completou a classificação, e cada linha é ancorada em texto já publicado. `dotfiles` foi nomeado pela própria #28 como parte do ticket. Os quatro restantes são **aplicação** pela spec de Repo #4: ela sujeita o repo de vitrine (`panlabs`) à regra de convergência de gerenciador de pacotes, que é regra do tipo aplicação, e descreve a aplicação como o repo com superfície Node e Python em monorepo, que é o que os outros três são. Deixá-los em null manteria o eixo tipo sem alcançar ninguém além do meta, e o inventário de retrofit nasceria cego.",
 
   "panlabs-tech/.github": "meta",
-  "panlabs-tech/tfbox": "modulo-infraestrutura",
+  "panlabs-tech/dotfiles": "dotfiles",
+  "panlabs-tech/ethitorial": "aplicacao",
+  "panlabs-tech/life-under-control": "aplicacao",
+  "panlabs-tech/panlabs": "aplicacao",
   "panlabs-tech/skills": "skills",
-  "panlabs-tech/panlabs": null,
-  "panlabs-tech/life-under-control": null,
-  "panlabs-tech/travelmanager": null,
-  "panlabs-tech/ethitorial": null
+  "panlabs-tech/tfbox": "modulo-infraestrutura",
+  "panlabs-tech/travelmanager": "aplicacao"
 }
