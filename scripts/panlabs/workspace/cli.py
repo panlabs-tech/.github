@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     dump_raw(args.dump_observed, raw)
-    report_undecided(desired.undecided, args.config)
+    report_undecided(desired.undecided, args.config, spec="spec de Máquina #3")
 
     the_plan = plan(observed, desired, approved=args.discard or ())
     if args.discard and (unknown := _unknown_targets(the_plan, args.discard)):

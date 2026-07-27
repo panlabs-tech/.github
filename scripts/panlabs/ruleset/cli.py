@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         observed, excluded = _restrict(observed, args.only)
         _report_only(excluded)
 
-    report_undecided(desired.undecided, args.config)
+    report_undecided(desired.undecided, args.config, spec="spec de Org #2")
     the_plan = plan(observed, desired, retrofitted=args.only or ())
 
     if args.json:

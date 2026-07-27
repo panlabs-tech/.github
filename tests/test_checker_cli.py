@@ -95,10 +95,10 @@ def test_json_output_is_the_serialized_matrix_and_nothing_else(
 
     payload = json.loads(capsys.readouterr().out)
 
-    campos = {"action", "target", "reason", "payload", "hold"}
+    fields = {"action", "target", "reason", "payload", "hold"}
 
     assert payload["items"]
-    assert all(campos == set(i) for i in payload["items"])
+    assert all(fields == set(i) for i in payload["items"])
     assert {i["payload"]["verdict"] for i in payload["items"]} == {"deriva"}
     assert all(i["payload"]["scope"] for i in payload["items"])
 

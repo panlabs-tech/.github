@@ -82,7 +82,7 @@ Os itens são **gerados a partir do dado**, um conjunto por superfície declarad
 | `node-portao-local-declara-ferramenta` | Idem. |
 | `node-ci-referencia-perna-compartilhada` | Idem. |
 
-Existe um item de convergência de versão maior por superfície, `<superfície>-runtime-major-convergido`, e ele **não aparece na tabela porque não está ativo**: `runtime_major` é `null` no dado. Os quatro repos com superfície Node declaram 22 e 24, metade e metade, e escolher o número da frota é decisão do operador. Enquanto for `null`, o item não avalia nada e o CLI reporta a dimensão como não decidida.
+Existe um item de convergência de versão maior por superfície, `<superfície>-runtime-major-convergido`, e ele **não aparece na tabela porque não está ativo**: `runtime_major` é `null` no dado. Dos cinco repos com superfície Node, os quatro que declaram versão dizem 22 e 24, metade e metade, e escolher o número da frota é decisão do operador. Enquanto for `null`, o item não avalia nada e o CLI reporta a dimensão como não decidida.
 
 **A superfície Terraform não tem item, e a ausência é deliberada.** Ela existe em um repo só, e a spec de Fundação a deixou fora da CI compartilhada porque um reusable workflow de um consumidor é abstração sem retorno. Sem CI compartilhada e sem ferramenta decidida, não ter item é honesto; inventar um seria cobrar regra que ninguém decidiu.
 

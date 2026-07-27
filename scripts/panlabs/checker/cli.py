@@ -87,10 +87,15 @@ def main(argv: list[str] | None = None) -> int:
 
     the_matrix = plan(observed, catalog)
 
+    # Fora do `if` de formato, e em stderr: uma dimensão não decidida é item de
+    # anatomia que não avaliou nada, e um consumidor que lê a matriz em JSON
+    # precisa saber disso tanto quanto o operador que a lê na tela. Silêncio
+    # lido como conformidade é a única leitura errada possível aqui.
+    report_undecided(anatomy.undecided, DEFAULT_ANATOMY_PATH, spec="spec de Repo #4")
+
     if args.json:
         print(the_matrix.to_json())
     else:
-        report_undecided(anatomy.undecided, DEFAULT_ANATOMY_PATH)
         print(
             f"Org {observed.org}: {len(observed.repos)} repo(s) avaliado(s) "
             f"contra {len(catalog)} item(ns) de anatomia.\n"

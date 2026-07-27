@@ -166,19 +166,25 @@ def dump_raw(path: Path | None, raw: Mapping[str, Any]) -> None:
     )
 
 
-def report_undecided(undecided: Sequence[str], config: Path) -> None:
+def report_undecided(undecided: Sequence[str], config: Path, *, spec: str) -> None:
     """Avisa quais dimensões do dado ainda não foram decididas. Sem nenhuma, cala.
 
     Mora aqui, e não em cada CLI, porque "não decidido" é vocabulário do seam:
     todo script deste repo carrega dado versionado onde `null` significa a mesma
     coisa, e dois textos diferentes para o mesmo fato divergiriam com o tempo.
+
+    A **spec que decide** entra como argumento porque ela é diferente por dado:
+    o ruleset e a org vêm da spec de Org, a máquina, o espaço de trabalho e o
+    heartbeat vêm da de Máquina, e a anatomia vem da de Repo. Um texto único
+    mandaria o operador ler a spec errada para descobrir o valor que falta, que
+    é o oposto do que este aviso existe para fazer.
     """
     if not undecided:
         return
     print(
         f"Configuração desejada incompleta em {config}: "
         f"{', '.join(undecided)} ainda sem decisão.\n"
-        "Nada é planejado para uma dimensão não decidida. Os valores são da spec de Org #2.\n",
+        f"Nada é planejado para uma dimensão não decidida. Os valores são da {spec}.\n",
         file=sys.stderr,
     )
 

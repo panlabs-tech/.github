@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
 
     dump_raw(args.dump_observed, raw)
 
-    report_undecided(desired.undecided, args.config)
+    report_undecided(desired.undecided, args.config, spec="spec de Org #2")
     the_plan = plan(observed, desired)
 
     if args.json:

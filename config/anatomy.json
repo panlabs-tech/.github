@@ -103,7 +103,7 @@
     "jobs": ["checks", "security"]
   },
 
-  "_surfaces": "O que cada superfície declara. `runtime_file` é **slot**: a anatomia exige que o repo declare a versão, não que declare um número específico. `runtime_major` é a convergência da frota, e está `null` porque ela ainda não aconteceu: os quatro repos com superfície Node declaram 22 e 24, metade e metade, e escolher o número é decisão do operador, não do agente. Enquanto for `null`, o item de convergência não avalia nada, e o CLI diz isso em voz alta.",
+  "_surfaces": "O que cada superfície declara. `runtime_file` é **slot**: a anatomia exige que o repo declare a versão, não que declare um número específico. `runtime_major` é a convergência da frota, e está `null` porque ela ainda não aconteceu: dos cinco repos com superfície Node, os quatro que declaram versão dizem 22 e 24, metade e metade (o quinto não declara nenhuma, e essa é uma linha da matriz dele), e escolher o número é decisão do operador, não do agente. Enquanto for `null`, o item de convergência não avalia nada, e o CLI diz isso em voz alta.",
   "surfaces": {
     "python": {
       "runtime_file": ".python-version",

@@ -21,12 +21,12 @@ e não ter item é honesto, enquanto inventar um seria cobrar regra que ninguém
 decidiu.
 
 **O que os itens exigem de lockfile continua sendo o da raiz**, e isso é escolha.
-Os cinco repositórios com superfície Node usam dois layouts: três têm workspace de
-`pnpm`, com um lockfile na raiz servindo `apps/web/package.json`; o outro versiona
-lockfile na raiz **e** ao lado de cada manifesto. Exigir lockfile ao lado de cada
-manifesto reprovaria os três primeiros; aceitar lockfile em qualquer lugar
-aprovaria um repositório por causa de um lockfile perdido numa pasta que não é a
-do manifesto. O da raiz é o que os cinco têm.
+A frota usa três layouts sob a mesma superfície: workspace de `pnpm`, com um
+lockfile na raiz servindo `apps/web/package.json`; lockfile na raiz **e** ao lado
+de cada manifesto; e manifesto único na raiz, sem subpasta nenhuma. Exigir
+lockfile ao lado de cada manifesto reprovaria o primeiro layout; aceitar lockfile
+em qualquer lugar aprovaria um repositório por causa de um lockfile perdido numa
+pasta que não é a do manifesto. O da raiz é o único que os três layouts têm.
 """
 
 from __future__ import annotations

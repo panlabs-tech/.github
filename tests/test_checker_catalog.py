@@ -9,7 +9,9 @@ de um repositório **conforme** (`tests/anatomy.py`) e tira exatamente uma peça
 que o teste mostra é a diferença, e não o estado todo.
 """
 
+import json
 import re
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -20,17 +22,29 @@ from panlabs.checker.config import VALID_TYPES, Anatomy, load_anatomy, load_repo
 from panlabs.org.config import Desired, load_desired
 from panlabs.plan import PlanItem
 
-CATALOG = load_catalog()
-ANATOMY_DOC = Path(__file__).resolve().parents[1] / "ANATOMY.md"
+ROOT = Path(__file__).resolve().parents[1]
+ANATOMY_DOC = ROOT / "ANATOMY.md"
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@cache
+def catalog() -> tuple[Any, ...]:
+    """O catálogo real, lido na primeira chamada e não no import.
+
+    Em tempo de import, um dado ilegível quebraria a **coleta** dos testes em vez
+    de reprovar um teste: o erro apareceria como suíte que não existe, e não como
+    a asserção que sabe explicar o que está errado no arquivo.
+    """
+    return load_catalog()
 
 
 def rows(*repos: dict[str, Any]) -> list[str]:
     """Os ids que o catálogo acusa contra aqueles repositórios, em ordem."""
-    return [row.action for row in planner.plan(observed(*repos), CATALOG)]
+    return [row.action for row in planner.plan(observed(*repos), catalog())]
 
 
 def row_for(action: str, *repos: dict[str, Any]) -> PlanItem:
-    return next(row for row in planner.plan(observed(*repos), CATALOG) if row.action == action)
+    return next(row for row in planner.plan(observed(*repos), catalog()) if row.action == action)
 
 
 # --- o endereço carrega o eixo -------------------------------------------------
@@ -39,9 +53,9 @@ def row_for(action: str, *repos: dict[str, Any]) -> PlanItem:
 def test_the_catalog_is_the_three_axis_modules_concatenated_in_order():
     """Pelos ids: um item carrega closures, e duas construções nunca são iguais."""
     anatomy, desired = load_anatomy(), load_desired()
-    eixos = org.items(anatomy, desired) + stack.items(anatomy) + tipo.items(anatomy)
+    axes = org.items(anatomy, desired) + stack.items(anatomy) + tipo.items(anatomy)
 
-    assert [i.id for i in build(anatomy, desired)] == [i.id for i in eixos]
+    assert [i.id for i in build(anatomy, desired)] == [i.id for i in axes]
 
 
 def test_every_item_in_the_org_module_is_scoped_to_the_org_axis():
@@ -62,7 +76,7 @@ def test_every_item_in_the_type_module_is_scoped_to_a_named_type():
 
 def test_no_item_id_is_declared_twice_across_the_axes():
     """O id é o que aparece na matriz: dois itens homônimos seriam indistinguíveis."""
-    ids = [i.id for i in CATALOG]
+    ids = [i.id for i in catalog()]
 
     assert len(ids) == len(set(ids))
 
@@ -76,7 +90,7 @@ def test_nothing_written_in_the_document_is_left_without_a_verdict():
     """
     written = set(re.findall(r"^\| `([a-z0-9-]+)` \|", ANATOMY_DOC.read_text("utf-8"), re.M))
 
-    assert written == {i.id for i in CATALOG}
+    assert written == {i.id for i in catalog()}
 
 
 # --- escopo por eixo: quem é avaliado, e quem não é ---------------------------
@@ -142,28 +156,28 @@ def test_a_required_agent_doc_absent_is_drift_with_the_reason_naming_which_one()
 
 def test_local_services_absent_in_an_app_with_no_stateful_dependency_is_not_drift():
     """O falso positivo que a spec antecipou explicitamente, codificado."""
-    sem_estado = conformant(tipo="aplicacao", surfaces=("node",), stateful=False)
+    stateless = conformant(tipo="aplicacao", surfaces=("node",), stateful=False)
 
-    assert "aplicacao-composicao-de-servicos-locais" not in rows(sem_estado)
+    assert "aplicacao-composicao-de-servicos-locais" not in rows(stateless)
 
 
 def test_local_services_absent_in_an_app_that_does_have_state_is_drift():
-    com_estado = without(
+    stateful = without(
         conformant(tipo="aplicacao", surfaces=("node",), stateful=True), "docker-compose.yml"
     )
 
-    assert rows(com_estado) == ["aplicacao-composicao-de-servicos-locais"]
+    assert rows(stateful) == ["aplicacao-composicao-de-servicos-locais"]
 
 
 # --- slots: a declaração, nunca o valor ---------------------------------------
 
 
 def test_a_slot_filled_with_different_values_passes_in_both_repos():
-    um = conformant("panlabs-tech/um", surfaces=("python",))
-    outro = {**conformant("panlabs-tech/outro", surfaces=("python",))}
-    outro["contents"] = {**outro["contents"], ".python-version": "3.13\n"}
+    one = conformant("panlabs-tech/um", surfaces=("python",))
+    other = {**conformant("panlabs-tech/outro", surfaces=("python",))}
+    other["contents"] = {**other["contents"], ".python-version": "3.13\n"}
 
-    assert rows(um, outro) == []
+    assert rows(one, other) == []
 
 
 def test_a_slot_that_is_not_declared_at_all_fails():
@@ -182,9 +196,9 @@ def test_an_empty_slot_fails_even_though_the_file_exists():
 
 def test_two_different_label_dialects_both_pass_and_no_dialect_is_hardcoded():
     """A fixture usa um dialeto inventado; se algum estivesse cravado, ela reprovaria."""
-    canonico = conformant("panlabs-tech/canonico")
-    canonico["contents"] = {
-        **canonico["contents"],
+    canonical = conformant("panlabs-tech/canonical")
+    canonical["contents"] = {
+        **canonical["contents"],
         "docs/agents/triage-labels.md": "| papel | `ready-for-agent` |",
     }
     namespaced = conformant("panlabs-tech/namespaced")
@@ -193,7 +207,7 @@ def test_two_different_label_dialects_both_pass_and_no_dialect_is_hardcoded():
         "docs/agents/triage-labels.md": "| papel | `status:ready-for-agent` |",
     }
 
-    assert rows(canonico, namespaced) == []
+    assert rows(canonical, namespaced) == []
 
 
 # --- o contrato de nomes de status --------------------------------------------
@@ -201,11 +215,11 @@ def test_two_different_label_dialects_both_pass_and_no_dialect_is_hardcoded():
 
 def test_zero_one_and_two_surfaces_produce_the_same_set_of_status_names():
     """É o que faz a lista fixa de required checks sobreviver a stack variável."""
-    nenhuma = conformant("panlabs-tech/skills", tipo="skills")
-    uma = conformant("panlabs-tech/uma", surfaces=("python",))
-    duas = conformant("panlabs-tech/duas", surfaces=("python", "node"))
+    zero_surfaces = conformant("panlabs-tech/skills", tipo="skills")
+    one_surface = conformant("panlabs-tech/uma-superficie", surfaces=("python",))
+    two_surfaces = conformant("panlabs-tech/duas-superficies", surfaces=("python", "node"))
 
-    assert rows(nenhuma, uma, duas) == []
+    assert rows(zero_surfaces, one_surface, two_surfaces) == []
 
 
 def test_a_caller_that_does_not_publish_the_rollup_is_drift():
@@ -215,8 +229,8 @@ def test_a_caller_that_does_not_publish_the_rollup_is_drift():
         ".github/workflows/pr-checks.yml": "jobs:\n  security:\n    uses: outro\n",
     }
 
-    linha = row_for("contrato-de-nomes-de-status", repo)
-    assert "checks" in linha.reason
+    row = row_for("contrato-de-nomes-de-status", repo)
+    assert "checks" in row.reason
 
 
 # --- o que o repositório não versiona -----------------------------------------
@@ -226,18 +240,18 @@ def test_a_competing_agent_directory_is_drift_with_the_declared_reason():
     repo = conformant()
     repo["files"] = [*repo["files"], ".codex/config.toml.example"]
 
-    linha = row_for("sem-configuracao-stale-de-ferramenta", repo)
-    assert ".codex/" in linha.reason
-    assert "agente concorrente" in linha.reason
+    row = row_for("sem-configuracao-stale-de-ferramenta", repo)
+    assert ".codex/" in row.reason
+    assert "agente concorrente" in row.reason
 
 
 def test_vendored_global_equipment_is_drift():
     repo = conformant()
     repo["files"] = [*repo["files"], ".claude/skills/tdd/SKILL.md", "skills-lock.json"]
 
-    linha = row_for("sem-equipamento-global-versionado", repo)
-    assert ".claude/skills/" in linha.reason
-    assert "skills-lock.json" in linha.reason
+    row = row_for("sem-equipamento-global-versionado", repo)
+    assert ".claude/skills/" in row.reason
+    assert "skills-lock.json" in row.reason
 
 
 def test_the_generic_agent_file_is_the_source_of_truth_and_the_primary_one_points_at_it():
@@ -251,23 +265,23 @@ def test_the_generic_agent_file_is_the_source_of_truth_and_the_primary_one_point
 
 
 def test_a_repo_new_to_the_live_org_enters_the_matrix_without_any_code_change():
-    novo = without(conformant("panlabs-tech/recem-chegado"), "AGENTS.md")
+    newcomer = without(conformant("panlabs-tech/recem-chegado"), "AGENTS.md")
 
-    assert "agent-entrypoint-generico" in rows(novo)
+    assert "agent-entrypoint-generico" in rows(newcomer)
 
 
 def test_a_dot_prefixed_repo_name_enters_the_matrix_like_any_other():
-    ponto = conformant("panlabs-tech/.github", tipo="meta", surfaces=("python",))
-    ponto["has_license"] = False
+    dot_named = conformant("panlabs-tech/.github", tipo="meta", surfaces=("python",))
+    dot_named["has_license"] = False
 
-    assert "license-exists" in rows(ponto)
+    assert "license-exists" in rows(dot_named)
 
 
 def test_a_network_or_credential_failure_stays_distinguishable_from_anatomy_drift():
-    quebrado = {"name": "panlabs-tech/instavel", "error": "HTTP 401: bad credentials"}
-    derivado = without(conformant("panlabs-tech/nu"), "AGENTS.md")
+    broken = {"name": "panlabs-tech/instavel", "error": "HTTP 401: bad credentials"}
+    drifted = without(conformant("panlabs-tech/nu"), "AGENTS.md")
 
-    the_plan = planner.plan(observed(quebrado, derivado), CATALOG)
+    the_plan = planner.plan(observed(broken, drifted), catalog())
     verdicts = {row.target: row.payload["verdict"] for row in the_plan}
 
     assert verdicts["panlabs-tech/instavel"] == planner.ERROR_VERDICT
@@ -281,19 +295,32 @@ def test_the_dotfiles_repo_has_its_type_declared_in_the_data():
     assert load_repo_types()["panlabs-tech/dotfiles"] == "dotfiles"
 
 
-def test_every_repo_of_the_live_org_is_classified():
-    """Um tipo em branco deixa o eixo inteiro sem alcançar aquele repositório."""
+def test_every_repo_of_the_last_observed_fleet_is_classified():
+    """Um tipo em branco deixa o eixo inteiro sem alcançar aquele repositório.
+
+    O alvo vem do **retrato observado mais recente**, e não de uma contagem
+    escrita aqui: nenhum script nem teste deste repo carrega contagem ou lista de
+    repos (`AGENTS.md`), e uma contagem literal reprovaria no dia em que a org
+    ganhasse um repo, dizendo a coisa errada sobre o motivo.
+
+    O repo privado não está no retrato versionado, e por isso a classificação
+    dele tem teste próprio ao lado deste.
+    """
     types = load_repo_types()
+    latest = sorted(FIXTURES.glob("checker-fleet-*.json"))[-1]
+    observed_names = {
+        entry["name"] for entry in json.loads(latest.read_text(encoding="utf-8"))["repos"]
+    }
 
     assert set(types.values()) <= VALID_TYPES
-    assert len(types) == 8
+    assert observed_names <= set(types), sorted(observed_names - set(types))
 
 
 def test_an_undecided_dimension_produces_no_item_at_all():
     """`null` no dado é "ainda não decidido", e nada é cobrado para ele."""
-    vazia = build(Anatomy(), Desired())
+    empty = build(Anatomy(), Desired())
 
-    assert [i.id for i in vazia] == ["readme-exists", "license-exists"]
+    assert [i.id for i in empty] == ["readme-exists", "license-exists"]
 
 
 def test_the_undecided_dimensions_are_reported_by_name():

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
@@ -198,33 +198,23 @@ class Anatomy:
 
     @property
     def undecided(self) -> tuple[str, ...]:
-        pending = [
-            name
-            for name in ANATOMY_DIMENSIONS
-            if getattr(self, name.replace(".", "_"), None) is None
-        ]
+        """As dimensões que ainda esperam decisão, pelo nome que o dado usa.
+
+        Derivada dos próprios campos, e não de uma lista escrita ao lado: uma
+        segunda lista dos mesmos nomes divergiria no primeiro campo novo, e o
+        modo de falhar dela é silencioso -- a dimensão nova ficaria fora do
+        aviso, que é exatamente o silêncio lido como conformidade.
+
+        A convergência de versão maior é aninhada por superfície, e por isso vem
+        pelo caminho completo: `surfaces.node.runtime_major` diz qual superfície
+        espera decisão, e `surfaces` diria só que existem superfícies.
+        """
+        pending = [field.name for field in fields(self) if getattr(self, field.name, None) is None]
         for surface in (self.surfaces or {}).values():
             if surface.runtime_major is None:
                 pending.append(f"surfaces.{surface.name}.runtime_major")
         return tuple(sorted(pending))
 
-
-ANATOMY_DIMENSIONS = (
-    "uniform_license",
-    "agent_docs_required",
-    "agent_docs_conditional",
-    "agent_entrypoint_generic",
-    "agent_entrypoint_primary",
-    "stale_tool_paths",
-    "global_equipment_paths",
-    "local_gate",
-    "shared_ci",
-    "status_contract_jobs",
-    "surfaces",
-    "aplicacao",
-    "empty_stack_types",
-    "meta_files",
-)
 
 ANATOMY_KEYS = (
     "uniform_license",

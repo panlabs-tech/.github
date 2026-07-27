@@ -22,6 +22,7 @@ __all__ = [
     "ScopeKind",
     "always",
     "apps_of",
+    "as_dir",
     "declared",
     "has_file",
     "has_surface",
@@ -155,6 +156,16 @@ def listed(repo: RepoObserved, paths: Sequence[str]) -> tuple[str, ...]:
     return tuple(path for path in paths if path in repo.files)
 
 
+def as_dir(path: str) -> str:
+    """O caminho na forma de diretório, com a barra final que ele talvez não tenha.
+
+    Existe porque o dado escreve o diretório de aplicações do jeito que é natural
+    lê-lo, e concatenar sem normalizar produziria `appsapi/` na primeira vez que
+    alguém escrevesse `apps` em vez de `apps/`.
+    """
+    return path if path.endswith("/") else f"{path}/"
+
+
 def apps_of(repo: RepoObserved, apps_dir: str) -> tuple[str, ...]:
     """As aplicações do monorepo, pelo primeiro segmento sob o diretório de apps.
 
@@ -162,7 +173,7 @@ def apps_of(repo: RepoObserved, apps_dir: str) -> tuple[str, ...]:
     de container e de composição de serviços encontram cada aplicação. Um repo
     com o código plano na raiz devolve vazio, que é o próprio sintoma.
     """
-    prefix = apps_dir if apps_dir.endswith("/") else f"{apps_dir}/"
+    prefix = as_dir(apps_dir)
     names = {
         path[len(prefix) :].split("/", 1)[0]
         for path in repo.files

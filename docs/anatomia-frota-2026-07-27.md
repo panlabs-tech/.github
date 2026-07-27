@@ -86,7 +86,19 @@ Os outros dois itens de disciplina de versionamento (`padrao-de-mensagem-de-comm
 | `panlabs-tech/travelmanager` | `node-ci-referencia-perna-compartilhada` | stack node |
 | `panlabs-tech/travelmanager` | `aplicacao-mcp-versionado-com-placeholder` | tipo aplicacao |
 
-O motivo de cada linha vive na saída do checker, e não aqui: `uv run panlabs-checker --observed tests/fixtures/checker-fleet-2026-07-27.json` reproduz a matriz inteira, com motivo, sem tocar a rede.
+O motivo de cada linha vive na saída do checker, e não aqui:
+
+```bash
+uv run panlabs-checker --observed tests/fixtures/checker-fleet-2026-07-27.json
+```
+
+**O retrato versionado reproduz 58 destas 64 linhas, e não todas**, e a diferença é o preço declarado de este repo ser público. `panlabs-tech/dotfiles` é privado, e o filtro que o mantém fora da fixture é o mesmo dado observado (`private == false`), guardado por teste. As seis linhas dele estão na tabela acima e na [issue #33](https://github.com/panlabs-tech/.github/issues/33), mas o motivo de cada uma só é reproduzível contra a org viva:
+
+```bash
+uv run panlabs-checker --json | jq -r '.items[] | select(.target=="panlabs-tech/dotfiles")'
+```
+
+Uma árvore recursiva mais conteúdo de arquivo é exatamente o retrato que não pode atravessar a fronteira do privado, e publicar a linha sem publicar a prova dela é a escolha honesta entre as duas.
 
 ## Leitura
 
@@ -104,7 +116,7 @@ O motivo de cada linha vive na saída do checker, e não aqui: `uv run panlabs-c
 
 ## O que a matriz não mede, e é declarado
 
-**A convergência de versão maior de runtime está `null` no dado**, e o item existe sem avaliar nada. Os quatro repos com superfície Node declaram 22 e 24, metade e metade; escolher o número da frota é decisão do operador, e um checker que a inventasse estaria cobrando regra que ninguém decidiu. O CLI reporta a dimensão pelo nome a cada corrida, para que o silêncio não seja lido como conformidade.
+**A convergência de versão maior de runtime está `null` no dado**, e o item existe sem avaliar nada. Dos cinco repos com superfície Node, os quatro que declaram versão dizem 22 e 24, metade e metade; escolher o número da frota é decisão do operador, e um checker que a inventasse estaria cobrando regra que ninguém decidiu. O CLI reporta a dimensão pelo nome a cada corrida, para que o silêncio não seja lido como conformidade.
 
 **A superfície Terraform não tem item nenhum.** Ela existe em um repo só, e a spec de Fundação a deixou fora da CI compartilhada. Não ter item é honesto; inventar um seria cobrar regra que ninguém decidiu.
 

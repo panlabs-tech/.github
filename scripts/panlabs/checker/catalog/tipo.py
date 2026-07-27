@@ -25,6 +25,7 @@ from __future__ import annotations
 from panlabs.checker.catalog.item import (
     AnatomyItem,
     apps_of,
+    as_dir,
     declared,
     is_tipo,
     listed,
@@ -98,29 +99,36 @@ def _package_manager(app: Aplicacao) -> AnatomyItem:
     ponto é que navegar entre aplicações não exija recontextualização, e dois
     gerenciadores são exatamente a recontextualização que a regra existe para
     matar. O valor mora no dado, mas ele é um valor só para a org toda.
+
+    Três coisas de uma vez, e não três itens, porque o conserto é um só: adotar o
+    gerenciador. O lockfile dele, a declaração de workspace que serve o monorepo
+    e a **ausência** do lockfile alheio andam juntas -- um repo que versionasse
+    os dois lockfiles teria dois gerenciadores vivos, que é pior do que ter o
+    errado.
     """
     return AnatomyItem(
         id="aplicacao-gerenciador-de-pacotes-unico",
         scope=tipo(APLICACAO),
         applies=lambda repo: repo.tipo == APLICACAO and "node" in repo.surfaces,
-        satisfied=lambda repo: (
-            app.package_manager_lockfile in repo.files and not listed(repo, app.foreign_lockfiles)
+        satisfied=lambda repo: not _package_manager_gaps(repo, app),
+        motivo=lambda repo: (
+            f"{repo.name} não converge no gerenciador de pacotes da org: "
+            f"{'; '.join(_package_manager_gaps(repo, app))}"
         ),
-        motivo=lambda repo: _package_manager_motivo(repo, app),
     )
 
 
-def _package_manager_motivo(repo: RepoObserved, app: Aplicacao) -> str:
+def _package_manager_gaps(repo: RepoObserved, app: Aplicacao) -> tuple[str, ...]:
+    """O que falta (ou sobra) para o gerenciador ser o único, nomeado um a um."""
+    gaps: list[str] = []
+    if app.package_manager_lockfile not in repo.files:
+        gaps.append(f"não versiona {app.package_manager_lockfile}")
+    if app.package_manager_workspace not in repo.files:
+        gaps.append(f"não declara o workspace em {app.package_manager_workspace}")
     foreign = listed(repo, app.foreign_lockfiles)
     if foreign:
-        return (
-            f"{repo.name} usa gerenciador de pacotes divergente ({', '.join(foreign)}): "
-            f"a org converge em {app.package_manager_lockfile}"
-        )
-    return (
-        f"{repo.name} não versiona {app.package_manager_lockfile}: "
-        "o gerenciador de pacotes da aplicação é único na org"
-    )
+        gaps.append(f"versiona lockfile de outro gerenciador ({', '.join(foreign)})")
+    return tuple(gaps)
 
 
 def _monorepo_layout(app: Aplicacao) -> AnatomyItem:
@@ -163,7 +171,7 @@ def _container_build(app: Aplicacao) -> AnatomyItem:
 
 
 def _apps_without_container(repo: RepoObserved, app: Aplicacao) -> tuple[str, ...]:
-    prefix = app.apps_dir if app.apps_dir.endswith("/") else f"{app.apps_dir}/"
+    prefix = as_dir(app.apps_dir)
     return tuple(
         name
         for name in apps_of(repo, app.apps_dir)
@@ -182,7 +190,7 @@ def _local_services(app: Aplicacao) -> AnatomyItem:
     return AnatomyItem(
         id="aplicacao-composicao-de-servicos-locais",
         scope=tipo(APLICACAO),
-        applies=lambda repo: repo.tipo == APLICACAO and _has_stateful_dependency(repo, app),
+        applies=lambda repo: repo.tipo == APLICACAO and bool(_stateful_hits(repo, app)),
         satisfied=lambda repo: bool(listed(repo, app.compose_files)),
         motivo=lambda repo: (
             f"{repo.name} tem dependência local com estado "
@@ -192,25 +200,27 @@ def _local_services(app: Aplicacao) -> AnatomyItem:
     )
 
 
-def _has_stateful_dependency(repo: RepoObserved, app: Aplicacao) -> bool:
-    return bool(_stateful_hits(repo, app))
-
-
 def _stateful_hits(repo: RepoObserved, app: Aplicacao) -> tuple[str, ...]:
     """Os rastros de dependência com estado na árvore, em ordem estável.
 
-    Um marcador terminado em `/` casa o diretório em qualquer profundidade, porque
-    a migração de uma aplicação mora dentro da pasta dela; sem barra, casa o nome
-    do arquivo em qualquer profundidade, pelo mesmo motivo.
+    Os dois formatos de marcador casam coisas diferentes, e a diferença não é
+    cosmética. Um marcador terminado em `/` é **diretório**, e casa o segmento em
+    qualquer profundidade, porque a migração de uma aplicação mora dentro da
+    pasta dela. Sem barra é **nome de arquivo**, e casa o nome inteiro em qualquer
+    profundidade: comparar por sufixo de caminho aprovaria `alembic.ini.bak` por
+    causa de `alembic.ini`, que é um arquivo que ninguém roda.
     """
     hits: list[str] = []
     for marker in app.stateful_markers:
-        needle = marker if marker.endswith("/") else f"{marker}"
-        for path in sorted(repo.files):
-            if f"/{needle}" in f"/{path}" and needle not in hits:
-                hits.append(needle)
-                break
+        if any(_marks(path, marker) for path in repo.files):
+            hits.append(marker)
     return tuple(hits)
+
+
+def _marks(path: str, marker: str) -> bool:
+    if marker.endswith("/"):
+        return f"/{marker}" in f"/{path}"
+    return path.rsplit("/", 1)[-1] == marker
 
 
 def _mcp_config(app: Aplicacao) -> AnatomyItem:

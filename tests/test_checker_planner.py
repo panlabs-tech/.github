@@ -18,7 +18,7 @@ from panlabs.checker.model import Observed
 from panlabs.checker.observe import build_observed
 from panlabs.plan import Plan, PlanItem
 
-CATALOGO = (
+CATALOG = (
     AnatomyItem(
         id="readme-exists",
         scope=ORG,
@@ -70,7 +70,7 @@ def observed(*repos: dict[str, Any]) -> Observed:
 
 
 def plan_of(*repos: dict[str, Any]) -> Plan:
-    return planner.plan(observed(*repos), CATALOGO)
+    return planner.plan(observed(*repos), CATALOG)
 
 
 # --- escopo por eixo: o que não se aplica não gera linha nenhuma ---------------
@@ -97,13 +97,13 @@ def test_a_slot_buried_in_a_subfolder_does_not_satisfy_the_root_declaration():
 
 
 def test_the_type_scoped_item_is_charged_only_against_its_declared_type():
-    ausente = plan_of(repo("panlabs-tech/.github", tipo="meta", files=[]))
-    presente = plan_of(repo("panlabs-tech/.github", tipo="meta", files=["ANATOMY.md"]))
-    outro_tipo = plan_of(repo("panlabs-tech/app", tipo="aplicacao", files=[]))
+    missing_doc = plan_of(repo("panlabs-tech/.github", tipo="meta", files=[]))
+    present_doc = plan_of(repo("panlabs-tech/.github", tipo="meta", files=["ANATOMY.md"]))
+    other_type = plan_of(repo("panlabs-tech/app", tipo="aplicacao", files=[]))
 
-    assert actions_for(ausente, "panlabs-tech/.github") == ["anatomy-doc-exists"]
-    assert actions_for(presente, "panlabs-tech/.github") == []
-    assert actions_for(outro_tipo, "panlabs-tech/app") == []
+    assert actions_for(missing_doc, "panlabs-tech/.github") == ["anatomy-doc-exists"]
+    assert actions_for(present_doc, "panlabs-tech/.github") == []
+    assert actions_for(other_type, "panlabs-tech/app") == []
 
 
 def test_an_unclassified_repo_is_reached_by_no_type_item_and_that_is_not_drift():
