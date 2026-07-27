@@ -53,6 +53,7 @@
   "_repo_topics": "Topics de eixo único de **stack**, sempre em inglês: o consumidor real é o agente, que filtra a frota por tecnologia. Eixo de conteúdo (blog, learning) sai. Um repo ausente daqui não tem topics governados, e o plano só cobra que ele tenha algum, como item manual.",
   "repo_topics": {
     "panlabs-tech/.github": ["python", "github-actions"],
+    "panlabs-tech/dotfiles": ["chezmoi", "zsh", "wsl"],
     "panlabs-tech/ethitorial": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"],
     "panlabs-tech/life-under-control": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"],
     "panlabs-tech/panlabs": ["typescript", "nextjs", "docker"],

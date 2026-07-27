@@ -38,6 +38,7 @@
 
   "repo_topics": {
     "panlabs-tech/.github": ["python", "github-actions"],
+    "panlabs-tech/dotfiles": ["chezmoi", "zsh", "wsl"],
     "panlabs-tech/ethitorial": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"],
     "panlabs-tech/life-under-control": ["python", "fastapi", "postgresql", "typescript", "nextjs", "docker"],
     "panlabs-tech/panlabs": ["typescript", "nextjs", "docker"],
