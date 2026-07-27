@@ -21,8 +21,10 @@ Disparado por "implementa as issues" ou equivalente:
 
 ## Portões
 
-- **Portão 1, local:** `lefthook` antes do commit, com formatação, verificação e scan de segredos.
+- **Portão 1, local:** `lefthook` antes do commit, com formatação, verificação, scan de segredos e padrão de mensagem de commit. Neste repo ele mora em [`lefthook.yml`](../../lefthook.yml) e em [`commitlint.config.mjs`](../../commitlint.config.mjs), e a anatomia o cobra em três itens: `local-commit-gate-exists`, `commit-message-standard-declared` e `secret-scan-before-commit`. O scanner é `gitleaks` e não outro por decisão, não por gosto: é o mesmo que o portão 2 roda, e dois scanners fariam "passou no local" e "passou na CI" significarem coisas diferentes.
 - **Portão 2, CI:** o workflow de checks no PR.
+
+As ferramentas do portão 1 (`lefthook`, `gitleaks`, o runtime que serve o `npx`) são **equipamento da máquina**, provisionado globalmente ([`docs/maquina.md`](../maquina.md)); o que o repo versiona é a **declaração** de adesão. Um repo aberto numa máquina sem equipamento provisionado perde capacidade por design, e não por omissão.
 
 Todo repo da org expõe os **mesmos nomes de status check**, independentemente de quantas superfícies tem. Isso é feito por um **job de rollup** de id fixo, que declara dependência das pernas por superfície e reporta um status único. O rollup existe **sempre**: inclusive em repo sem superfície nenhuma, onde passa trivialmente.
 

@@ -128,3 +128,52 @@ jq -S '{org, repos: [.repos[] | select(.private | not)]}' /tmp/fleet-cru.json \
 ```
 
 O retrato de 2026-07-25 continua versionado como registro da segunda matriz. Ele **não** serve de fixture para o catálogo cheio: foi capturado antes de `config/checker.json` declarar os manifestos e o portão local, então arquivos que existem na árvore vieram sem conteúdo, e um item de conteúdo reprovaria um repositório que está certo. Um teste guarda essa correspondência no retrato em uso, para que fixture velha não seja lida como retrato de hoje.
+
+## O meta conforme, e o inventário de retrofit da frota, 2026-07-27
+
+A terceira matriz acima é o alvo; esta seção é o que a [issue #29](https://github.com/panlabs-tech/.github/issues/29) fez com ele. **Read-only sobre a frota:** nenhum repo além do `.github` foi tocado, e nenhuma convergência de outro repo foi executada.
+
+### Primeiro e sozinho, o meta
+
+As duas linhas do `panlabs-tech/.github` eram a mesma dívida, e ela já era conhecida antes de rodar: o fluxo de trabalho documentado prometia gancho de pre-commit com formatação, verificação e scan de segredos, e não havia configuração nenhuma dele versionada aqui. Prosa não é portão.
+
+| Item | Escopo | Situação |
+| --- | --- | --- |
+| `local-commit-gate-exists` | invariante de org | Fechada por [`lefthook.yml`](../lefthook.yml). |
+| `commit-message-standard-declared` | invariante de org | Fechada por [`commitlint.config.mjs`](../commitlint.config.mjs) mais a chamada no portão. |
+
+Com as duas, a matriz do `.github` sai **vazia**: nenhuma retenção, nenhum item remanescente com motivo escrito. `secret-scan-before-commit` não aparecia porque só se aplica onde há portão local; com o portão existindo, ele passa a ser avaliado e **passa**, porque o portão roda `gitleaks`, o mesmo scanner do portão de CI.
+
+Isso importa mais do que duas linhas sugerem. Sem o repo meta conforme, nem o template nasce conforme, nem o retrofit tem alvo, e o repo que define o padrão vira a primeira exceção a ele.
+
+**Uma dependência de máquina, declarada em vez de escondida:** `lefthook` não está instalado nesta máquina. Ele entrou na classe de binário direto de [`docs/maquina.md`](maquina.md) com justificativa própria, e instalá-lo é convergência de máquina, não de repo. O que o repo versiona é a declaração de adesão, que é o que o checker lê.
+
+### Depois, a frota
+
+Uma issue de retrofit por repo divergente, no tracker **deste** repo, com as linhas daquele repo como checklist e a label `ready-for-agent`. Elas nascem abertas e nada foi executado: esta issue entrega o alvo, e a esteira faz a convergência.
+
+| Repo | Linhas | Issue |
+| --- | --- | --- |
+| `panlabs-tech/skills` | 9 | [#37](https://github.com/panlabs-tech/.github/issues/37) |
+| `panlabs-tech/dotfiles` | 11 | [#33](https://github.com/panlabs-tech/.github/issues/33) |
+| `panlabs-tech/ethitorial` | 12 | [#34](https://github.com/panlabs-tech/.github/issues/34) |
+| `panlabs-tech/panlabs` | 12 | [#36](https://github.com/panlabs-tech/.github/issues/36) |
+| `panlabs-tech/life-under-control` | 14 | [#35](https://github.com/panlabs-tech/.github/issues/35) |
+| `panlabs-tech/tfbox` | 14 | [#38](https://github.com/panlabs-tech/.github/issues/38) |
+| `panlabs-tech/travelmanager` | 14 | [#39](https://github.com/panlabs-tech/.github/issues/39) |
+
+O corpo de cada uma foi **gerado a partir da matriz**, e não escrito à mão: o checklist de um retrofit é exatamente o que o checker acusou naquele retrato, com o motivo de cada linha junto. Um checklist escrito à mão envelheceria no primeiro item que mudasse de texto.
+
+Elas ficam aqui, e não no tracker de cada repo alvo, por decisão do operador: abrir issue em outro projeto é tocar outro projeto, e o alvo é do meta por natureza. Cada retrofit é **independente dos demais**, em qualquer ordem ou em paralelo.
+
+Três coisas que cada corpo carrega, porque já foram decididas e são caras de redescobrir: o alvo é **uniforme**, e a gradualidade existe só na trajetória; a **des-vendorização das skills acontece dentro** do retrofit de cada repo, com preflight antes de remover resíduo de ferramenta; e o **ruleset de nomes fixos de check só pode ser aplicado num repo depois do retrofit dele**, porque aplicar em massa penduraria todo PR da org esperando um status que ninguém publica.
+
+### O retrato versionado reproduz sete dos oito
+
+`panlabs-tech/dotfiles` é privado, e o filtro que o mantém fora da fixture é o mesmo dado observado (`private == false`). As onze linhas dele estão na matriz e na issue #33, mas o motivo de cada uma só é reproduzível contra a org viva:
+
+```bash
+uv run panlabs-checker --json | jq -r '.items[] | select(.target=="panlabs-tech/dotfiles")'
+```
+
+Publicar a linha sem publicar a prova dela é a escolha honesta entre as duas: uma árvore recursiva mais conteúdo de arquivo é exatamente o retrato que não atravessa a fronteira do privado para dentro de um repo público.

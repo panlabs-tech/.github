@@ -14,6 +14,7 @@ Ele não é um produto. Todo repo da org `panlabs-tech` responde a alguma coisa 
 | **`scripts/`** | O script de ruleset, que aplica a configuração de proteção repo a repo; o de org, que converge o que não é ruleset (a esteira, segurança e vitrine); o checker de conformidade, que mede a frota contra a anatomia; o de máquina, que converge o equipamento global; o de espaço de trabalho, que converge o estado estacionário de `~/workspaces`; e o heartbeat, o hospedeiro de passos que a tarefa diária do host dirige. |
 | **`config/`** | A configuração desejada, como dado versionado. Os scripts leem daqui. |
 | **`ANATOMY.md`** | A definição canônica do que é um repo panlabs: três eixos, cinco tipos, invariantes e slots. |
+| **`lefthook.yml`** | O portão 1, local: formatação e verificação da superfície Python, scan de segredos e padrão de mensagem de commit, antes do commit. O portão 2 continua sendo a CI, no PR. |
 
 Parte do padrão é **imposta pela plataforma**: rulesets e required checks, que um repo não consegue contornar. Parte é **documentada e checada**: o `ANATOMY.md` e o checker, que alarmam na deriva sem travar nada. As duas metades moram juntas, com dureza honestamente diferente.
 
