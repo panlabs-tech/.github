@@ -112,6 +112,18 @@ O motivo de cada linha vive na saída do checker, e não aqui: `uv run panlabs-c
 
 Cada repo divergente tem uma issue de retrofit no tracker **deste** repo, com as linhas dele como checklist e a label `ready-for-agent`. Elas nascem abertas e nada foi executado: esta issue entrega o alvo, e a esteira faz a convergência.
 
+| Repo | Linhas | Issue |
+| --- | --- | --- |
+| `panlabs-tech/skills` | 4 | [#37](https://github.com/panlabs-tech/.github/issues/37) |
+| `panlabs-tech/dotfiles` | 6 | [#33](https://github.com/panlabs-tech/.github/issues/33) |
+| `panlabs-tech/tfbox` | 7 | [#38](https://github.com/panlabs-tech/.github/issues/38) |
+| `panlabs-tech/ethitorial` | 9 | [#34](https://github.com/panlabs-tech/.github/issues/34) |
+| `panlabs-tech/life-under-control` | 12 | [#35](https://github.com/panlabs-tech/.github/issues/35) |
+| `panlabs-tech/travelmanager` | 12 | [#39](https://github.com/panlabs-tech/.github/issues/39) |
+| `panlabs-tech/panlabs` | 13 | [#36](https://github.com/panlabs-tech/.github/issues/36) |
+
+O corpo de cada uma foi gerado a partir desta matriz, e não escrito à mão: o checklist de um retrofit é exatamente o que o checker acusou naquele retrato, com o motivo junto.
+
 Ficam aqui, e não no tracker de cada repo alvo, por decisão do operador: abrir issue em outro projeto é tocar outro projeto, e o alvo é do meta por natureza. Cada retrofit é independente dos demais, em qualquer ordem ou em paralelo.
 
 **O ruleset com nomes fixos de check só pode ser aplicado num repo depois do retrofit dele.** A frota ainda publica nomes divergentes entre si, e aplicar em massa penduraria todo PR da org esperando um status que ninguém publica. Enquanto a CI de um repo não publica os nomes do contrato, o script de ruleset **retém** aquele repo em vez de convergi-lo, e `--only` é como o operador afirma que o retrofit daquele repo aterrissou.
