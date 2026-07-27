@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
-from panlabs.plan import Plan, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.plan import Plan, apply, dump_raw, load_raw, report_held, report_undecided, why_empty
 from panlabs.ruleset.applier import EFFECTS
 from panlabs.ruleset.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.ruleset.model import Observed, RepoState
@@ -123,7 +123,7 @@ def _summarize(observed: Observed) -> str:
     """
     readable = [repo for repo in observed.repos if not repo.unobservable()]
     governed = sum(1 for repo in readable if repo.rulesets_governing_default_branch())
-    classic = sum(1 for repo in readable if repo.classic_protection is not None)
+    classic = sum(1 for repo in readable if repo.observed_classic_protection() is not None)
     blind = len(observed.repos) - len(readable)
     unobserved = f", {blind} sem observação de proteção" if blind else ""
     return (
@@ -187,17 +187,20 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _apply(the_plan: Plan) -> int:
+    """Aplica o que tem efeito, e devolve o resto ao operador com o motivo dele.
+
+    Este script tem **duas** causas de retenção desde que a plataforma passou a
+    recusar a leitura de um repositório: o retrofit de CI que ainda não aconteceu,
+    que o operador destrava, e a recusa por plano, que nenhum retrofit levanta.
+    Por isso o relato é o do seam, item a item: uma frase única aqui teria de
+    escolher uma das duas, e mandaria esperar pela errada na outra metade.
+    """
+    report_held(the_plan)
+
     if not the_plan.applicable:
-        if the_plan.held:
-            print(
-                f"\nNada a aplicar: os {len(the_plan.held)} item(ns) do plano estão retidos, "
-                "aguardando o retrofit de CI dos repos que eles tocam.",
-                file=sys.stderr,
-            )
         return 0
 
-    withheld = f", {len(the_plan.held)} retido(s) de fora" if the_plan.held else ""
-    print(f"\nAplicando {len(the_plan.applicable)} item(ns){withheld}...", file=sys.stderr)
+    print(f"\nAplicando {len(the_plan.applicable)} item(ns)...", file=sys.stderr)
     try:
         apply(the_plan, EFFECTS)
     except gh.GhError as exc:

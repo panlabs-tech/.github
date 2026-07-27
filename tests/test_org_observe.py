@@ -184,6 +184,44 @@ def test_an_absent_security_key_is_still_a_loud_error_and_never_a_retention():
         build_observed(raw)
 
 
+def test_a_security_block_that_answers_only_half_is_unobservable_in_the_other_half():
+    """O bloco veio, e a dimensão dentro dele não: isso não é "desligado".
+
+    É a mesma mentira que o bloco nulo produzia, um nível abaixo. O leitor antigo
+    resolvia `(security.get(key) or {}).get("status") == "enabled"` como `False`,
+    e um `False` aqui faria o planner cobrar convergência de uma dimensão sobre a
+    qual a plataforma não disse nada.
+
+    Nenhum repositório da frota responde assim hoje: os 7 públicos devolvem as 5
+    chaves, e é justamente por isso que a causa provável seria a plataforma mudar
+    de forma. É o momento em que um humano precisa olhar, e não o momento de
+    planejar ligar secret scanning em toda a frota porque a chave mudou de nome.
+    """
+    raw = mutate(DOTFILES, security_and_analysis={"secret_scanning": {"status": "enabled"}})
+
+    dotfiles = repo_named(DOTFILES, raw)
+
+    assert dotfiles.secret_scanning is True
+    assert isinstance(dotfiles.push_protection, Unobservable)
+
+
+def test_the_half_answered_block_says_which_dimension_was_missing():
+    """O motivo distingue as duas cegueiras: bloco ausente inteiro e chave que faltou.
+
+    São causas diferentes com desfechos diferentes, e um texto só para as duas
+    mandaria o operador procurar visibilidade de repositório quando o que mudou
+    foi o nome de um campo.
+    """
+    reason = repo_named(
+        DOTFILES,
+        mutate(DOTFILES, security_and_analysis={"secret_scanning": {"status": "enabled"}}),
+    ).push_protection
+
+    assert isinstance(reason, Unobservable)
+    assert "secret_scanning_push_protection" in reason.reason
+    assert DOTFILES in reason.reason
+
+
 def test_a_repo_that_becomes_public_leaves_the_retention_on_its_own():
     """A idempotência do conserto: nada aqui nomeia repositório nenhum.
 

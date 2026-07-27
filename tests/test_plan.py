@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from panlabs.plan import Plan, PlanItem, Unobservable, apply
+from panlabs.plan import Plan, PlanItem, Unobservable, apply, report_held
 
 
 def test_item_without_reason_is_rejected_because_plan_without_reason_is_not_reviewable():
@@ -145,6 +145,50 @@ def test_serialized_plan_carries_the_hold_so_a_reader_knows_what_will_not_run():
     plan = Plan((PlanItem(action="a", target="b", reason="c", hold="adiado até o retrofit"),))
 
     assert json.loads(plan.to_json())["items"][0]["hold"] == "adiado até o retrofit"
+
+
+def test_the_held_report_carries_each_item_reason_instead_of_summarizing_them(
+    capsys: pytest.CaptureFixture[str],
+):
+    """Um script tem quantas causas de retenção o seu domínio tiver.
+
+    O relato tem uma forma só, e ela é alimentada pelo motivo que o planner
+    escreveu no item. Resumir aqui obrigaria a escolher uma causa, e um script com
+    duas passaria a nomear a errada em metade dos casos.
+    """
+    plan = Plan(
+        (
+            PlanItem(action="create", target="org/x", reason="r", hold="a CI ainda não publica"),
+            PlanItem(action="observe", target="org/y", reason="r", hold="o plano da conta recusou"),
+        )
+    )
+
+    report_held(plan)
+    err = capsys.readouterr().err
+
+    assert "a CI ainda não publica" in err
+    assert "o plano da conta recusou" in err
+    assert "org/x" in err and "org/y" in err
+
+
+def test_the_held_report_says_nothing_was_applied_when_nothing_was_applicable(
+    capsys: pytest.CaptureFixture[str],
+):
+    """Silêncio depois de `--apply` se lê como aplicação bem-sucedida."""
+    plan = Plan((PlanItem(action="create", target="org/x", reason="r", hold="adiado"),))
+
+    report_held(plan)
+
+    assert "Nada a aplicar" in capsys.readouterr().err
+
+
+def test_the_held_report_is_silent_when_there_is_nothing_held(
+    capsys: pytest.CaptureFixture[str],
+):
+    """Um plano sem retenção não ganha parágrafo dizendo que não tem retenção."""
+    report_held(Plan((PlanItem(action="create", target="org/x", reason="r"),)))
+
+    assert capsys.readouterr().err == ""
 
 
 def test_apply_runs_the_effect_registered_for_each_action_in_plan_order():

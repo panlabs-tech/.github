@@ -44,6 +44,7 @@ __all__ = [
     "apply",
     "dump_raw",
     "load_raw",
+    "report_held",
     "report_undecided",
     "why_empty",
 ]
@@ -219,6 +220,34 @@ def report_undecided(undecided: Sequence[str], config: Path) -> None:
         "Nada é planejado para uma dimensão não decidida. Os valores são da spec de Org #2.\n",
         file=sys.stderr,
     )
+
+
+def report_held(plan: Plan) -> None:
+    """Devolve ao operador cada item retido, com o motivo que o planner escreveu.
+
+    Mora aqui, e não em cada CLI, pelo mesmo motivo de `report_undecided`: `hold`
+    é vocabulário do seam. Três CLIs escreviam este bloco igual e o quarto
+    escrevia uma frase própria, que nomeava **uma** causa de retenção; no dia em
+    que aquele script ganhou uma segunda causa, a frase passou a mandar o operador
+    esperar pela coisa errada. Um relato só, alimentado pelo motivo de cada item,
+    não tem como envelhecer assim: quem sabe por que o item foi retido é o planner
+    que o reteve, e o motivo já viaja escrito dentro dele.
+
+    Sai no `stderr` porque não é o plano: é o recado de quem digitou `--apply` e
+    vai ver menos coisa aplicada do que o plano mostrou. Quando não sobra nada
+    aplicável, dizê-lo é parte do recado: silêncio depois de `--apply` se lê como
+    aplicação bem-sucedida, e aqui não houve aplicação nenhuma.
+    """
+    if not plan.held:
+        return
+    print(
+        f"\n{len(plan.held)} item(ns) do plano estão retidos e continuam com você:",
+        file=sys.stderr,
+    )
+    for item in plan.held:
+        print(f"  {item.action}  {item.target}: {item.hold}", file=sys.stderr)
+    if not plan.applicable:
+        print("Nada a aplicar: todo o plano está retido.", file=sys.stderr)
 
 
 def why_empty(plan: Plan, undecided: Sequence[str], config: Path, *, subject: str) -> str:

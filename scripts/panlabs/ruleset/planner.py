@@ -32,6 +32,7 @@ from panlabs.ruleset.config import Desired
 from panlabs.ruleset.model import Observed, RepoState, RulesetState
 
 __all__ = [
+    "ALWAYS_HELD",
     "CREATE_RULESET",
     "DELETE_CLASSIC_PROTECTION",
     "DELETE_RULESET",
@@ -56,6 +57,21 @@ conseguiu fazer, e por isso nasce sempre retida e não tem efeito registrado:
 não existe chamada de API que torne um repositório observável. Reusar
 `create-ruleset` aqui teria sido mais barato e teria mentido, porque afirmaria
 que nenhum ruleset governa a branch, que é exatamente o que ninguém mediu.
+"""
+
+ALWAYS_HELD = frozenset({OBSERVE_PROTECTION})
+"""As ações que nascem retidas em toda circunstância, e por isso não têm efeito.
+
+Reter aqui não é "hoje não dá", como no portão de retrofit de CI: é "não existe
+chamada que faça isso". A distinção fica no texto do `hold` de cada item; o que o
+seam garante é o mesmo nos dois casos, o `apply` não as executa.
+
+Existe como conjunto, e não como um caso solto, para que o teste de completude do
+vocabulário possa cobrar as duas metades: toda ação emitida ou tem efeito
+registrado ou está declarada aqui. Sem ele, uma ação nova sem efeito sairia do
+conjunto do teste em vez de entrar nesta lista, e só falharia na hora de aplicar.
+É a mesma forma do `ALWAYS_HELD` do planner de org e do `MANUAL_ACTIONS` do
+planner de máquina.
 """
 
 
@@ -116,7 +132,7 @@ def _plan_protection(repo: RepoState, desired: Desired) -> list[PlanItem]:
                     "nada é planejado sobre ela: um plano sobre proteção que ninguém "
                     "leu afirmaria o que ninguém mediu"
                 ),
-                hold="; ".join(sorted({why.reason for _, why in refused})),
+                hold=_refusal(repo),
             )
         ]
 
@@ -154,9 +170,9 @@ def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> st
     leitura recusada teria dito. Deixar `--only` levantar esta retenção aplicaria
     convergência de branch a um repo cuja branch ninguém enxergou.
     """
-    refused = repo.unobservable()
-    if refused:
-        return "; ".join(sorted({why.reason for _, why in refused}))
+    refusal = _refusal(repo)
+    if refusal:
+        return refusal
 
     contract = desired.check_contract
     if not contract or repo.name in retrofitted:
@@ -173,6 +189,20 @@ def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> st
         "check que a CI dele não publica com esse nome. Adiado até o retrofit de CI do repo; "
         f"depois dele, `--only {repo.name}` aplica"
     )
+
+
+def _refusal(repo: RepoState) -> str:
+    """O que a plataforma respondeu quando alguém tentou ler a proteção deste repo.
+
+    Vazio quando ela respondeu. Um lugar só porque dois caminhos precisam do mesmo
+    texto: o item que registra a leitura que faltou e o `hold` que cobre o repo
+    inteiro. Duas construções idênticas divergiriam caladas, e a divergência
+    sairia justamente no texto que o operador lê para decidir se espera ou age.
+
+    Os motivos são deduplicados porque as duas dimensões falham pela mesma recusa,
+    e repetir a frase do GitHub duas vezes não acrescenta nada ao que ele disse.
+    """
+    return "; ".join(sorted({why.reason for _, why in repo.unobservable()}))
 
 
 def _plan_settings(repo: RepoState, desired_settings: Mapping[str, Any]) -> list[PlanItem]:

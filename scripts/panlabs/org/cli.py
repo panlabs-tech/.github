@@ -28,7 +28,16 @@ from panlabs.org.config import DEFAULT_CONFIG_PATH, load_desired
 from panlabs.org.model import Observed
 from panlabs.org.observe import build_observed, fetch_raw, observed_to_dict
 from panlabs.org.planner import plan
-from panlabs.plan import Plan, Unobservable, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.plan import (
+    Plan,
+    Unobservable,
+    apply,
+    dump_raw,
+    load_raw,
+    report_held,
+    report_undecided,
+    why_empty,
+)
 
 DEFAULT_ORG = "panlabs-tech"
 
@@ -164,13 +173,7 @@ def _apply(the_plan: Plan) -> int:
     A separação é do plano, não do applier: um item retido carrega o motivo da
     retenção escrito pelo planner, e o `apply` do seam simplesmente não o executa.
     """
-    if the_plan.held:
-        print(
-            f"\n{len(the_plan.held)} item(ns) do plano estão retidos e continuam com você:",
-            file=sys.stderr,
-        )
-        for item in the_plan.held:
-            print(f"  {item.action}  {item.target}: {item.hold}", file=sys.stderr)
+    report_held(the_plan)
 
     if not the_plan.applicable:
         return 0

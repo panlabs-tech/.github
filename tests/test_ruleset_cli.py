@@ -20,6 +20,7 @@ FLEET = FIXTURES / "fleet-2026-07-24.json"
 FLEET_WITH_PRIVATE = FIXTURES / "fleet-2026-07-27.json"
 DESIRED = FIXTURES / "desired-ruleset.json"
 SHIPPED = Path(__file__).resolve().parents[1] / "config" / "ruleset.json"
+DOTFILES = "panlabs-tech/dotfiles"
 
 
 @pytest.fixture
@@ -239,16 +240,28 @@ def test_only_with_a_name_that_is_not_in_the_org_fails_instead_of_planning_nothi
 
 
 def test_every_action_the_planner_can_emit_has_an_effect_registered():
-    """Uma ação sem efeito só falharia na hora de aplicar, tarde demais."""
+    """Uma ação sem efeito só falharia na hora de aplicar, tarde demais.
+
+    O conjunto é escrito à mão de propósito: é a declaração do vocabulário que o
+    planner sabe emitir, e é ela que obriga quem inventar uma ação nova a dizer,
+    aqui, em qual das duas metades ela cai. Tirar a ação do conjunto em vez de
+    declará-la retida faria o teste passar sem cobrir nada.
+    """
     emitted = {
         planner.CREATE_RULESET,
         planner.UPDATE_RULESET,
         planner.DELETE_RULESET,
         planner.DELETE_CLASSIC_PROTECTION,
         planner.UPDATE_REPO_SETTINGS,
+        planner.OBSERVE_PROTECTION,
     }
 
-    assert set(EFFECTS) == emitted
+    assert set(EFFECTS) == emitted - planner.ALWAYS_HELD
+
+
+def test_no_always_held_action_has_an_effect_pretending_to_apply_it():
+    """Não existe chamada de API que torne um repositório observável."""
+    assert set(EFFECTS) & planner.ALWAYS_HELD == set()
 
 
 # --- o resumo não afirma nada sobre o que ninguém mediu ------------------------
@@ -281,3 +294,51 @@ def test_the_whole_fleet_still_gets_a_plan_with_an_unreadable_repo_in_it(
 
     assert code == 0
     assert planner.OBSERVE_PROTECTION in capsys.readouterr().out
+
+
+# --- o que `--apply` diz de um plano que ele não vai aplicar -------------------
+
+
+@pytest.fixture
+def live_fleet_with_private(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A org viva, fingida onde o CLI a busca: `--apply` recusa retrato salvo.
+
+    É o único jeito de exercitar o caminho de aplicação sem tocar a rede, e é um
+    caminho que precisa de teste: ele é o que fala com o operador **depois** de
+    ele ter digitado a flag que muda a org.
+    """
+    raw = json.loads(FLEET_WITH_PRIVATE.read_text(encoding="utf-8"))
+    monkeypatch.setattr("panlabs.ruleset.cli.fetch_raw", lambda _org: raw)
+
+
+def test_apply_does_not_blame_a_ci_retrofit_for_a_hold_the_platform_caused(
+    forbid_api: None, live_fleet_with_private: None, capsys: pytest.CaptureFixture[str]
+):
+    """Existe mais de uma causa de retenção neste script, e nomear uma só mente.
+
+    Um repo cuja proteção a plataforma recusou a mostrar não está esperando
+    retrofit de CI nenhum: nenhum retrofit levanta essa retenção. Mandar o
+    operador esperar por ele é pior do que não dizer nada, porque manda esperar
+    pela coisa errada.
+    """
+    code = main(["--apply", "--only", DOTFILES, "--config", str(DESIRED)])
+    err = capsys.readouterr().err
+
+    assert code == 0
+    assert "retrofit de CI" not in err
+
+
+def test_apply_reports_each_held_item_with_the_reason_the_planner_wrote(
+    forbid_api: None, live_fleet_with_private: None, capsys: pytest.CaptureFixture[str]
+):
+    """O motivo já está escrito no item; o CLI o entrega, em vez de resumi-lo.
+
+    É o mesmo contrato do CLI de org, e pela mesma razão: quem sabe por que o item
+    foi retido é o planner, e qualquer frase que o CLI invente por cima pode
+    envelhecer sem que nada acuse.
+    """
+    main(["--apply", "--only", DOTFILES, "--config", str(DESIRED)])
+    err = capsys.readouterr().err
+
+    assert planner.OBSERVE_PROTECTION in err
+    assert "Upgrade to GitHub Pro" in err

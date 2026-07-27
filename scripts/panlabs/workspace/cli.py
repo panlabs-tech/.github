@@ -26,7 +26,16 @@ import sys
 from pathlib import Path
 
 from panlabs import gh
-from panlabs.plan import Plan, PlanItem, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.plan import (
+    Plan,
+    PlanItem,
+    apply,
+    dump_raw,
+    load_raw,
+    report_held,
+    report_undecided,
+    why_empty,
+)
 from panlabs.workspace.applier import GitError, build_effects
 from panlabs.workspace.config import DEFAULT_CONFIG_PATH, Desired, load_desired
 from panlabs.workspace.model import EMPTY, REPO, WORKTREE, Observed
@@ -235,13 +244,7 @@ def _unknown_targets(the_plan: Plan, discard: list[str]) -> list[str]:
 
 
 def _apply(the_plan: Plan) -> int:
-    if the_plan.held:
-        print(
-            f"\n{len(the_plan.held)} item(ns) do plano estão retidos e continuam com você:",
-            file=sys.stderr,
-        )
-        for item in the_plan.held:
-            print(f"  {item.action}  {item.target}: {item.hold}", file=sys.stderr)
+    report_held(the_plan)
 
     if not the_plan.applicable:
         return 0
