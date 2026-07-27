@@ -64,6 +64,41 @@ def test_a_repo_with_no_surface_at_all_is_not_failed_for_a_missing_stack_leg():
     assert actions_for(the_plan, "panlabs-tech/skills") == []
 
 
+def test_a_manifest_in_a_subfolder_puts_the_repo_in_scope_for_the_node_item():
+    """O que a árvore recursiva mudou é **quem é avaliado**, não o que se exige.
+
+    Este é o layout de workspace de `pnpm` que três repositórios da frota usam:
+    manifesto em `apps/web`, um lockfile na raiz servindo o workspace inteiro.
+    Antes, o item nem chegava a ser avaliado aqui.
+    """
+    state = observed(repo("panlabs-tech/mono", files=["apps/web/package.json", "pnpm-lock.yaml"]))
+
+    the_plan = planner.plan(state)
+
+    assert actions_for(the_plan, "panlabs-tech/mono") == []
+
+
+def test_a_node_surface_with_no_lockfile_at_all_is_drift_like_before():
+    state = observed(repo("panlabs-tech/mono", files=["apps/web/package.json"]))
+
+    the_plan = planner.plan(state)
+
+    assert actions_for(the_plan, "panlabs-tech/mono") == ["node-lockfile-committed"]
+
+
+def test_a_runtime_slot_buried_in_a_subfolder_does_not_satisfy_the_root_declaration():
+    """A árvore inteira é observada, e é justamente por isso que o caminho importa.
+
+    O gerenciador de runtime da máquina lê a declaração na raiz do repo; uma
+    homônima enterrada numa subpasta não é a mesma declaração.
+    """
+    state = observed(repo("panlabs-tech/app", files=["pyproject.toml", "docs/.python-version"]))
+
+    the_plan = planner.plan(state)
+
+    assert actions_for(the_plan, "panlabs-tech/app") == ["python-runtime-declared"]
+
+
 def test_a_repo_with_two_surfaces_is_evaluated_on_both():
     state = observed(repo("panlabs-tech/monorepo", files=["pyproject.toml", "package.json"]))
 

@@ -1,7 +1,9 @@
 """A interface do checker: read-only, sem flag de aplicação nenhuma.
 
 Não há applier a testar aqui -- só o efeito de formatar e notificar, que este
-módulo é.
+módulo é. O que **tem** teste é o código de saída, porque ele deixou de ser
+detalhe: é por ele que o passo do heartbeat escolhe em qual canal alarmar, e
+`1` significa deriva, e só deriva.
 """
 
 import json
@@ -10,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from panlabs import gh
-from panlabs.checker.cli import main
+from panlabs.checker.cli import EXIT_CLEAN, EXIT_DRIFT, EXIT_ERROR, main
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE = FIXTURES / "checker-observed-sample.json"
@@ -106,3 +108,46 @@ def test_json_output_is_the_serialized_matrix_and_nothing_else(
     assert len(payload["items"]) == 1
     assert {"action", "target", "reason", "payload", "hold"} == set(payload["items"][0])
     assert payload["items"][0]["payload"]["verdict"] == "deriva"
+
+
+# --- o código de saída: 1 é deriva, e só deriva -------------------------------
+
+
+def test_a_credential_failure_before_any_matrix_exists_is_an_error_and_never_drift(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Este era o disfarce que sobrava: o token expira e a frota inteira "derivou".
+
+    A listagem da org falha antes de qualquer repositório ser observado, então
+    não existe matriz nenhuma. Sair com o código de deriva ali seria a mentira
+    exata que os dois canais separados existem para impedir.
+    """
+
+    def explode(*_args: object, **_kwargs: object) -> object:
+        raise gh.GhError("HTTP 401: Bad credentials")
+
+    monkeypatch.setattr(gh, "repo_names", explode)
+
+    assert main([]) == EXIT_ERROR
+
+
+def test_a_snapshot_that_cannot_be_read_is_an_error_and_never_drift(tmp_path: Path):
+    assert main(["--observed", str(tmp_path / "nao-existe.json")]) == EXIT_ERROR
+
+
+def test_invalid_configuration_data_is_an_error_and_never_drift(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Dado inválido impede a matriz de existir, e o que não existe não derivou."""
+
+    def explode(*_args: object, **_kwargs: object) -> object:
+        raise ValueError("tipo desconhecido em config/repo-types.json")
+
+    monkeypatch.setattr(gh, "repo_names", lambda _org: ("x",))
+    monkeypatch.setattr("panlabs.checker.observe.load_repo_types", explode)
+
+    assert main([]) == EXIT_ERROR
+
+
+def test_the_three_exit_codes_are_distinct_because_two_channels_depend_on_it():
+    assert len({EXIT_CLEAN, EXIT_DRIFT, EXIT_ERROR}) == 3

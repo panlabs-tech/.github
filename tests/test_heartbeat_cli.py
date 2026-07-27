@@ -168,6 +168,7 @@ def test_every_action_the_planner_emits_is_either_the_hosts_or_has_an_effect(tmp
     runner = build_runner(state_dir=tmp_path, now=NOW)
     emitted = {
         planner.RUN_STEP,
+        planner.REPORT_STEP,
         planner.DROP_DIR,
         planner.DROP_FILE,
         planner.RUN_ON_HOST,
@@ -306,6 +307,93 @@ def test_a_failing_step_does_not_stop_the_ones_after_it(tmp_path: Path):
     assert runner.failed == ["quebra"]
     marks = json.loads((tmp_path / "marks.json").read_text(encoding="utf-8"))
     assert marks["steps"] == {"segue": NOW.isoformat()}
+
+
+# --- o passo que relata: o código de saída escolhe o canal --------------------
+
+
+def report_item(**payload: object) -> PlanItem:
+    base: dict[str, object] = {
+        "step": "anatomy-checker",
+        "run": ["panlabs-checker"],
+        "codes": {"1": "anatomia", "2": "falha"},
+        "alarm": "falha",
+    }
+    base.update(payload)
+    return item(planner.REPORT_STEP, "anatomy-checker", **base)
+
+
+def test_drift_alarms_on_the_anatomy_channel_and_failure_on_the_mechanism_one(tmp_path: Path):
+    """O critério de aceitação do passo, amarrado nos dois códigos de uma vez.
+
+    O checker sai com 1 quando a frota derivou e com 2 quando não conseguiu
+    observar. Com um canal só, um token expirado chegaria ao operador como
+    "toda a frota está fora do padrão", que é a mentira mais cara possível aqui.
+    """
+    drifted = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (1, "6 itens em 4 alvos"))
+    blind = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (2, "HTTP 401"))
+
+    apply(Plan((report_item(),)), drifted.effects)
+    apply(Plan((report_item(),)), blind.effects)
+
+    assert [alarm.alarm for alarm in drifted.alarms] == ["anatomia"]
+    assert [alarm.alarm for alarm in blind.alarms] == ["falha"]
+
+
+def test_a_clean_report_says_nothing_at_all(tmp_path: Path):
+    """Silencioso quando saudável: uma frota conforme não gasta canal nenhum."""
+    runner = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (0, ""))
+
+    apply(Plan((report_item(),)), runner.effects)
+
+    assert runner.alarms == []
+    assert runner.stamped == {"anatomy-checker"}
+
+
+def test_a_reported_code_stamps_the_step_because_the_command_did_its_job(tmp_path: Path):
+    """Deriva não é falha do passo: o checker observou e relatou, que é o trabalho dele."""
+    runner = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (1, "deriva"))
+
+    apply(Plan((report_item(),)), runner.effects)
+
+    assert runner.failed == []
+    assert runner.landed == {"anatomy-checker"}
+
+
+def test_an_undeclared_exit_code_is_a_step_failure_and_never_a_drift_alarm(tmp_path: Path):
+    runner = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (127, "command not found"))
+
+    apply(Plan((report_item(),)), runner.effects)
+
+    assert [alarm.alarm for alarm in runner.alarms] == ["falha"]
+    assert runner.failed == ["anatomy-checker"]
+
+
+def test_a_command_that_could_not_even_start_never_lands_on_the_drift_channel(tmp_path: Path):
+    """O caso real: o console script sumiu, ou o ambiente virtual não existe.
+
+    Um executor que devolvesse 1 para "não consegui rodar" mandaria isso para o
+    canal de deriva, e o operador leria "a frota derivou" quando o que quebrou
+    foi a própria máquina.
+    """
+    runner = build_runner(state_dir=tmp_path, now=NOW)
+
+    apply(Plan((report_item(run=["/nao/existe/panlabs-checker"]),)), runner.effects)
+
+    assert [alarm.alarm for alarm in runner.alarms] == ["falha"]
+    assert runner.failed == ["anatomy-checker"]
+
+
+def test_running_a_command_that_does_not_exist_is_not_reported_as_an_exit_code():
+    code, said = applier.run_command(["/nao/existe/panlabs-checker"])
+
+    assert code == applier.NOT_RUN
+    assert said
+
+
+def test_the_not_run_sentinel_cannot_collide_with_a_real_exit_code():
+    """`-1` não serviria: é o que o sistema devolve para um processo morto por SIGHUP."""
+    assert applier.NOT_RUN not in range(-255, 256)
 
 
 def test_a_healthy_run_writes_an_empty_alarm_file_instead_of_keeping_the_old_one(

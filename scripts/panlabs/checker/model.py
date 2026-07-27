@@ -3,15 +3,39 @@
 O seam declara `observed = { repo, tipo, superfícies[], arquivos[], metadados_gh }`
 por repositório. Nada aqui decide: são fatos lidos da plataforma.
 
+Três coisas mudam a natureza do que "arquivos" significa, e valem explicação:
+
+**`files` é a árvore inteira, em caminho relativo à raiz.** A listagem da raiz
+deixava um item de superfície em subpasta de monorepo **sem ser avaliado**, o que
+é pior do que um falso positivo: é um item que ninguém mede e que parece verde.
+
+**`contents` é o conteúdo de um conjunto declarado**, e não da árvore inteira.
+Item de slot não se verifica por presença de arquivo, e ler tudo pagaria uma
+chamada por arquivo. Um arquivo declarado que o repositório não tem simplesmente
+não aparece aqui, e ausente é diferente de vazio.
+
+**Descrição, topics, wiki e licença são estado observado como qualquer outro.**
+Nenhum deles mora no working tree, e sem o checker eles ficariam sem vigia nenhum:
+a fronteira de *verificação* com a spec de Org atravessa a de *decisão* de propósito.
+`has_license` e `license` não são o mesmo fato dito duas vezes: o primeiro é "a
+plataforma reconhece um arquivo de licença", e o segundo é **qual** ela reconheceu,
+que pode ser `NOASSERTION` num arquivo que existe e ela não identificou.
+
+**`private` entra junto, e não é só mais um metadado.** A frota tem repositório
+privado, e o retrato observado vira fixture versionada num repositório **público**:
+sem esse campo, decidir o que pode ser versionado dependeria de alguém lembrar
+quais nomes são privados. Com ele, o dado carrega a própria prova, e um teste
+recusa uma fixture que traga repositório privado dentro.
+
 `error` é o canal de alarme do próprio checker: quando a observação de um
-repositório falha (rede, credencial, 404), nenhum item do catálogo é avaliado
-contra ele -- a falha vira um veredito de erro em vez de se disfarçar de
-deriva de anatomia.
+repositório falha (rede, credencial, 404, árvore truncada), nenhum item do
+catálogo é avaliado contra ele -- a falha vira um veredito de erro em vez de se
+disfarçar de deriva de anatomia.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 __all__ = ["Observed", "RepoObserved"]
@@ -23,11 +47,27 @@ class RepoObserved:
 
     name: str
     tipo: str | None = None
-    surfaces: frozenset[str] = field(default_factory=frozenset)
-    files: frozenset[str] = field(default_factory=frozenset)
+    surfaces: frozenset[str] = frozenset()
+    files: frozenset[str] = frozenset()
+    contents: Mapping[str, str] = field(default_factory=dict)
     has_readme: bool = False
     has_license: bool = False
+    description: str | None = None
+    topics: frozenset[str] = frozenset()
+    has_wiki: bool = False
+    license: str | None = None
+    private: bool = False
     error: str | None = None
+
+    def content(self, path: str) -> str | None:
+        """O conteúdo de um arquivo declarado, ou `None` se ele não está lá.
+
+        `None` é "não veio": ou ninguém declarou este caminho para leitura, ou o
+        repositório não tem o arquivo. Nenhum dos dois é string vazia, que é um
+        arquivo que existe e não diz nada -- e um item de slot vazio depende
+        exatamente dessa diferença.
+        """
+        return self.contents.get(path)
 
 
 @dataclass(frozen=True)

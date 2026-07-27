@@ -32,6 +32,7 @@ from panlabs.heartbeat.config import (
     DesiredUnobserved,
     DropMatching,
     KeepNewest,
+    Report,
 )
 from panlabs.heartbeat.model import (
     BRANCH_DOWN,
@@ -230,6 +231,69 @@ def test_a_plugged_step_lands_on_the_branch_it_declares():
 
     assert targets_for(up, planner.RUN_STEP) == ["npm", "checker"]
     assert targets_for(down, planner.RUN_ON_HOST) == ["compact-vhdx"]
+
+
+def test_a_report_step_carries_the_whole_code_to_channel_map_into_the_plan():
+    """O applier não decide o canal: ele lê o mapa que o planner escreveu no item.
+
+    O código de saída só existe depois de o comando rodar, então o mapa inteiro
+    precisa atravessar. O que o applier faz é consulta em tabela, não decisão.
+    """
+    checker = prune(
+        name="checker",
+        run=(),
+        alarm="falha",
+        report=Report(command=("panlabs-checker",), codes={1: "anatomia", 2: "falha"}),
+    )
+    wanted = desired(
+        channels=(
+            DesiredChannel(name="falha", why="um passo falhou"),
+            DesiredChannel(name="anatomia", why="a frota derivou da anatomia"),
+        ),
+        steps=(checker,),
+    )
+
+    the_plan = planner.plan(healthy(marks=()), wanted)
+
+    item = items_for(the_plan, planner.REPORT_STEP)[0]
+    assert item.target == "checker"
+    assert item.payload["codes"] == {"1": "anatomia", "2": "falha"}
+    assert item.payload["run"] == ["panlabs-checker"]
+
+
+def test_a_report_step_keeps_its_own_channel_for_the_codes_nobody_declared():
+    """Um código fora do mapa é falha do passo, e falha de passo é do canal dele."""
+    checker = prune(
+        name="checker",
+        run=(),
+        alarm="falha",
+        report=Report(command=("panlabs-checker",), codes={1: "anatomia"}),
+    )
+    wanted = desired(
+        channels=(
+            DesiredChannel(name="falha", why="um passo falhou"),
+            DesiredChannel(name="anatomia", why="a frota derivou da anatomia"),
+        ),
+        steps=(checker,),
+    )
+
+    the_plan = planner.plan(healthy(marks=()), wanted)
+
+    assert items_for(the_plan, planner.REPORT_STEP)[0].payload["alarm"] == "falha"
+
+
+def test_a_report_step_respects_its_cadence_like_any_other_step():
+    checker = prune(
+        name="checker",
+        run=(),
+        every_days=1,
+        report=Report(command=("panlabs-checker",), codes={1: "falha"}),
+    )
+    state = healthy(marks=(Mark(step="checker", at=days_ago(0.5)),))
+
+    the_plan = planner.plan(state, desired(steps=(checker,)))
+
+    assert items_for(the_plan, planner.REPORT_STEP) == []
 
 
 def test_a_plugged_step_carries_its_own_alarm_channel_and_not_the_disk_one():
