@@ -56,6 +56,8 @@ Se o `apply` precisa de um `if`, esse `if` está no lugar errado. Item retido n�
 
 **Do outro lado do seam existe a ausência oposta, e ela leva ao lugar contrário.** Uma dimensão que a plataforma se recusa a mostrar é `Unobservable`, um terceiro valor entre observado-ligado e observado-desligado. Ela nunca vira `False`, nunca some do plano e nunca derruba a corrida: vira **item retido**, com o motivo citando o que a plataforma respondeu. Nada é planejado para o que ninguém decidiu; é planejado e retido o que ninguém conseguiu medir. Um repositório privado num plano que não oferece rulesets é o caso vivo: ele não tem ruleset desligado, ele tem ruleset que este observador não alcança, e um plano da frota que morre por causa dele é pior do que um plano parcial. A recusa **por plano** é a única que vira retenção; um 403 de permissão continua sendo erro alto, porque esse tem conserto pelo operador e engoli-lo esconderia o conserto.
 
+**Quem relata a retenção é o seam, não o CLI.** `report_held(plan)` imprime cada item retido com o motivo que o planner escreveu nele, e é o único relato de retenção que existe. Um CLI que resuma a retenção com frase própria vai ter de nomear **uma** causa, e o script que ganhar uma segunda causa passa a mandar o operador esperar pela errada sem que nada acuse: foi o que aconteceu no ruleset, que dizia "aguardando o retrofit de CI" para toda retenção e continuou dizendo isso depois que a plataforma virou a segunda causa. Um script tem quantas causas de retenção o seu domínio tiver; o relato tem uma forma só, e ela é alimentada pelo item.
+
 O vocabulário vive em `scripts/panlabs/plan.py`, e é **um só**: o mesmo formato serve ao ruleset, ao checker, ao reconcile de workspaces e à poda do heartbeat.
 
 ## Conformidade

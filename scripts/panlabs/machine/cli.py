@@ -35,7 +35,7 @@ from panlabs.machine.observe import (
     observed_to_dict,
 )
 from panlabs.machine.planner import plan
-from panlabs.plan import Plan, apply, dump_raw, load_raw, report_undecided, why_empty
+from panlabs.plan import Plan, apply, dump_raw, load_raw, report_held, report_undecided, why_empty
 
 __all__ = ["main"]
 
@@ -177,13 +177,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _apply(the_plan: Plan, settings: Path) -> int:
-    if the_plan.held:
-        print(
-            f"\n{len(the_plan.held)} item(ns) do plano estão retidos e continuam com você:",
-            file=sys.stderr,
-        )
-        for item in the_plan.held:
-            print(f"  {item.action}  {item.target}: {item.hold}", file=sys.stderr)
+    report_held(the_plan)
 
     if not the_plan.applicable:
         return 0

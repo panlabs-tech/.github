@@ -186,3 +186,13 @@ def test_the_serialized_state_omits_what_was_not_observed_instead_of_nulling_it(
     assert "rulesets" not in dotfiles
     assert "classic_protection" not in dotfiles
     assert "Upgrade to GitHub" in dotfiles["unobservable"]["rulesets"]
+
+
+def test_the_serialized_state_survives_json_because_it_is_what_show_observed_prints():
+    """O dump vai direto para `json.dumps` no CLI, e `Unobservable` não serializa.
+
+    Um campo de três valores que escape para o dicionário estoura ali, no comando
+    que o operador roda para conferir antes de aprovar. O gêmeo de org tem a mesma
+    asserção: foi ela que pegou esse estouro uma vez.
+    """
+    assert json.dumps(observed_to_dict(build_observed(fleet_raw())))

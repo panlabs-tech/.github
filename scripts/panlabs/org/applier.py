@@ -5,9 +5,9 @@ cujo `payload` o planner já montou por inteiro: o corpo enviado à API é dado
 carregado pelo plano, e até o método HTTP das dimensões que ligam com `PUT` e
 desligam com `DELETE` vem escrito no item.
 
-As ações manuais (`planner.MANUAL_ACTIONS`) não têm efeito registrado, de
-propósito: elas não são aplicáveis por API nenhuma, e inventar um efeito que
-falha na hora de agir seria pior do que dizê-lo no plano.
+As ações de `planner.ALWAYS_HELD` não têm efeito registrado, de propósito: elas
+não são aplicáveis por API nenhuma, e inventar um efeito que falha na hora de
+agir seria pior do que dizê-lo no plano.
 """
 
 from __future__ import annotations

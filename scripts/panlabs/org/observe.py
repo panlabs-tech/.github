@@ -131,12 +131,22 @@ def _enabled(
 ) -> bool | Unobservable:
     """O estado da dimensão, ou o registro de que a plataforma não o mostrou.
 
-    O bloco inteiro vem nulo ou vem completo: não existe o caso de uma dimensão
-    dentro dele responder e a outra não. Por isso a decisão é sobre o bloco, e as
-    duas dimensões que moram nele saem juntas.
+    São **duas** cegueiras, não uma. O bloco inteiro nulo é a que a frota tem hoje,
+    e vem de repositório privado sem a feature no plano. A chave que falta dentro
+    de um bloco que veio nunca foi vista, e é tratada porque a alternativa é a
+    mentira que este módulo existe para não contar: `.get(key)` de uma chave
+    ausente resolve como desligado, e um `False` daqui é uma afirmação sobre o
+    repositório que ninguém mediu.
+
+    Nenhuma das duas é fatal, e é decisão: derrubar a corrida da frota inteira por
+    causa de uma dimensão de um repositório torna o plano inobtenível, que é pior
+    do que parcial. O terceiro valor deixa o plano sair inteiro com a cegueira à
+    vista, que é o oposto de silêncio.
     """
     if security is None:
         return Unobservable(_no_security_block(name, private=private))
+    if key not in security:
+        return Unobservable(_no_security_key(name, key))
     return (security.get(key) or {}).get("status") == "enabled"
 
 
@@ -160,6 +170,24 @@ def _no_security_block(name: str, *, private: bool) -> str:
     return (
         f"o GitHub devolveu `security_and_analysis` nulo em {name}, sem estado nenhum "
         f"para secret scanning nem para push protection; {saida}"
+    )
+
+
+def _no_security_key(name: str, key: str) -> str:
+    """O motivo da cegueira que ninguém viu acontecer, dito como o que ela é.
+
+    O bloco veio e esta chave não, e nenhuma causa conhecida produz isso: os
+    repositórios que respondem devolvem o bloco completo. Por isso o texto não
+    inventa explicação, nomeia a chave e pede o olhar humano: a hipótese mais
+    provável é a plataforma ter mudado o nome do campo, e essa é a hipótese que
+    faria toda a frota parecer desligada de uma vez se fosse resolvida como
+    `False`.
+    """
+    return (
+        f"o GitHub devolveu `security_and_analysis` em {name} sem a chave `{key}`; "
+        "nenhuma causa conhecida produz essa resposta, e a hipótese mais provável é o "
+        "campo ter mudado de nome na API, o que vale conferir antes de concluir "
+        "qualquer coisa sobre esta dimensão"
     )
 
 
