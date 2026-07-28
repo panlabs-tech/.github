@@ -22,9 +22,17 @@ from panlabs.machine.config import (
     DesiredRetire,
     DesiredSecret,
     DesiredSkills,
+    DesiredTool,
     SkillMove,
 )
-from panlabs.machine.model import CredentialPath, Link, Observed, RetireDir, VendoredSkill
+from panlabs.machine.model import (
+    CredentialPath,
+    Link,
+    Observed,
+    RetireDir,
+    Tool,
+    VendoredSkill,
+)
 from panlabs.plan import Plan, PlanItem
 
 BIN = "/home/op/.local/bin"
@@ -604,3 +612,70 @@ def test_promotion_reads_from_the_declared_source_repo_not_whichever_scan_saw_la
     (item,) = items_for(the_plan, planner.PROMOTE_SKILL)
     assert item.payload["from"] == "/w/panlabs/caveman"
     assert "panlabs" in item.reason
+
+
+# --- o portão local: a ferramenta que executa a declaração de cada repo --------
+
+
+def tool(name: str = "lefthook", **overrides: object) -> DesiredTool:
+    base: dict[str, object] = {
+        "name": name,
+        "install": f"gh release download --repo x/{name}",
+        "why": "o binário que executa a declaração versionada de cada repo",
+    }
+    base.update(overrides)
+    return DesiredTool(**base)  # pyright: ignore[reportArgumentType]
+
+
+def test_a_declared_tool_that_the_machine_does_not_have_is_planned():
+    """O caso vivo: `lefthook.yml` em todo repo da frota, e nenhum hook armado.
+
+    O portão 1 era declaração inerte em 100% dos clones, e o convergedor de máquina
+    não tinha como saber que o binário é equipamento dele: nenhuma chave do dado o
+    nomeava, então nenhum plano jamais o mencionou.
+    """
+    state = Observed(tools=(Tool(name="lefthook"),))
+
+    the_plan = planner.plan(state, desired(tools=(tool(),)))
+
+    assert targets_for(the_plan, planner.INSTALL_TOOL) == ["lefthook"]
+
+
+def test_the_plan_carries_the_exact_command_because_nothing_here_runs_it():
+    """Como em `promote-skill`: o método é do próprio binário, não deste applier.
+
+    Um plano que dissesse apenas "instale o lefthook" empurraria de volta para quem
+    lê a decisão que `docs/maquina.md` já tomou por classe.
+    """
+    state = Observed(tools=(Tool(name="lefthook"),))
+
+    item = items_for(planner.plan(state, desired(tools=(tool(),))), planner.INSTALL_TOOL)[0]
+
+    assert item.payload["install"] == "gh release download --repo x/lefthook"
+
+
+def test_a_tool_the_machine_already_resolves_is_not_planned():
+    """`gitleaks` já está em `~/.local/bin`, e convergido não vira item."""
+    state = Observed(tools=(Tool(name="gitleaks", resolved="/home/op/.local/bin/gitleaks"),))
+
+    the_plan = planner.plan(state, desired(tools=(tool("gitleaks"),)))
+
+    assert items_for(the_plan, planner.INSTALL_TOOL) == []
+
+
+def test_a_tool_dimension_never_decided_plans_nothing():
+    """`null` no dado é ausência de pergunta, e o planner não responde por ninguém."""
+    state = Observed(tools=(Tool(name="lefthook"),))
+
+    the_plan = planner.plan(state, desired(tools=None))
+
+    assert items_for(the_plan, planner.INSTALL_TOOL) == []
+
+
+def test_the_reason_names_the_tool_and_why_it_is_equipment():
+    state = Observed(tools=(Tool(name="lefthook"),))
+
+    item = items_for(planner.plan(state, desired(tools=(tool(),))), planner.INSTALL_TOOL)[0]
+
+    assert "executa a declaração versionada" in item.reason
+    assert "não resolve" in item.reason

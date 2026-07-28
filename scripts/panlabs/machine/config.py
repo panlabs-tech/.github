@@ -27,6 +27,7 @@ __all__ = [
     "DesiredRetire",
     "DesiredSecret",
     "DesiredSkills",
+    "DesiredTool",
     "SkillMove",
     "expand",
     "load_desired",
@@ -34,7 +35,7 @@ __all__ = [
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "machine.json"
 
-KNOWN_KEYS = ("bin_dir", "links", "retire", "read_denylist", "statusline", "skills")
+KNOWN_KEYS = ("bin_dir", "links", "retire", "read_denylist", "statusline", "skills", "tools")
 
 
 def expand(path: str) -> str:
@@ -69,6 +70,25 @@ class DesiredSecret:
     """Um lugar de credencial que a leitura do agente não deve alcançar."""
 
     path: str
+    why: str
+
+
+@dataclass(frozen=True)
+class DesiredTool:
+    """Uma CLI que precisa existir nesta máquina, e o comando exato que a instala.
+
+    O método já está decidido por classe em `docs/maquina.md`, e o comando aqui é
+    a realização dele para esta ferramenta. Ele mora no dado, e não no código, pelo
+    mesmo motivo de tudo o mais em `config/`: trocar de forma de instalar é editar
+    uma linha de dado, não mexer num applier.
+
+    Sem versão cravada, de propósito. A classe destas ferramentas é "CLI que
+    precisa ficar fresca", e um comando que pinasse a versão transformaria o
+    invariante em fóssil no primeiro release.
+    """
+
+    name: str
+    install: str
     why: str
 
 
@@ -112,6 +132,7 @@ class Desired:
     read_denylist: tuple[DesiredSecret, ...] | None = None
     statusline: str | None = None
     skills: DesiredSkills | None = None
+    tools: tuple[DesiredTool, ...] | None = None
 
     @property
     def undecided(self) -> tuple[str, ...]:
@@ -138,6 +159,7 @@ class Desired:
             read_denylist=_secrets(raw.get("read_denylist")),
             statusline=raw.get("statusline"),
             skills=_skills(raw.get("skills")),
+            tools=_tools(raw.get("tools")),
         )
 
 
@@ -190,6 +212,16 @@ def _paths_with_reason[T](
     for entry in _entries(raw):
         _require(entry, "path", "why", dimension=dimension)
         out.append(build(path=expand(entry["path"]), why=entry["why"]))
+    return tuple(out)
+
+
+def _tools(raw: Any) -> tuple[DesiredTool, ...] | None:
+    if raw is None:
+        return None
+    out: list[DesiredTool] = []
+    for entry in _entries(raw):
+        _require(entry, "name", "install", "why", dimension="tools")
+        out.append(DesiredTool(name=entry["name"], install=entry["install"], why=entry["why"]))
     return tuple(out)
 
 

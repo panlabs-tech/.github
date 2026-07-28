@@ -15,7 +15,13 @@ O ganho de declarar isto é que "como instalo isso" para de ser decisão caso a 
 | Runtime de Python | gerenciador dedicado, **fora** do de runtime | ele resolve ambiente e dependência juntos, e o de runtime não faz isso | `uv` |
 | CLI que precisa ficar fresca | binário direto | o release é mais rápido que qualquer distro, e a atualização é do próprio binário | `mise`, `chezmoi`, `gh`, `uv`, `jq`, `gitleaks`, `lefthook` |
 
-`lefthook` entrou nesta classe com o catálogo cheio da anatomia: o portão local virou **invariante de org**, e o binário que executa a declaração versionada de cada repo é equipamento da máquina, não do repo. A justificativa própria dele é essa, e não conveniência: sem ele, todo `lefthook.yml` da frota é declaração que ninguém executa. **Ele ainda não está instalado nesta máquina**, e instalá-lo é convergência de máquina, não de repo.
+`lefthook` entrou nesta classe com o catálogo cheio da anatomia: o portão local virou **invariante de org**, e o binário que executa a declaração versionada de cada repo é equipamento da máquina, não do repo. A justificativa própria dele é essa, e não conveniência: sem ele, todo `lefthook.yml` da frota é declaração que ninguém executa.
+
+**A classificação sozinha não instalava nada.** Esta tabela dizia desde sempre qual é o método, e mesmo assim o `lefthook` passou meses ausente da máquina enquanto três itens da anatomia verificavam um arquivo que nada executava: faltava o dado que o planner lê. A dimensão `tools` de [`config/machine.json`](../config/machine.json) é essa metade, e `uv run panlabs-machine` passa a acusar a ferramenta ausente com o comando exato que a instala. O invariante ali é o **nome resolver em subprocesso**, e não apontar para um endereço escolhido: quem decide onde o binário aterrissa é o instalador dele.
+
+Instalar continua sendo ato do operador, e por decisão: o método é o release do próprio projeto, e um applier que baixasse e descompactasse viraria um instalador caseiro competindo com ele, que é a mesma razão que deixou a promoção de skill com a CLI de distribuição.
+
+**Armar o hook é por clone, e nenhum convergedor de máquina o alcança.** `lefthook install` escreve em `.git/hooks/` de um repositório, e o convergedor de máquina não tem alvo de repositório. Um clone novo da frota nasce com o binário disponível e o hook desarmado, e isso é limite honesto, não omissão.
 
 **Nenhuma ferramenta nova entra sem justificativa própria.** Seis candidatas foram avaliadas e reprovadas durante o mapeamento, e o registro delas fica no [mapa](https://github.com/panlabs-tech/panlabs/issues/46). A regra que sobrevive ao mapa é esta: a máquina não vira coleção.
 

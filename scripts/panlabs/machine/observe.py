@@ -15,12 +15,20 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from panlabs.machine.config import Desired
-from panlabs.machine.model import CredentialPath, Link, Observed, RetireDir, VendoredSkill
+from panlabs.machine.model import (
+    CredentialPath,
+    Link,
+    Observed,
+    RetireDir,
+    Tool,
+    VendoredSkill,
+)
 
 __all__ = [
     "DEFAULT_AGENT_SETTINGS",
@@ -72,7 +80,22 @@ def fetch_raw(
         "statusline": str(statusline.get("command") or ""),
         "global_skills": sorted({name for root in global_skills for name in _names_in(root)}),
         "vendored_skills": _scan_vendored(workspaces),
+        "tools": [_look_at_tool(tool.name) for tool in desired.tools or ()],
     }
+
+
+def _look_at_tool(name: str) -> dict[str, Any]:
+    """Onde este nome resolve, ou vazio.
+
+    Por `which`, e não pela existência de um arquivo no diretório de binários: o
+    que se pergunta aqui é se a ferramenta é **alcançável pelo nome**, e o método
+    de instalação dela decide onde ela mora. Um `gitleaks` que o gerenciador de
+    pacotes tivesse posto em `/usr/bin` satisfaz o invariante do mesmo jeito.
+
+    Alias de shell não aparece aqui, pelo mesmo motivo de `_look_at_link`: alias
+    não existe em subprocesso, que é como o agente roda.
+    """
+    return {"name": name, "resolved": shutil.which(name) or ""}
 
 
 def _read_json(path: Path) -> Mapping[str, Any]:
@@ -286,6 +309,10 @@ def build_observed(raw: Mapping[str, Any]) -> Observed:
             VendoredSkill(repo=entry["repo"], name=entry["name"], path=entry["path"])
             for entry in raw.get("vendored_skills") or ()
         ),
+        tools=tuple(
+            Tool(name=entry["name"], resolved=entry.get("resolved", ""))
+            for entry in raw.get("tools") or ()
+        ),
     )
 
 
@@ -320,4 +347,5 @@ def observed_to_dict(observed: Observed) -> dict[str, Any]:
         "vendored_skills": [
             {"repo": x.repo, "name": x.name, "path": x.path} for x in observed.vendored_skills
         ],
+        "tools": [{"name": x.name, "resolved": x.resolved} for x in observed.tools],
     }

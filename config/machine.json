@@ -87,6 +87,22 @@
     }
   ],
 
+  "_tools": "As CLIs da classe **binário direto** que o portão 1 executa, e que sem esta dimensão nenhum convergedor instalava. `docs/maquina.md` já as classificava e já dizia que instalá-las é convergência de máquina; faltava o dado que o planner lê, e enquanto ele faltou o `lefthook.yml` de todo repo da frota foi declaração que ninguém executa. O invariante é o **nome resolver em subprocesso**, e não apontar para um endereço escolhido: quem decide onde o binário aterrissa é o instalador dele, e um `gitleaks` que o gerenciador de pacotes tivesse posto em `/usr/bin` satisfaz o mesmo. É por isso que isto não é uma segunda lista de `links`, onde o alvo é parte do desejado.",
+  "_tools_comando": "Sem versão cravada, de propósito: a classe destas ferramentas é `CLI que precisa ficar fresca`, e um comando que pinasse a versão viraria fóssil no primeiro release. O download é pelo `gh`, que já é equipamento desta máquina e já está autenticado, em vez de `curl | sh`: o instalador de terceiro executaria script arbitrário com o shell, e o que se quer aqui é o binário do release, não a cerimônia dele.",
+  "_tools_npx": "`npx` e `uv`, que o portão também invoca, não estão aqui: eles já são cobrados como nome alcançável em `links`, e declarar a mesma ferramenta em duas dimensões faria duas verdades sobre a mesma pergunta.",
+  "tools": [
+    {
+      "name": "lefthook",
+      "install": "gh release download --repo evilmartians/lefthook --pattern 'lefthook_*_Linux_x86_64' --output ~/.local/bin/lefthook --clobber && chmod +x ~/.local/bin/lefthook",
+      "why": "o binário que executa o portão local declarado por cada repo da frota; sem ele, `lefthook.yml` é declaração inerte, e a anatomia cobra a declaração em três itens que passam sobre um arquivo que nada roda"
+    },
+    {
+      "name": "gitleaks",
+      "install": "gh release download --repo gitleaks/gitleaks --pattern 'gitleaks_*_linux_x64.tar.gz' --output - | tar -xzO gitleaks > ~/.local/bin/gitleaks && chmod +x ~/.local/bin/gitleaks",
+      "why": "o scanner que o portão local roda, e o mesmo que o portão de CI compartilhado roda: dois scanners diferentes fariam `passou no local` e `passou na CI` significarem coisas diferentes"
+    }
+  ],
+
   "_statusline": "Comando comparado literalmente com o que está na configuração global do agente. O `~` é expandido pelo shell que a executa, não por este dado. Ele aponta para o binário no endereço **real**, e não para o link de `bin_dir`, porque o shim do pacote se ancora no próprio diretório: alcançado pelo link ele procura o que executar dentro de `~/.local/bin` e morre com `MODULE_NOT_FOUND`, sem render nenhum. O link continua existindo, para o nome existir em subprocesso, e por isso os dois endereços aqui são deliberadamente diferentes.",
   "statusline": "~/.local/share/mise/installs/npm-ccstatusline/latest/node_modules/.bin/ccstatusline",
 
