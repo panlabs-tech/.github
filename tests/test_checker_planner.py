@@ -1033,3 +1033,124 @@ def test_the_plan_is_ordered_by_repo_name_whatever_order_the_org_listed_them_in(
     targets = [item.target for item in planner.plan(state)]
 
     assert targets == ["panlabs-tech/alfa", "panlabs-tech/mike", "panlabs-tech/zulu"]
+
+
+# --- a perna local que entrega a mesma garantia -------------------------------
+
+
+def pinned_local_leg(surface: str) -> str:
+    """Uma perna local disciplinada: tudo que ela usa está pinado por SHA.
+
+    É a forma que `life-under-control` precisa ter, e não tem: ele mantém perna
+    local por necessidade registrada (Postgres e MinIO como `services`, que não
+    são parametrizáveis num reusable workflow) e paga por isso em tag flutuante.
+    """
+    return "\n".join(
+        [
+            f"  checks-{surface}:",
+            "    runs-on: ubuntu-latest",
+            "    services:",
+            "      postgres:",
+            "        image: postgres:16-alpine",
+            "    steps:",
+            "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
+            "      - run: make test",
+        ]
+    )
+
+
+def ci_with(surface: str, leg: str) -> str:
+    return ci_yaml(f"checks-{surface}").replace(
+        "\n".join(
+            [
+                f"  checks-{surface}:",
+                f"    uses: panlabs-tech/.github/.github/workflows/checks-{surface}.yml@v1",
+            ]
+        ),
+        leg,
+    )
+
+
+def repo_with_python_surface(name: str, ci: str) -> Any:
+    return repo(
+        name,
+        files=[*BASE_FILES, "pyproject.toml", ".python-version"],
+        contents={
+            PR_CHECKS: ci,
+            "pyproject.toml": "[tool.ruff]\n[tool.pyright]\n",
+            ".python-version": "3.13\n",
+        },
+    )
+
+
+def test_a_local_leg_that_pins_everything_by_sha_is_not_drift():
+    """O que o item quer garantir nunca foi a delegação, foi a **equivalência**.
+
+    A delegação é o jeito mais fácil de consegui-la, e não o único. O próprio
+    `checks-python.yml` deste repo registra por escrito que `life-under-control`
+    mantém perna local porque `services:` não é parametrizável num reusable
+    workflow, e que isso está "registrado para que ninguém tente e descubra em
+    CI". Um item que cobrasse a delegação dele estaria contradizendo uma decisão
+    publicada aqui do lado.
+    """
+    state = observed(
+        repo_with_python_surface(
+            "panlabs-tech/servico", ci_with("python", pinned_local_leg("python"))
+        )
+    )
+
+    assert "python-ci-leg" not in actions_for(planner.plan(state), "panlabs-tech/servico")
+
+
+def test_a_local_leg_on_a_floating_tag_is_still_drift():
+    """E este é o caso vivo: `life-under-control` hoje.
+
+    Tag flutuante é a deriva de supply chain que o repo meta paga para não ter,
+    pinando por SHA de 40 caracteres nos workflows que publica. Uma perna local
+    que se dá o direito de flutuar não entrega a mesma garantia, e a diferença
+    entre ela e a cópia de YAML que ninguém mais atualiza é nenhuma.
+    """
+    floating = pinned_local_leg("python").replace(
+        "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
+        "actions/checkout@v7",
+    )
+    state = observed(
+        repo_with_python_surface("panlabs-tech/flutuante", ci_with("python", floating))
+    )
+
+    assert "python-ci-leg" in actions_for(planner.plan(state), "panlabs-tech/flutuante")
+
+
+def test_a_leg_that_delegates_to_a_workflow_of_its_own_repo_is_not_drift():
+    """O caso do `tfbox`: o encadeamento entre superfícies mora num arquivo local.
+
+    Uma referência `./` resolve contra o SHA do próprio commit, então ela não
+    flutua por construção: é a mesma razão pela qual o repo meta pode usar a
+    forma local nos próprios callers.
+    """
+    encadeado = "\n".join(
+        [
+            "  checks-node:",
+            "    uses: ./.github/workflows/reusable-catalog-validation.yml",
+        ]
+    )
+    state = observed(
+        repo(
+            "panlabs-tech/encadeado",
+            files=[*BASE_FILES, "package.json", ".node-version", "package-lock.json"],
+            contents={
+                PR_CHECKS: ci_with("node", encadeado),
+                "package.json": '{"devDependencies": {"biome": "^2"}}',
+                ".node-version": "24\n",
+            },
+        )
+    )
+
+    assert "node-ci-leg" not in actions_for(planner.plan(state), "panlabs-tech/encadeado")
+
+
+def test_a_leg_that_does_not_exist_at_all_is_still_drift():
+    """A pergunta original do item continua valendo: perna ausente sai verde sem rodar."""
+    state = observed(repo_with_python_surface("panlabs-tech/sem-perna", ci_yaml()))
+
+    assert "python-ci-leg" in actions_for(planner.plan(state), "panlabs-tech/sem-perna")

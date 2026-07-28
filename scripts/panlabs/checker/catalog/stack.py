@@ -30,7 +30,7 @@ from panlabs.checker.catalog.item import (
     declares,
     has_surface,
     in_series,
-    job_delegates,
+    job_is_equivalent,
     slot_filled,
     stack,
 )
@@ -138,17 +138,18 @@ def _ci_leg_item(surface: str) -> AnatomyItem:
         id=f"{surface}-ci-leg",
         scope=stack(surface),
         applies=has_surface(surface),
-        # Delegar, e não só declarar o nome. O predicado antigo procurava
-        # `\n  checks-python:` e parava aí, então um job com esse nome e passos
-        # próprios satisfazia o item. Não foi hipótese: `life-under-control`
-        # passou verde nos dois com as pernas reimplementadas localmente, que é a
-        # deriva que o motivo do item de org cita como razão de ele existir.
-        satisfied=job_delegates(leg, f"{leg}.yml"),
+        # Equivalência, e não delegação. Declarar o nome do job nunca bastou (um
+        # job local com esse nome e passos próprios satisfazia o item), mas exigir
+        # a delegação cobra o oposto do que `checks-python.yml` deste repo registra
+        # por escrito: `services:` não é parametrizável num reusable workflow, e há
+        # repo da frota que **precisa** de perna local por isso. O que fica é o
+        # eixo mecânico: a perna resolve contra algo que não se move.
+        satisfied=job_is_equivalent(leg, f"{leg}.yml"),
         motivo=lambda repo, desired: (
-            f"{repo.name} tem superfície {surface} e não delega a perna {leg} ao workflow "
-            f"compartilhado em {PR_CHECKS}: o rollup agrega o que existe, então uma perna que "
-            "não está lá sai verde sem ter rodado nada, e uma que está lá copiada deriva sem "
-            "ninguém acusar"
+            f"{repo.name} tem superfície {surface} e a perna {leg} em {PR_CHECKS} não delega ao "
+            "workflow compartilhado nem pina o que usa por SHA: o rollup agrega o que existe, "
+            "então uma perna que não está lá sai verde sem ter rodado nada, e uma que está lá "
+            "em tag flutuante deriva sem ninguém acusar"
         ),
         reads=(PR_CHECKS,),
     )
