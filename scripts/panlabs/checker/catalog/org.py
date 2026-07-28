@@ -27,6 +27,7 @@ from panlabs.checker.catalog.item import (
     has_any_file,
     has_file,
     job_declared,
+    job_delegates,
     paths_under,
 )
 from panlabs.checker.catalog.paths import (
@@ -35,6 +36,8 @@ from panlabs.checker.catalog.paths import (
     MCP_EXAMPLE,
     NODE_MANIFESTS,
     PR_CHECKS,
+    SECURITY_SCAN_JOB,
+    SECURITY_WORKFLOW,
 )
 from panlabs.checker.desired import Desired
 from panlabs.checker.model import RepoObserved
@@ -72,18 +75,6 @@ UI_FRAMEWORKS = ('"next"', '"react"')
 A condição é fato do repositório, não eixo: ela não pergunta o tipo nem avalia por
 superfície, pergunta se existe interface para haver design. Um repositório sem
 interface nenhuma não é cobrado do documento, e essa ausência não é deriva.
-"""
-
-SHARED_CI_REF = "panlabs-tech/.github/.github/workflows/"
-"""A forma versionada com que um consumidor referencia a CI compartilhada."""
-
-LOCAL_CI_REF = "uses: ./.github/workflows/"
-"""A forma local, válida **só** no repo que publica os workflows compartilhados.
-
-Um caller no mesmo repo sempre resolve contra o próprio SHA, o que evita o
-ovo-e-a-galinha de uma tag que ainda não existe no commit que a introduz. Aceitar
-esta forma em qualquer repo esvaziaria o item: "referencia workflow local" é
-exatamente o que copiar YAML produz.
 """
 
 LOCAL_GATES = ("lefthook.yml", ".pre-commit-config.yaml")
@@ -383,14 +374,14 @@ ITEMS: tuple[AnatomyItem, ...] = (
         id="ci-references-shared-workflows",
         scope=ORG,
         applies=always,
-        satisfied=lambda repo, desired: (
-            SHARED_CI_REF in (repo.content(PR_CHECKS) or "")
-            or (repo.tipo == "meta" and LOCAL_CI_REF in (repo.content(PR_CHECKS) or ""))
-        ),
+        # O job de scan de segurança, e não a citação do meta em qualquer lugar do
+        # arquivo. A forma antiga era satisfeita por uma linha só, num arquivo em
+        # que existem quatro delegações possíveis, e um comentário bastava.
+        satisfied=job_delegates(SECURITY_SCAN_JOB, SECURITY_WORKFLOW),
         motivo=lambda repo, desired: (
-            f"{repo.name} não referencia os workflows compartilhados em {PR_CHECKS}: "
-            "os quatro arquivos de CI da frota nasceram copiados um do outro e divergiram entre "
-            "48% e 86% em sete semanas, então origem comum não impede deriva"
+            f"{repo.name} não delega o job `{SECURITY_SCAN_JOB}` ao workflow compartilhado em "
+            f"{PR_CHECKS}: os quatro arquivos de CI da frota nasceram copiados um do outro e "
+            "divergiram entre 48% e 86% em sete semanas, então origem comum não impede deriva"
         ),
         reads=(PR_CHECKS,),
     ),

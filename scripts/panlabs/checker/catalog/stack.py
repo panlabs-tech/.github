@@ -30,7 +30,7 @@ from panlabs.checker.catalog.item import (
     declares,
     has_surface,
     in_series,
-    job_declared,
+    job_delegates,
     slot_filled,
     stack,
 )
@@ -138,11 +138,17 @@ def _ci_leg_item(surface: str) -> AnatomyItem:
         id=f"{surface}-ci-leg",
         scope=stack(surface),
         applies=has_surface(surface),
-        satisfied=declares((PR_CHECKS,), (job_declared(leg),)),
+        # Delegar, e não só declarar o nome. O predicado antigo procurava
+        # `\n  checks-python:` e parava aí, então um job com esse nome e passos
+        # próprios satisfazia o item. Não foi hipótese: `life-under-control`
+        # passou verde nos dois com as pernas reimplementadas localmente, que é a
+        # deriva que o motivo do item de org cita como razão de ele existir.
+        satisfied=job_delegates(leg, f"{leg}.yml"),
         motivo=lambda repo, desired: (
-            f"{repo.name} tem superfície {surface} e não declara a perna {leg} em {PR_CHECKS}: "
-            "o rollup agrega o que existe, então uma perna que não está lá sai verde sem ter "
-            "rodado nada"
+            f"{repo.name} tem superfície {surface} e não delega a perna {leg} ao workflow "
+            f"compartilhado em {PR_CHECKS}: o rollup agrega o que existe, então uma perna que "
+            "não está lá sai verde sem ter rodado nada, e uma que está lá copiada deriva sem "
+            "ninguém acusar"
         ),
         reads=(PR_CHECKS,),
     )
