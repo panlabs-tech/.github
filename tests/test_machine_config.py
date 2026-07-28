@@ -10,6 +10,7 @@ repositório e uma chave errada ali não é erro de máquina, é erro versionado
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -118,3 +119,59 @@ def test_the_versioned_config_denies_the_two_credential_stores_that_hold_somethi
 
     declared = {entry["path"] for entry in raw["read_denylist"]}
     assert {"~/.aws", "~/.ssh"} <= declared
+
+
+# --- o portão local: as ferramentas que o executam ----------------------------
+
+
+def test_the_shipped_config_declares_the_tools_the_local_gate_runs():
+    """O portão 1 é declaração inerte enquanto o binário não é equipamento desta máquina.
+
+    `docs/maquina.md` já classificava as duas como binário direto e já dizia que
+    instalá-las é convergência de máquina. O que faltava era o dado que o planner
+    lê, e enquanto faltou nenhum plano jamais as mencionou: o `lefthook.yml` de todo
+    repo da frota era um arquivo que três itens da anatomia verificavam e que nada
+    executava.
+    """
+    desired = load_desired()
+
+    assert desired.tools is not None
+    assert {tool.name for tool in desired.tools} >= {"lefthook", "gitleaks"}
+
+
+def test_every_declared_tool_carries_the_command_that_installs_it():
+    """Um plano que dissesse só "instale o lefthook" empurraria a decisão de volta."""
+    desired = load_desired()
+
+    assert desired.tools
+    for tool in desired.tools:
+        assert tool.install, f"{tool.name} declarada sem comando de instalação"
+        assert tool.why, f"{tool.name} declarada sem motivo"
+
+
+def test_no_tool_command_pins_a_version():
+    """A classe destas ferramentas é "CLI que precisa ficar fresca".
+
+    Um comando com versão cravada viraria fóssil no primeiro release, e o
+    invariante passaria a exigir de volta a versão que alguém escreveu um dia.
+    """
+    desired = load_desired()
+
+    assert desired.tools
+    for tool in desired.tools:
+        assert not re.search(r"\d+\.\d+\.\d+", tool.install), (
+            f"{tool.name} pina versão no comando de instalação"
+        )
+
+
+def test_a_tool_is_not_declared_twice_as_a_link_too():
+    """Duas dimensões sobre a mesma pergunta seriam duas verdades que divergem.
+
+    `npx` e `uv` são cobrados como nome alcançável em `links`, e é por isso que eles
+    não estão em `tools` apesar de o portão local os invocar.
+    """
+    desired = load_desired()
+
+    assert desired.tools is not None
+    assert desired.links is not None
+    assert not {tool.name for tool in desired.tools} & {link.name for link in desired.links}

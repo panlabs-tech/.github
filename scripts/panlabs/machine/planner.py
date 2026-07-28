@@ -33,6 +33,7 @@ __all__ = [
     "DENY_READ",
     "DISCARD_SKILL",
     "DROP_VENDORED_SKILL",
+    "INSTALL_TOOL",
     "LINK_NAME",
     "PIN_STATUSLINE",
     "PROMOTE_SKILL",
@@ -42,6 +43,7 @@ __all__ = [
 ]
 
 LINK_NAME = "link-name"
+INSTALL_TOOL = "install-tool"
 RETIRE_DIR = "retire-dir"
 DENY_READ = "deny-read"
 PIN_STATUSLINE = "pin-statusline"
@@ -65,7 +67,13 @@ UNREACHABLE_HOLD = (
     "defeito; a correção é escolher em `config/machine.json` um alvo que sobreviva ao link"
 )
 
-MANUAL_ACTIONS = (PROMOTE_SKILL, DISCARD_SKILL, DROP_VENDORED_SKILL, UNREACHABLE_NAME)
+MANUAL_ACTIONS = (
+    PROMOTE_SKILL,
+    DISCARD_SKILL,
+    DROP_VENDORED_SKILL,
+    UNREACHABLE_NAME,
+    INSTALL_TOOL,
+)
 """As ações que nenhum applier realiza, e o motivo de cada uma não ser daqui.
 
 Promover é da **CLI de distribuição**: ela é o único mecanismo de instalação de
@@ -81,7 +89,13 @@ link já está onde o dado pediu, e é o alvo pedido que não sobrevive a ser
 alcançado por link. Aplicar qualquer coisa aqui reproduziria o defeito; o que
 muda é o dado, e mudar dado versionado é do humano que revisa o plano.
 
-Um teste garante que estas quatro não têm efeito e que todas as outras têm.
+Instalar CLI de binário direto é do método declarado por classe em
+`docs/maquina.md`, que é o release do próprio projeto. Um applier que baixasse e
+descompactasse release viraria um instalador caseiro competindo com o do binário,
+e ninguém o manteria: é a mesma razão que deixou a promoção de skill com a CLI de
+distribuição. O plano carrega o comando exato, e quem o roda é o operador.
+
+Um teste garante que estas cinco não têm efeito e que todas as outras têm.
 """
 
 PROMOTE_HOLD = (
@@ -104,7 +118,36 @@ def plan(observed: Observed, desired: Desired) -> Plan:
     items.extend(_deny_items(observed, desired))
     items.extend(_statusline_items(observed, desired))
     items.extend(_skill_items(observed, desired))
+    items.extend(_tool_items(observed, desired))
     return Plan(items=tuple(items))
+
+
+# --- as CLIs que o portão local executa ---------------------------------------
+
+
+def _tool_items(observed: Observed, desired: Desired) -> list[PlanItem]:
+    """A ferramenta declarada que esta máquina não alcança.
+
+    O invariante é o nome resolver, e não apontar para um endereço escolhido: quem
+    decide onde o binário aterrissa é o instalador dele. É por isso que isto não é
+    uma segunda leitura de `links`, onde o alvo é parte do desejado.
+    """
+    if desired.tools is None:
+        return []
+
+    items: list[PlanItem] = []
+    for wanted in desired.tools:
+        if observed.tool(wanted.name).resolved:
+            continue
+        items.append(
+            PlanItem(
+                action=INSTALL_TOOL,
+                target=wanted.name,
+                reason=f"{wanted.why}; hoje o nome `{wanted.name}` não resolve nesta máquina",
+                payload={"install": wanted.install},
+            )
+        )
+    return items
 
 
 # --- nomes alcançáveis em subprocesso ----------------------------------------

@@ -18,6 +18,7 @@ __all__ = [
     "Link",
     "Observed",
     "RetireDir",
+    "Tool",
     "VendoredSkill",
 ]
 
@@ -105,6 +106,25 @@ class VendoredSkill:
 
 
 @dataclass(frozen=True)
+class Tool:
+    """Uma CLI de binário direto, e onde ela resolve nesta máquina, se resolve.
+
+    Um campo só, e não os três de `Link`, porque a pergunta é outra: aqui ninguém
+    escolheu o alvo. Quem instala é o método declarado por classe em
+    `docs/maquina.md`, e onde o binário aterrissa é consequência dele. O que o
+    invariante cobra é que **o nome resolva em subprocesso**, não que ele aponte
+    para um endereço específico.
+
+    Vazio significa que o nome não resolve. Alias de shell não aparece aqui pelo
+    mesmo motivo de `Link`: alias não existe em subprocesso, que é como o agente
+    roda, e para esta medição ele é ausência.
+    """
+
+    name: str
+    resolved: str = ""
+
+
+@dataclass(frozen=True)
 class Observed:
     """O retrato da máquina que o planner recebe. Nada aqui é decisão."""
 
@@ -115,9 +135,22 @@ class Observed:
     statusline: str = ""
     global_skills: tuple[str, ...] = ()
     vendored_skills: tuple[VendoredSkill, ...] = ()
+    tools: tuple[Tool, ...] = ()
 
     def link(self, name: str) -> Link:
         for item in self.links:
             if item.name == name:
                 return item
         return Link(name=name)
+
+    def tool(self, name: str) -> Tool:
+        """A ferramenta pelo nome, ou a ausência dela. Nunca `None`.
+
+        Devolver o vazio em vez de `None` é o mesmo desenho de `link`: quem
+        pergunta quer saber onde o nome resolve, e "não está na lista observada" e
+        "está na lista e não resolve" levam à mesma decisão.
+        """
+        for item in self.tools:
+            if item.name == name:
+                return item
+        return Tool(name=name)

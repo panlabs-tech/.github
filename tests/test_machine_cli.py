@@ -194,6 +194,7 @@ def test_every_action_the_planner_emits_is_either_manual_or_has_an_effect():
         planner.DISCARD_SKILL,
         planner.DROP_VENDORED_SKILL,
         planner.UNREACHABLE_NAME,
+        planner.INSTALL_TOOL,
     }
 
     assert set(effects) == emitted - set(planner.MANUAL_ACTIONS)
@@ -203,6 +204,18 @@ def test_installing_a_skill_has_no_effect_because_the_cli_is_the_only_mechanism(
     effects = applier.build_effects(settings=Path("/nowhere/settings.json"))
 
     assert planner.PROMOTE_SKILL not in effects
+
+
+def test_installing_a_tool_has_no_effect_because_the_release_is_the_only_mechanism():
+    """Mesma fronteira da promoção de skill, e pela mesma razão.
+
+    Um applier que baixasse e descompactasse release viraria um instalador caseiro
+    competindo com o do próprio binário, e ninguém o manteria. O plano carrega o
+    comando exato; quem o roda é o operador.
+    """
+    effects = applier.build_effects(settings=Path("/nowhere/settings.json"))
+
+    assert planner.INSTALL_TOOL not in effects
 
 
 def test_the_denial_is_written_to_the_settings_file_it_was_given(tmp_path: Path):
