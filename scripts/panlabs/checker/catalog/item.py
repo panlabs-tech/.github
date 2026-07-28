@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from panlabs.checker.catalog.paths import LOCAL_CI_REF, PR_CHECKS, SHARED_CI_REF
 from panlabs.checker.desired import Desired
 from panlabs.checker.model import RepoObserved
 
@@ -45,7 +46,9 @@ __all__ = [
     "has_surface",
     "in_series",
     "is_tipo",
+    "job_block",
     "job_declared",
+    "job_delegates",
     "paths_under",
     "slot_filled",
     "stack",
@@ -274,3 +277,61 @@ def job_declared(job: str) -> str:
     validade de YAML -- essa a própria plataforma cobra.
     """
     return f"\n  {job}:"
+
+
+def job_block(content: str, job: str) -> str:
+    """O corpo de um job, do nome dele até o próximo, sem os comentários.
+
+    Existe porque declarar o nome do job e **fazer** o que o nome promete são
+    perguntas diferentes, e o catálogo passou meses fazendo só a primeira. Um job
+    chamado `checks-python` com `runs-on` e passos próprios satisfazia o item
+    escrito para impedir exatamente essa cópia.
+
+    A fronteira é a indentação, que é o que YAML usa: a primeira linha com
+    conteúdo em coluna 2 ou menos encerra o bloco, porque ela é o próximo job ou a
+    próxima chave de topo. Linha vazia não encerra, e comentário nem encerra nem
+    entra: um `uses:` comentado é a forma mais barata de mentir para um casamento
+    de texto, e descartá-lo aqui custa uma linha.
+
+    Continua sendo casamento de texto, e não parse de YAML, pelo mesmo motivo de
+    `job_declared`: a alternativa custaria uma dependência para ler um arquivo que
+    a observação já trouxe como string.
+    """
+    marker = job_declared(job)
+    start = content.find(marker)
+    if start < 0:
+        return ""
+
+    body: list[str] = []
+    for line in content[start + len(marker) :].splitlines():
+        bare = line.lstrip(" ")
+        if not bare:
+            continue
+        if bare.startswith("#"):
+            continue
+        if len(line) - len(bare) <= 2:
+            break
+        body.append(line)
+    return "\n".join(body)
+
+
+def job_delegates(job: str, workflow: str) -> Predicate:
+    """O job existe **e** delega a este workflow compartilhado, em vez de copiá-lo.
+
+    A exceção do repo meta é a mesma do item de org, e pelo mesmo motivo: um caller
+    no próprio repo que publica os workflows resolve contra o SHA do commit, o que
+    evita o ovo-e-a-galinha de uma tag que ainda não existe. Ela é do tipo `meta` e
+    de mais ninguém, senão o item se esvazia: referenciar workflow local é
+    exatamente o que copiar YAML produz.
+    """
+
+    def check(repo: RepoObserved, desired: Desired) -> bool:
+        del desired
+        block = job_block(repo.content(PR_CHECKS) or "", job)
+        if not block:
+            return False
+        if f"{SHARED_CI_REF}{workflow}" in block:
+            return True
+        return repo.tipo == "meta" and f"{LOCAL_CI_REF}{workflow}" in block
+
+    return check

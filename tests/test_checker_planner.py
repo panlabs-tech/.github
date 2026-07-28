@@ -539,6 +539,138 @@ def test_the_repo_that_publishes_the_shared_workflows_may_reference_them_locally
     assert actions_for(planner.plan(state), "panlabs-tech/.github") == []
 
 
+def local_leg(surface: str) -> str:
+    """Uma perna de check reimplementada dentro do caller, com passos próprios.
+
+    É o que a cópia de YAML produz na prática, e é a forma exata que
+    `panlabs-tech/life-under-control` carrega hoje: o nome do job é o do contrato,
+    e o corpo dele não delega a nada.
+    """
+    return "\n".join(
+        [
+            f"  checks-{surface}:",
+            "    runs-on: ubuntu-latest",
+            "    steps:",
+            "      - uses: actions/checkout@v7",
+            "      - run: make test",
+        ]
+    )
+
+
+def ci_with_local_leg(surface: str) -> str:
+    """O caller conforme em tudo, menos na perna, que é local em vez de delegada."""
+    return ci_yaml(f"checks-{surface}").replace(
+        "\n".join(
+            [
+                f"  checks-{surface}:",
+                f"    uses: panlabs-tech/.github/.github/workflows/checks-{surface}.yml@v1",
+            ]
+        ),
+        local_leg(surface),
+    )
+
+
+def test_a_leg_that_reimplements_the_shared_workflow_locally_is_drift():
+    """O buraco que deixou `life-under-control` passar verde com as pernas copiadas.
+
+    O predicado antigo procurava o nome do job e parava aí. Um job chamado
+    `checks-python` com `runs-on` e passos próprios satisfazia o item escrito para
+    impedir exatamente isso, e o motivo dele cita a divergência de 48% a 86% em
+    sete semanas como a razão de ele existir.
+    """
+    state = observed(
+        repo(
+            "panlabs-tech/copiador",
+            files=[*BASE_FILES, "pyproject.toml", ".python-version"],
+            contents={
+                PR_CHECKS: ci_with_local_leg("python"),
+                "pyproject.toml": "[tool.ruff]\n[tool.pyright]\n",
+                ".python-version": "3.13\n",
+            },
+        )
+    )
+
+    assert "python-ci-leg" in actions_for(planner.plan(state), "panlabs-tech/copiador")
+
+
+def test_a_leg_that_delegates_to_the_shared_workflow_is_not_drift():
+    """O outro lado da linha: a forma que `panlabs` usa continua passando."""
+    state = observed(
+        repo(
+            "panlabs-tech/delegador",
+            files=[*BASE_FILES, "pyproject.toml", ".python-version"],
+            contents={
+                PR_CHECKS: ci_yaml("checks-python"),
+                "pyproject.toml": "[tool.ruff]\n[tool.pyright]\n",
+                ".python-version": "3.13\n",
+            },
+        )
+    )
+
+    assert "python-ci-leg" not in actions_for(planner.plan(state), "panlabs-tech/delegador")
+
+
+def test_the_meta_may_delegate_its_leg_to_its_own_workflow_file():
+    """A mesma exceção do item de org vale para a perna, e pelo mesmo motivo."""
+    local = ci_yaml("checks-python").replace(
+        "panlabs-tech/.github/.github/workflows/", "./.github/workflows/"
+    )
+    state = observed(
+        repo(
+            "panlabs-tech/.github",
+            tipo="meta",
+            files=[*BASE_FILES, "ANATOMY.md", "pyproject.toml", ".python-version"],
+            contents={
+                PR_CHECKS: local,
+                "pyproject.toml": "[tool.ruff]\n[tool.pyright]\n",
+                ".python-version": "3.13\n",
+            },
+        )
+    )
+
+    assert "python-ci-leg" not in actions_for(planner.plan(state), "panlabs-tech/.github")
+
+
+def test_a_shared_reference_that_is_only_a_comment_satisfies_nothing():
+    """Citar o compartilhado num comentário é a forma mais barata de mentir aqui."""
+    comentado = ci_yaml().replace(
+        "  security-scan:\n    uses: panlabs-tech/.github/.github/workflows/security.yml@v1",
+        "\n".join(
+            [
+                "  security-scan:",
+                "    # uses: panlabs-tech/.github/.github/workflows/security.yml@v1",
+                "    runs-on: ubuntu-latest",
+                "    steps:",
+                "      - run: gitleaks detect",
+            ]
+        ),
+    )
+    state = observed(repo("panlabs-tech/comentador", contents={PR_CHECKS: comentado}))
+
+    assert "ci-references-shared-workflows" in actions_for(
+        planner.plan(state), "panlabs-tech/comentador"
+    )
+
+
+def test_a_security_scan_reimplemented_locally_is_drift_even_with_the_rest_shared():
+    """O invariante que vale para repo sem superfície nenhuma.
+
+    `panlabs-tech/skills` tem stack vazia: ele não tem perna de check para delegar,
+    e o scan de segurança é a única delegação que sobra nele. Um item de org que
+    aceitasse qualquer citação do meta em qualquer lugar do arquivo não teria o
+    que verificar nesse repo.
+    """
+    local = ci_yaml().replace(
+        "    uses: panlabs-tech/.github/.github/workflows/security.yml@v1",
+        "    runs-on: ubuntu-latest\n    steps:\n      - run: gitleaks detect",
+    )
+    state = observed(repo("panlabs-tech/proprio", contents={PR_CHECKS: local}))
+
+    assert "ci-references-shared-workflows" in actions_for(
+        planner.plan(state), "panlabs-tech/proprio"
+    )
+
+
 # --- os dois portões e a disciplina de versionamento --------------------------
 
 
