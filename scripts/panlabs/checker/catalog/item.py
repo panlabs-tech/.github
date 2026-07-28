@@ -20,6 +20,7 @@ engano, indistinguível de um veredito real. Um teste amarra os dois lados.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -49,6 +50,7 @@ __all__ = [
     "job_block",
     "job_declared",
     "job_delegates",
+    "job_is_equivalent",
     "paths_under",
     "slot_filled",
     "stack",
@@ -335,3 +337,72 @@ def job_delegates(job: str, workflow: str) -> Predicate:
         return repo.tipo == "meta" and f"{LOCAL_CI_REF}{workflow}" in block
 
     return check
+
+
+PINNED_BY_SHA = re.compile(r"^[0-9a-f]{40}$")
+"""Um SHA de commit completo, que é a única forma de referência que não se move.
+
+Quarenta caracteres e não sete: um prefixo abreviado é resolvido pelo GitHub no
+momento da corrida, e resolver depois é o que uma referência pinada existe para
+não fazer.
+"""
+
+USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)", re.MULTILINE)
+"""Toda referência a workflow ou action dentro de um bloco, de job ou de passo."""
+
+
+def job_is_equivalent(job: str, workflow: str) -> Predicate:
+    """A perna entrega a garantia da compartilhada, delegando a ela **ou** pinando.
+
+    O que o item quer garantir nunca foi a delegação em si: foi que a perna não
+    derive. A delegação é o jeito mais fácil de conseguir isso, e por um tempo foi
+    tratada como o único, o que criou uma contradição dentro deste repositório. O
+    cabeçalho de `checks-python.yml` registra, desde que ele existe, que
+    `life-under-control` mantém perna local porque `services:` **não é
+    parametrizável** num reusable workflow, e que o registro está lá "para que
+    ninguém tente e descubra em CI". Um item que cobrasse a delegação dele estaria
+    cobrando o oposto de uma decisão publicada aqui do lado.
+
+    As três formas que passam, e todas resolvem contra algo que não se move:
+
+    - o workflow **compartilhado**, por tag da org (`panlabs-tech/.github/...@v1`)
+    - um workflow **do próprio repo** (`./.github/workflows/...`), que resolve
+      contra o SHA do commit em que roda, e por isso não flutua por construção
+    - qualquer **action de terceiro pinada por SHA de 40 caracteres**
+
+    O que reprova é a tag flutuante, e ela é o caso vivo: `life-under-control` usa
+    `actions/checkout@v7` e `pnpm/action-setup@v6` na perna local, enquanto os
+    workflows que este repo publica pinam por SHA. A cópia local não perdeu só a
+    convergência, perdeu a postura de pinagem, e é essa a diferença entre uma perna
+    local justificada e o YAML copiado que ninguém mais atualiza.
+
+    **O que este predicado não verifica, e o motivo:** que a perna local rode os
+    mesmos passos da compartilhada. Isso é propriedade semântica, não textual, e
+    prometê-la aqui repetiria o defeito de um motivo que afirma o que o predicado
+    não lê. O que sobra é o eixo mecânico, e ele é o que a divergência medida de
+    48% a 86% de fato produziu: versão de action divergindo sem ninguém acusar.
+    """
+    delegates = job_delegates(job, workflow)
+
+    def check(repo: RepoObserved, desired: Desired) -> bool:
+        if delegates(repo, desired):
+            return True
+        block = job_block(repo.content(PR_CHECKS) or "", job)
+        if not block:
+            return False
+        refs = USES.findall(block)
+        if not refs:
+            return False
+        return all(_is_immovable(ref) for ref in refs)
+
+    return check
+
+
+def _is_immovable(ref: str) -> bool:
+    """Esta referência resolve contra algo que não se move sob os pés de quem roda."""
+    if ref.startswith("./"):
+        return True
+    if ref.startswith(SHARED_CI_REF):
+        return True
+    _, _, version = ref.partition("@")
+    return bool(PINNED_BY_SHA.match(version))

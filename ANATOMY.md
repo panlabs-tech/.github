@@ -87,12 +87,18 @@ Cobrado **por superfície**, nunca por repositório. Um repositório sem a super
 | `python-runtime-declared` | `.python-version` na raiz, preenchido | **Slot**: obriga a declaração, não o número. É na raiz que o gerenciador de runtime da máquina lê, e uma homônima enterrada em subpasta não é a mesma declaração. |
 | `python-runtime-converged` | a versão dentro da série decidida | O valor ainda é `null`. Declarar é o slot; declarar a **mesma** coisa é este item, e um repositório pode declarar e mesmo assim divergir. Série, e não major: em Python a unidade em que "verde significa o mesmo" é `3.12`. |
 | `python-toolchain-declared` | ruff declarado em manifesto | Valor decidido: a toolchain Python da frota é `uv`, `ruff`, `pyright`, `pytest`, e "está limpo" precisa significar o mesmo em qualquer repositório. |
-| `python-ci-leg` | a perna `checks-python` no caller | O rollup agrega o que existe, então uma perna que não está lá sai verde sem ter rodado nada. |
+| `python-ci-leg` | a perna `checks-python` no caller, **equivalente** | O rollup agrega o que existe, então uma perna que não está lá sai verde sem ter rodado nada. Equivalente, e não necessariamente delegada: ver a nota abaixo. |
 | `node-runtime-declared` | `.node-version` na raiz, preenchido | Slot, como o de Python. |
 | `node-runtime-converged` | a versão dentro da série decidida | Valor ainda `null`, e a frota hoje declara dois majors. Em Node a série **é** o major: `24` cobre `24.3.0`. |
 | `node-lockfile-committed` | lockfile na raiz | A frota usa dois layouts, e o da raiz é o que todos os cinco repositórios com superfície Node têm. |
 | `node-toolchain-declared` | ferramenta de formatação e lint declarada em manifesto | **Slot**, não valor: a spec nomeia a toolchain Python e não nomeia a Node, e cravar aqui seria o checker legislando. |
-| `node-ci-leg` | a perna `checks-node` no caller | Mesma razão da perna de Python. |
+| `node-ci-leg` | a perna `checks-node` no caller, **equivalente** | Mesma razão da perna de Python, e mesma nota. |
+
+**A perna é cobrada por equivalência, não por delegação.** O que estes dois itens querem garantir nunca foi que a perna chame o workflow compartilhado: foi que ela **não derive**. Delegar é o jeito mais fácil de conseguir isso e não é o único, e tratá-lo como o único produziria uma contradição dentro deste repositório, porque `checks-python.yml` registra por escrito que `services:` não é parametrizável num reusable workflow e que há repositório da frota que precisa de perna local por causa disso.
+
+Três formas satisfazem, e as três resolvem contra algo que não se move: o workflow **compartilhado** por tag da org; um workflow **do próprio repositório** (`./.github/workflows/...`), que resolve contra o SHA do commit em que roda; ou uma perna local cujas referências estejam **todas pinadas por SHA de 40 caracteres**. O que reprova é a tag flutuante, e ela é o caso vivo: uma perna local que se dá o direito de flutuar não entrega a garantia que a compartilhada entrega, e a diferença entre ela e o YAML copiado que ninguém mais atualiza é nenhuma.
+
+O que o item **não** verifica é que a perna local rode os mesmos passos da compartilhada. Isso é propriedade semântica, não textual, e cobrá-la aqui faria a anatomia prometer o que o checker não lê. O eixo que sobra é o mecânico, e é ele que a divergência medida de 48% a 86% de fato produziu.
 
 **Terraform tem superfície e não tem item**, e isso é resultado, não esquecimento: Terraform como CI compartilhada está fora do escopo da spec de Repo #4, porque existe num repositório só. A superfície continua sendo detectada, e o dia em que houver o que cobrar dela o item entra sem que nada mais mude.
 
