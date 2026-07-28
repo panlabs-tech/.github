@@ -108,8 +108,7 @@
       "report": {
         "command": ["~/workspaces/panlabs-tech/.github/.venv/bin/panlabs-checker"],
         "codes": {
-          "1": "anatomia",
-          "2": "falha"
+          "1": "anatomia"
         }
       },
       "why": "a deriva de anatomia da frota é alarme, e nunca gate de PR: ela é propriedade do repositório, não do diff, e metade dos itens (descrição, topics, wiki) nem mora no working tree. Ele é do ramo de cima porque precisa de rede e do token já autenticado da máquina, que é o oposto do que a poda precisa"
@@ -128,7 +127,9 @@
 
   "_anatomy_checker_comando": "O console script do ambiente virtual, direto, e nunca `uv run panlabs-checker`. O mesmo motivo que tirou o heartbeat inteiro de baixo do `uv run` vale aqui: o passo `uv-cache` poda o cache do próprio `uv`, e um processo `uv` vivo segura o lock desse cache. Além disso o passo roda em subprocesso não interativo, sem arquivo de rc, onde o PATH é o mínimo do sistema: nome nu funcionaria no terminal e falharia na tarefa.",
 
-  "_anatomy_checker_codigos": "O mapa é contrato com `panlabs.checker.cli`, e um teste amarra os dois lados. `1` é deriva e só deriva; `2` é qualquer coisa que impeça a matriz de existir (rede, credencial, retrato ilegível, dado inválido, árvore truncada). Um código fora do mapa, inclusive o comando que não chegou a rodar, é falha do próprio passo e sai no canal declarado por ele, que é `falha`.",
+  "_anatomy_checker_codigos": "O mapa é contrato com `panlabs.checker.cli`, e um teste amarra os dois lados. Ele lista os códigos em que o comando **cumpriu**: `1` é deriva e só deriva, o checker mediu a frota e tem o que relatar. Um código fora do mapa é falha do próprio passo, sai no canal declarado por ele, que é `falha`, e **não grava a marca**.",
+
+  "_anatomy_checker_codigos_correcao": "Este mapa carregava `2` apontando para `falha`, e a entrada era pior que redundante com o `alarm` do passo: um código no mapa faz o applier gravar a marca, e a marca compra mais sete dias de silêncio. O `2` do checker é o oposto de um relato, é a matriz que não chegou a existir (rede, credencial, retrato ilegível, dado inválido, árvore truncada). O passo então alarmava e carimbava sucesso na mesma corrida, e o operador via no `panlabs-heartbeat` um passo que rodou. Somado ao `gh` invocado por nome nu, isso manteve o único detector automático de deriva da org sem produzir uma matriz desde que ele nasceu. A distinção não é `no mapa` contra `fora do mapa`: é o comando cumpriu contra o comando não cumpriu, e só o primeiro ganha marca.",
 
   "_docker": "`docker builder prune` NÃO está aqui, e a ausência é decidida. Ele é o passo de maior retorno conhecido (18,4 GB de build cache medidos em 2026-07-24) e precisa do daemon de pé, que é uma dimensão que este heartbeat não observa. Um passo que só falha quando o Docker Desktop está parado alarmaria todo dia até alguém subi-lo, e treinar o operador a ignorar o canal de falha custaria mais do que os 18 GB valem. Ele entra quando chegar com a observação que o guarda: é exatamente o tipo de extensão para a qual o hospedeiro foi construído."
 }

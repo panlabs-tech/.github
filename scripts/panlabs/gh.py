@@ -12,13 +12,20 @@ em repositório privado" é uma resposta sobre o que a plataforma **mostra**, e
 some quando o repo vira público; "eleve o token" é falta de permissão, e some
 quando o operador eleva o escopo. Os dois chegam com o mesmo código HTTP, e só
 o texto da plataforma os separa.
+
+E o `gh` é invocado por **caminho**, nunca por nome nu. Quem chama este módulo
+sem terminal roda com o PATH mínimo do sistema, onde o instalador por usuário
+não está.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 __all__ = [
@@ -26,9 +33,26 @@ __all__ = [
     "GhNotFoundError",
     "GhUpgradeRequiredError",
     "api",
+    "binary",
     "graphql",
     "repo_names",
 ]
+
+USER_BIN_DIRS = ("~/.local/bin", "~/bin")
+"""Onde procurar o `gh` quando o PATH herdado não o alcança.
+
+O `PATH` de um subprocesso não interativo é o mínimo do sistema: sem arquivo de
+rc, sem o que o shell de login acrescenta, e portanto sem o diretório em que
+`gh` é instalado por usuário. Um `gh` que responde a `command -v` no terminal e
+some na tarefa agendada é o mesmo binário visto de dois ambientes, e é essa
+diferença que manteve o passo `anatomy-checker` do heartbeat sem produzir uma
+matriz desde que ele existe.
+
+A lista é curta e escrita aqui de propósito. Ler `config/machine.json` daqui
+inverteria a dependência: este adaptador serve o checker, o ruleset e o script
+de org, que rodam também onde não existe máquina panlabs nenhuma. O que amarra
+os dois lados é um teste, e ele falha se `bin_dir` sair desta lista.
+"""
 
 UPGRADE_MARKER = "Upgrade to GitHub"
 """O que o GitHub diz quando o plano da conta não oferece o recurso pedido.
@@ -43,6 +67,10 @@ barulhento, nunca para o silencioso.
 Só o prefixo, sem a edição do plano: "Upgrade to GitHub Pro" hoje, e o dia em
 que uma dimensão exigir Team ou Enterprise não deve precisar de outra linha aqui.
 """
+
+
+GH = "gh"
+"""O nome do executável, num lugar só: ele é procurado e é invocado."""
 
 
 class GhError(RuntimeError):
@@ -64,6 +92,28 @@ class GhUpgradeRequiredError(GhError):
     """
 
 
+def binary() -> str:
+    """O caminho do `gh` desta máquina, ou o nome nu se ele não for encontrado.
+
+    O PATH manda quando responde: quem tem ambiente bom continua usando o `gh` que
+    escolheu, e esta busca não sequestra nada. Só quando ele não responde é que os
+    diretórios de instalação por usuário são consultados, na ordem escrita.
+
+    Devolver o nome nu no fim é deliberado, e não é desistência: ele reproduz o
+    `FileNotFoundError` de sempre, que vira o erro alto e legível de `_run`. A
+    degradação é barulhenta, nunca silenciosa: um `gh` que de fato não existe
+    continua derrubando a corrida, e é o texto do erro que ganha o endereço.
+    """
+    found = shutil.which(GH)
+    if found:
+        return found
+    for directory in USER_BIN_DIRS:
+        candidate = Path(directory).expanduser() / GH
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    return GH
+
+
 def _run(args: Sequence[str], *, stdin: str | None = None) -> str:
     """Roda o `gh` e devolve a saída, traduzindo falha em exceção.
 
@@ -72,14 +122,17 @@ def _run(args: Sequence[str], *, stdin: str | None = None) -> str:
     """
     try:
         completed = subprocess.run(
-            ["gh", *args],
+            [binary(), *args],
             input=stdin,
             capture_output=True,
             text=True,
             check=False,
         )
     except FileNotFoundError as exc:
-        raise GhError("o `gh` não está instalado ou não está no PATH") from exc
+        raise GhError(
+            "o `gh` não está instalado, não está no PATH e não está em "
+            f"{' nem em '.join(USER_BIN_DIRS)}"
+        ) from exc
 
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
