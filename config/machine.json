@@ -131,7 +131,8 @@
         "why": "publicada em `panlabs-tech/skills` e nunca instalada: a capacidade existe no repositório de distribuição e não existe em máquina nenhuma, que é o oposto do caso das outras três e passava sem cobrança porque nenhuma linha a nomeava"
       }
     ],
-    "_discard": "As duas que pareciam órfãs e não são: são revisão anterior de uma global que já existe, com outro nome. Promovê-las criaria duas globais para o mesmo trabalho, que é a redundância que a cláusula proíbe. Verificado por comparação de conteúdo, não por semelhança de nome.",
+    "_discard": "As que pareciam órfãs e não são: são revisão anterior, ou parte consolidada, de uma global que já existe. Promovê-las criaria duas globais para o mesmo trabalho, que é a redundância que a cláusula proíbe. Verificado por comparação de conteúdo, não por semelhança de nome. A origem é **por repositório**: a mesma skill vendorizada em dois lugares precisa de uma linha em cada, e foi assim que `to-prd` e `to-issues` reapareceram no retrofit do `travelmanager` depois de já terem sido decididas para o `panlabs`.",
+    "_discard_consolidacao": "As quatro de Python do `travelmanager` são um caso diferente de revisão anterior, e vale nomeá-lo: elas não foram substituídas por uma versão mais nova de si mesmas, foram **fundidas** numa global autoral. `panlabs-python-standards` tem uma seção para cada uma delas, e acrescenta o modelo de erro e a régua de máquina que nenhuma das quatro tinha. Descartar aqui não perde capacidade; mantê-las perderia, porque quatro fontes sobre o mesmo assunto divergem no dia em que uma mudar.",
     "discard": [
       {
         "name": "to-prd",
@@ -144,6 +145,42 @@
         "source": "panlabs",
         "superseded_by": "to-tickets",
         "why": "antecessora da global de fatiamento em tickets: a global ganhou declaração de dependências entre tickets"
+      },
+      {
+        "name": "to-prd",
+        "source": "travelmanager",
+        "superseded_by": "to-spec",
+        "why": "a mesma revisão anterior que o `panlabs` carregava, encontrada de novo no retrofit do `travelmanager`: a origem é por repositório, e a mesma skill vendorizada em dois lugares precisa de uma linha em cada"
+      },
+      {
+        "name": "to-issues",
+        "source": "travelmanager",
+        "superseded_by": "to-tickets",
+        "why": "idem, e pela mesma razão"
+      },
+      {
+        "name": "hexagonal-architecture",
+        "source": "travelmanager",
+        "superseded_by": "panlabs-python-standards",
+        "why": "consolidada: `01-contratos-e-conformidade.md` e `03-topologia-e-kernel.md` da global cobrem ports, protocolos e camadas, e a global cita a referência hexagonal ao fixar `application/ports/{inbound,outbound}` como estrutura de primeira classe"
+      },
+      {
+        "name": "python-code-style",
+        "source": "travelmanager",
+        "superseded_by": "panlabs-python-standards",
+        "why": "consolidada em `02-composicao-e-forma.md`, e a global vai além do estilo: ela traz a régua de máquina que separa o que é norma travada na config do que é conversa em review"
+      },
+      {
+        "name": "python-project-structure",
+        "source": "travelmanager",
+        "superseded_by": "panlabs-python-standards",
+        "why": "consolidada em `03-topologia-e-kernel.md`, que decide onde o arquivo mora com a condição em que a decisão vale"
+      },
+      {
+        "name": "python-testing-patterns",
+        "source": "travelmanager",
+        "superseded_by": "panlabs-python-standards",
+        "why": "consolidada em `05-doutrina-de-testes.md`, que fixa o que é fake e o que é real em vez de catalogar recursos do pytest"
       }
     ]
   }
