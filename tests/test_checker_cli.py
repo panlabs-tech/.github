@@ -7,15 +7,25 @@ detalhe: é por ele que o passo do heartbeat escolhe em qual canal alarmar, e
 """
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from panlabs import gh
 from panlabs.checker.cli import EXIT_CLEAN, EXIT_DRIFT, EXIT_ERROR, main
+from panlabs.checker.desired import load_desired
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE = FIXTURES / "checker-observed-sample.json"
+
+SERIES_DECIDED = {"python_series": "3.13", "node_series": "24"}
+"""Um valor qualquer para cada série, só para provar que a lista esvazia.
+
+Não são as séries da frota, e não devem ser: decidi-las é ato do operador em
+`config/anatomy.json`, e um teste que as cravasse aqui viraria o lugar errado onde
+alguém procuraria a decisão.
+"""
 
 
 @pytest.fixture
@@ -103,6 +113,41 @@ def test_json_output_is_the_serialized_matrix_and_nothing_else(
     assert len(payload["items"]) == 1
     assert {"action", "target", "reason", "payload", "hold"} == set(payload["items"][0])
     assert payload["items"][0]["payload"]["verdict"] == "deriva"
+
+
+def test_the_serialized_matrix_also_says_what_was_never_asked(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """A saída humana já dizia isto; a serializada é onde ninguém está lá para inferir.
+
+    `config/anatomy.json` tem três dimensões em `null` hoje, e os itens delas não
+    são avaliados. Um consumidor automático lia a matriz, não via linha nenhuma
+    sobre licença uniforme nem sobre série de runtime, e concluía conformidade. "Não
+    apareceu" e "não foi perguntado" são coisas diferentes, e a segunda precisa de
+    quem a diga justamente onde não há humano lendo.
+    """
+    main(["--observed", str(SAMPLE), "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert set(payload) == {"items", "undecided"}
+    assert "license" in payload["undecided"]
+
+
+def test_a_fully_decided_anatomy_serializes_an_empty_undecided_list(
+    forbid_api: None, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+):
+    """A chave existe sempre, vazia inclusive: ausência de chave não é dado.
+
+    Um consumidor que precise fazer `if "undecided" in payload` para saber se o
+    produtor era velho está lendo a versão do produtor, não a anatomia.
+    """
+    decided = replace(load_desired(), license="MIT", **SERIES_DECIDED)
+    monkeypatch.setattr("panlabs.checker.cli.load_desired", lambda *_a, **_k: decided)
+
+    main(["--observed", str(SAMPLE), "--json"])
+
+    assert json.loads(capsys.readouterr().out)["undecided"] == []
 
 
 # --- o código de saída: 1 é deriva, e só deriva -------------------------------

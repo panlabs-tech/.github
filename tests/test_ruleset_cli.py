@@ -125,7 +125,27 @@ def test_a_full_fleet_run_shows_the_divergence_of_a_repo_it_will_not_touch(
 
     assert "panlabs-tech/travelmanager" in out
     assert "retido" in out
-    assert "a CI dele não publica com esse nome" in out
+    assert "os checks exigidos hoje em" in out
+
+
+def test_the_hold_reason_names_the_criterion_it_used_and_not_one_it_never_read(
+    forbid_api: None, capsys: pytest.CaptureFixture[str]
+):
+    """O motivo apresentava um proxy como fato, e mandava o operador esperar errado.
+
+    O critério é `required_check_contexts()`, os checks que a **proteção atual**
+    exige. O texto entregue dizia "a CI dele não publica com esse nome", que é uma
+    afirmação sobre um workflow que este script nunca leu. Um repo sem proteção
+    nenhuma cai na retenção pela comparação vazia, e `panlabs-tech/skills` foi
+    retido com essa frase depois do retrofit #37, que é exatamente o que o fez
+    publicar os dois nomes do contrato.
+    """
+    main(["--observed", str(FLEET), "--config", str(DESIRED)])
+
+    out = capsys.readouterr().out
+
+    assert "a CI dele não publica" not in out
+    assert "não é observado por este script" in out
 
 
 def test_apply_without_only_touches_just_the_repos_that_already_speak_the_contract(

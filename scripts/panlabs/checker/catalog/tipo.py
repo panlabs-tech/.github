@@ -147,10 +147,16 @@ ITEMS: tuple[AnatomyItem, ...] = (
         scope=tipo("aplicacao"),
         applies=is_tipo("aplicacao"),
         satisfied=has_file(MCP_CONFIG),
+        # Presença, e o motivo diz só isso. Ele prometia "com placeholder de
+        # variável de ambiente", que é propriedade de **conteúdo**, e o predicado
+        # nunca leu conteúdo nenhum: um arquivo com token literal dentro satisfazia
+        # o item, e quem lesse o motivo acreditaria no contrário. A propriedade
+        # prometida é uma segunda pergunta, e uma segunda pergunta é um item novo,
+        # escrito na `ANATOMY.md` antes de virar veredito.
         motivo=lambda repo, desired: (
-            f"{repo.name} é aplicação e não versiona {MCP_CONFIG} com placeholder de variável "
-            "de ambiente: hoje a configuração real fica gitignorada com segredo literal dentro, "
-            "e nunca é de fato compartilhada apesar do nome"
+            f"{repo.name} é aplicação e não versiona {MCP_CONFIG}: hoje a configuração real fica "
+            "gitignorada com segredo literal dentro, e nunca é de fato compartilhada apesar do "
+            "nome"
         ),
     ),
     AnatomyItem(
