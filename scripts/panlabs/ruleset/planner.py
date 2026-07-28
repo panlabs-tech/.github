@@ -164,6 +164,14 @@ def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> st
     um PR espera. Se exige outra coisa, ou nada, o contrato fixo penduraria todo
     PR do repo esperando um status que nunca sai com esse nome.
 
+    **Proxy, e o motivo escrito no item precisa dizer isso.** Ele dizia "a CI dele
+    não publica com esse nome", que é uma afirmação sobre um workflow que este
+    script nunca leu. Um repo sem proteção nenhuma cai aqui pela comparação vazia,
+    e o operador lia que faltava um retrofit de CI que já tinha acontecido:
+    `panlabs-tech/skills` foi retido com essa frase depois do retrofit #37, que é
+    justamente o que a fez publicar os dois nomes do contrato. Nomear o proxy como
+    fato manda o operador esperar pela coisa errada, e nada acusa.
+
     A recusa da plataforma vem **antes** de tudo isso, inclusive de `--only`.
     Nomear um repo em `--only` é o operador afirmando que a CI dele já publica os
     nomes fixos de check; não é, e não teria como ser, uma afirmação sobre o que a
@@ -185,9 +193,10 @@ def _hold(repo: RepoState, desired: Desired, retrofitted: Collection[str]) -> st
     return (
         f"os checks exigidos hoje em {repo.default_branch} são "
         f"{', '.join(observed_checks) if observed_checks else 'nenhum'}, e o contrato fixo é "
-        f"{', '.join(contract)}: aplicar agora penduraria todo PR deste repo esperando um "
-        "check que a CI dele não publica com esse nome. Adiado até o retrofit de CI do repo; "
-        f"depois dele, `--only {repo.name}` aplica"
+        f"{', '.join(contract)}: o que a CI deste repo publica não é observado por este script, "
+        "e aplicar sobre um repo cuja CI ainda não publique esses nomes penduraria todo PR dele "
+        f"esperando um status que nunca sai. `--only {repo.name}` é como o operador afirma que "
+        "o retrofit de CI dele aterrissou"
     )
 
 

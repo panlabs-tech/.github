@@ -20,6 +20,7 @@ fora do padrão": por isso erro pesa mais que deriva, nunca o contrário.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -85,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     the_matrix = plan(observed, desired)
 
     if args.json:
-        print(the_matrix.to_json())
+        print(_as_json(the_matrix, desired))
     else:
         print(f"Org {observed.org}: {len(observed.repos)} repo(s) avaliado(s).\n")
         print(the_matrix.render())
@@ -94,6 +95,22 @@ def main(argv: list[str] | None = None) -> int:
         _report_undecided(desired)
 
     return _exit_code(the_matrix)
+
+
+def _as_json(the_matrix: Plan, desired: Desired) -> str:
+    """A matriz serializada, e ao lado dela o que ninguém chegou a perguntar.
+
+    O relato de não decidido nasceu só na saída humana, e a serializada é
+    exatamente onde ele falta mais: quem lê `--json` é máquina, e não há ninguém
+    ali para inferir que a ausência de linha sobre licença uniforme significa
+    "esse item não foi avaliado" em vez de "esse item passou".
+
+    A chave existe sempre, vazia inclusive. Um consumidor que precisasse testar a
+    presença da chave estaria lendo a versão do produtor, não a anatomia.
+    """
+    body = the_matrix.to_dict()
+    body["undecided"] = list(desired.undecided)
+    return json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True)
 
 
 def _report_undecided(desired: Desired) -> None:
