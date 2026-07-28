@@ -108,7 +108,7 @@
 
   "_skills": "A cláusula de zero redundância: uma skill candidata a global não existe em repo nenhum, e a cópia global é a única. Só o lado global é escopo da issue #20. A varredura que prova a cláusula é do planner, e tudo que ela encontra dentro de um repositório sai retido, porque remover arquivo versionado de um repo é o retrofit da spec de Repo #4.",
   "skills": {
-    "_promote": "As órfãs reais: existem num repo e não têm par no global, então des-vendorizar sem promover perderia capacidade.",
+    "_promote": "As órfãs reais: existem num repo e não têm par no global, então des-vendorizar sem promover perderia capacidade. A origem é **procedência**, e não condição: uma skill cuja cópia vendorizada já foi removida continua sendo item de plano, e com mais urgência, porque aí a capacidade não está em lugar nenhum.",
     "promote": [
       {
         "name": "caveman",
@@ -124,6 +124,11 @@
         "name": "prompt-engineering-patterns",
         "source": "panlabs",
         "why": "órfã real, verificada por ausência de par no global"
+      },
+      {
+        "name": "panlabs-python-standards",
+        "source": ".github",
+        "why": "publicada em `panlabs-tech/skills` e nunca instalada: a capacidade existe no repositório de distribuição e não existe em máquina nenhuma, que é o oposto do caso das outras três e passava sem cobrança porque nenhuma linha a nomeava"
       }
     ],
     "_discard": "As duas que pareciam órfãs e não são: são revisão anterior de uma global que já existe, com outro nome. Promovê-las criaria duas globais para o mesmo trabalho, que é a redundância que a cláusula proíbe. Verificado por comparação de conteúdo, não por semelhança de nome.",

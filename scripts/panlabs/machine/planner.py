@@ -352,19 +352,31 @@ def _skill_items(observed: Observed, desired: Desired) -> list[PlanItem]:
     items: list[PlanItem] = []
 
     for move in wanted.promote:
+        # O critério é um só: não está no global. A origem é **procedência**, e
+        # usá-la como condição foi o defeito: o retrofit que removeu a cópia
+        # vendorizada (o objetivo dele) fez a promoção sumir do plano sem alarmar.
+        # A urgência é o inverso do que aquilo assumia. Enquanto a skill estava no
+        # repo, a capacidade existia em algum lugar; depois da remoção ela não
+        # existe em lugar nenhum, e é esse o estado em que o plano precisa gritar.
         if move.name in observed.global_skills:
             continue
         source = vendored.get((move.source, move.name))
-        if source is None:
-            continue
         items.append(
             PlanItem(
                 action=PROMOTE_SKILL,
                 target=move.name,
-                reason=f"{move.why}; sobe de {source.repo} para o global",
+                reason=(
+                    f"{move.why}; sobe de {source.repo} para o global"
+                    if source
+                    else (
+                        f"{move.why}; não está no global e **não está mais em {move.source}**: "
+                        "a cópia de onde ela viria já foi removida, então esta capacidade não "
+                        "existe em lugar nenhum"
+                    )
+                ),
                 payload={
                     "name": move.name,
-                    "from": source.path,
+                    "from": source.path if source else "",
                     "command": (
                         f"npx skills add panlabs-tech/skills --global --skill {move.name} --yes"
                     ),

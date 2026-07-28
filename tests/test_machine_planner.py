@@ -679,3 +679,85 @@ def test_the_reason_names_the_tool_and_why_it_is_equipment():
 
     assert "executa a declaração versionada" in item.reason
     assert "não resolve" in item.reason
+
+
+# --- a promoção que não pode depender de a cópia ainda estar no repo -----------
+
+
+def test_a_promotion_survives_the_retrofit_that_removed_the_vendored_copy():
+    """O caso vivo, e o mais caro: a capacidade não está em lugar nenhum.
+
+    O retrofit do `panlabs` removeu as três cópias vendorizadas, que era o objetivo
+    dele. A partir daquele merge as três promoções sumiram do plano sem que nada
+    acusasse, porque a origem era usada como condição em vez de procedência.
+
+    A urgência é o inverso do que o código antigo assumia: enquanto a skill estava
+    no repo, a capacidade existia em algum lugar. Depois da remoção ela não existe
+    em lugar nenhum, e é esse o estado em que o plano precisa gritar.
+    """
+    state = Observed(global_skills=(), vendored_skills=())
+    wanted = desired(
+        skills=DesiredSkills(promote=(SkillMove(name="caveman", source="panlabs", why="órfã"),))
+    )
+
+    the_plan = planner.plan(state, wanted)
+
+    assert targets_for(the_plan, planner.PROMOTE_SKILL) == ["caveman"]
+
+
+def test_the_reason_says_the_source_is_gone_because_that_changes_what_to_do():
+    """Sobe de um repo e sobe do nada são urgências diferentes, e o motivo as separa."""
+    state = Observed(global_skills=(), vendored_skills=())
+    wanted = desired(
+        skills=DesiredSkills(promote=(SkillMove(name="caveman", source="panlabs", why="órfã"),))
+    )
+
+    item = items_for(planner.plan(state, wanted), planner.PROMOTE_SKILL)[0]
+
+    assert "não está mais em panlabs" in item.reason
+
+
+def test_a_promotion_whose_source_still_exists_still_names_where_it_comes_from():
+    """O caminho antigo não se perde: quando há origem, ela continua no motivo."""
+    state = Observed(
+        global_skills=(),
+        vendored_skills=(VendoredSkill(repo="panlabs", name="caveman", path="/w/panlabs/caveman"),),
+    )
+    wanted = desired(
+        skills=DesiredSkills(promote=(SkillMove(name="caveman", source="panlabs", why="órfã"),))
+    )
+
+    item = items_for(planner.plan(state, wanted), planner.PROMOTE_SKILL)[0]
+
+    assert "sobe de panlabs" in item.reason
+    assert item.payload["from"] == "/w/panlabs/caveman"
+
+
+def test_a_skill_already_in_the_global_is_never_promoted_even_without_a_source():
+    """O critério é `não está no global`, e ele continua sendo o único."""
+    state = Observed(global_skills=("caveman",), vendored_skills=())
+    wanted = desired(
+        skills=DesiredSkills(promote=(SkillMove(name="caveman", source="panlabs", why="órfã"),))
+    )
+
+    assert items_for(planner.plan(state, wanted), planner.PROMOTE_SKILL) == []
+
+
+def test_a_discard_still_needs_the_copy_to_exist_because_there_is_nothing_to_remove():
+    """Descarte é o oposto: sem cópia no repo, a decisão já está realizada.
+
+    Simetria aqui seria erro. Promover sem origem é urgente; descartar sem origem
+    não tem alvo.
+    """
+    state = Observed(global_skills=("to-spec",), vendored_skills=())
+    wanted = desired(
+        skills=DesiredSkills(
+            discard=(
+                SkillMove(
+                    name="to-prd", source="panlabs", why="revisão anterior", superseded_by="to-spec"
+                ),
+            )
+        )
+    )
+
+    assert items_for(planner.plan(state, wanted), planner.DISCARD_SKILL) == []
