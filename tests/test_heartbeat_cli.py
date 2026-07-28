@@ -316,7 +316,7 @@ def report_item(**payload: object) -> PlanItem:
     base: dict[str, object] = {
         "step": "anatomy-checker",
         "run": ["panlabs-checker"],
-        "codes": {"1": "anatomia", "2": "falha"},
+        "codes": {"1": "anatomia"},
         "alarm": "falha",
     }
     base.update(payload)
@@ -338,6 +338,26 @@ def test_drift_alarms_on_the_anatomy_channel_and_failure_on_the_mechanism_one(tm
 
     assert [alarm.alarm for alarm in drifted.alarms] == ["anatomia"]
     assert [alarm.alarm for alarm in blind.alarms] == ["falha"]
+
+
+def test_the_step_that_could_not_measure_does_not_buy_itself_another_cadence(tmp_path: Path):
+    """A metade do critério que faltava, e ela é sobre a marca, não sobre o canal.
+
+    O canal já estava certo nos dois casos. O que não estava: um `2` declarado no
+    mapa fazia o passo gravar a marca e rearmar os sete dias, e o operador via no
+    `panlabs-heartbeat` um passo que rodou. Foi assim que `anatomy-checker` passou
+    a existência inteira sem produzir uma matriz, alarmando de sete em sete dias
+    numa lista onde o resto alarma calado.
+
+    Deriva ganha marca porque o comando cumpriu: ele mediu a frota e tem o que
+    relatar. Erro de observação não ganha, porque a matriz não chegou a existir.
+    """
+    blind = build_runner(state_dir=tmp_path, now=NOW, run=lambda _c: (2, "HTTP 401"))
+
+    apply(Plan((report_item(),)), blind.effects)
+
+    assert blind.stamped == set()
+    assert blind.failed == ["anatomy-checker"]
 
 
 def test_a_clean_report_says_nothing_at_all(tmp_path: Path):

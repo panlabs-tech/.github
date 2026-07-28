@@ -147,7 +147,27 @@ def test_the_shipped_checker_sends_drift_and_mechanism_failure_to_different_chan
     report = shipped_step(shipped, "anatomy-checker").report
 
     assert report is not None
-    assert report.codes == {EXIT_DRIFT: "anatomia", EXIT_ERROR: "falha"}
+    assert report.codes == {EXIT_DRIFT: "anatomia"}
+
+
+def test_the_shipped_checker_does_not_declare_the_code_that_means_it_could_not_measure(
+    shipped: Desired,
+):
+    """Mapear `2` fazia o passo carimbar sucesso na falha, e rearmar a cadência.
+
+    O mapa `codes` é a lista dos códigos em que o comando **cumpriu**: mediu a
+    frota e tem o que relatar. `EXIT_ERROR` é o oposto disso, a matriz não chegou
+    a existir, e um passo que não mediu nada não pode ganhar a marca que compra
+    mais sete dias de silêncio. Ele continua alarmando, no canal do passo, que é
+    o canal do próprio mecanismo.
+
+    Sem esta linha o defeito volta como "declarar o código que o checker tem é
+    mais completo", que foi exatamente o raciocínio que o pôs lá.
+    """
+    report = shipped_step(shipped, "anatomy-checker").report
+
+    assert report is not None
+    assert EXIT_ERROR not in report.codes
 
 
 def test_the_shipped_checker_alarms_on_the_mechanism_channel_when_it_cannot_even_run(
